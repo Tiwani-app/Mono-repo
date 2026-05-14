@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Tiwani",
+    "slug": "tiwani",
+    "version": "2.1.0",
+    "orientation": "portrait",
+    "scheme": "tiwani",
+    "userInterfaceStyle": "dark"
+  }
+}

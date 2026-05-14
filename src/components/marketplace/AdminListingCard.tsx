@@ -1,0 +1,61 @@
+import React from 'react';
+import {Alert, StyleSheet, Text, View} from 'react-native';
+import Badge from '../common/Badge';
+import OutlineButton from '../common/OutlineButton';
+import {deleteListing, updateListing} from '../../services/marketplaceService';
+import {colors, spacing, typography} from '../../theme';
+import {Listing} from '../../types/marketplace';
+import {formatCurrency} from '../../utils/formatCurrency';
+
+interface Props {
+  listing: Listing;
+}
+
+const AdminListingCard = ({listing}: Props) => {
+  const handleDelete = () => {
+    Alert.alert('Delete Listing', 'Are you sure?', [
+      {text: 'Cancel', style: 'cancel'},
+      {text: 'Delete', style: 'destructive', onPress: () => deleteListing(listing.id)},
+    ]);
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.row}>
+        <View style={styles.content}>
+          <Text style={styles.title}>{listing.title}</Text>
+          <Text style={styles.price}>{formatCurrency(listing.price)}</Text>
+          <Text style={styles.description}>{listing.description}</Text>
+        </View>
+        <Badge
+          label={listing.status.toUpperCase()}
+          color={listing.status === 'sold' ? colors.text.tertiary : colors.status.success}
+        />
+      </View>
+      <View style={styles.actions}>
+        <OutlineButton label="Edit" onPress={() => {}} />
+        <OutlineButton label="Mark Sold" onPress={() => updateListing(listing.id, {status: 'sold'})} />
+        <OutlineButton label="Delete" onPress={handleDelete} color={colors.status.error} />
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.bg.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+  },
+  row: {flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md},
+  content: {flex: 1, gap: spacing.xs},
+  title: {fontSize: typography.size.md, fontWeight: typography.weight.bold, color: colors.text.primary},
+  price: {fontSize: typography.size.base, color: colors.gold.light, fontWeight: typography.weight.bold},
+  description: {fontSize: typography.size.sm, color: colors.text.secondary},
+  actions: {gap: spacing.sm},
+});
+
+export default AdminListingCard;
