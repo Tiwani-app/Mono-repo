@@ -1,33 +1,43 @@
-import React from 'react';
-import {Linking, StyleSheet, Text, View} from 'react-native';
-import Badge from '../common/Badge';
-import GoldButton from '../common/GoldButton';
-import {colors, spacing, typography} from '../../theme';
-import {Listing} from '../../types/marketplace';
-import {formatCurrency} from '../../utils/formatCurrency';
+import React from "react";
+import { Linking, StyleSheet, Text, View } from "react-native";
+import Icon from "../common/FeatherIcon";
+import Badge from "../common/Badge";
+import GoldButton from "../common/GoldButton";
+import { colors, spacing, typography } from "../../theme";
+import { Listing } from "../../types/marketplace";
+import { formatCurrency } from "../../utils/formatCurrency";
 
 interface Props {
   listing: Listing;
 }
 
-const ListingCard = ({listing}: Props) => {
-  const sold = listing.status === 'sold';
+const ListingCard = ({ listing }: Props) => {
+  const sold = listing.status === "sold";
+  const iconName = listing.title.toLowerCase().includes("camera")
+    ? "camera"
+    : "shopping-bag";
 
   const handleEnquire = () => {
-    const phone = '2348034567890';
+    const phone = "2348034567890";
     const message = encodeURIComponent(
       `Hi, I'm interested in "${listing.title}" listed on Tiwani for ${formatCurrency(listing.price)}. Is it still available?`,
     );
     const whatsappUrl = `whatsapp://send?phone=${phone}&text=${message}`;
-    Linking.canOpenURL(whatsappUrl).then(supported => {
-      Linking.openURL(supported ? whatsappUrl : `sms:+${phone}?body=${message}`);
+    Linking.canOpenURL(whatsappUrl).then((supported) => {
+      Linking.openURL(
+        supported ? whatsappUrl : `sms:+${phone}?body=${message}`,
+      );
     });
   };
 
   return (
     <View style={[styles.card, sold && styles.sold]}>
       <View style={styles.imageFallback}>
-        <Text style={styles.imageText}>T</Text>
+        <Icon
+          name={iconName}
+          size={28}
+          color={sold ? colors.text.tertiary : colors.gold.light}
+        />
       </View>
       <View style={styles.content}>
         <View style={styles.topRow}>
@@ -38,14 +48,22 @@ const ListingCard = ({listing}: Props) => {
           />
         </View>
         <Text style={styles.description}>{listing.description}</Text>
-        <Text style={[styles.price, sold && styles.soldPrice]}>{formatCurrency(listing.price)}</Text>
-        <GoldButton
-          label={sold ? 'Sold' : 'Enquire'}
-          onPress={handleEnquire}
-          disabled={sold}
-          fullWidth
-          size="sm"
-        />
+        <View style={styles.bottomRow}>
+          <View style={styles.priceBlock}>
+            <Text style={[styles.price, sold && styles.soldPrice]}>
+              {formatCurrency(listing.price)}
+            </Text>
+            <Text style={styles.postedBy}>
+              Posted by: {listing.postedByName}
+            </Text>
+          </View>
+          <GoldButton
+            label={sold ? "Sold" : "Enquire"}
+            onPress={handleEnquire}
+            disabled={sold}
+            size="sm"
+          />
+        </View>
       </View>
     </View>
   );
@@ -53,6 +71,7 @@ const ListingCard = ({listing}: Props) => {
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: "row",
     gap: spacing.md,
     padding: spacing.lg,
     backgroundColor: colors.bg.card,
@@ -60,21 +79,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.subtle,
   },
-  sold: {opacity: 0.65},
+  sold: { opacity: 0.65 },
   imageFallback: {
-    height: 120,
+    width: 76,
+    height: 76,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.bg.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
   },
-  imageText: {fontSize: typography.size.xxxl, color: colors.gold.light, fontWeight: typography.weight.black},
-  content: {gap: spacing.md},
-  topRow: {flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md},
-  title: {flex: 1, fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: colors.text.primary},
-  description: {fontSize: typography.size.base, color: colors.text.secondary, lineHeight: 20},
-  price: {fontSize: typography.size.xl, fontWeight: typography.weight.black, color: colors.gold.light},
-  soldPrice: {color: colors.text.tertiary},
+  content: { flex: 1, gap: spacing.md },
+  topRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  title: {
+    flex: 1,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  description: {
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  price: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.black,
+    color: colors.gold.light,
+  },
+  soldPrice: {
+    color: colors.text.tertiary,
+    textDecorationLine: "line-through",
+  },
+  bottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  priceBlock: { flex: 1, gap: spacing.xs },
+  postedBy: { fontSize: typography.size.xs, color: colors.text.tertiary },
 });
 
 export default ListingCard;

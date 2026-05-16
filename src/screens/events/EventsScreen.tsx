@@ -1,28 +1,40 @@
-import React, {useMemo, useState} from 'react';
-import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import Icon from '../../components/common/FeatherIcon';
-import {format, isSameDay} from 'date-fns';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import EmptyState from '../../components/common/EmptyState';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
-import EventCard from '../../components/events/EventCard';
-import WeekStrip from '../../components/events/WeekStrip';
-import {useEvents} from '../../hooks/useEvents';
-import {useAuthStore} from '../../store/authStore';
-import {colors, spacing, typography} from '../../theme';
-import {isAdmin} from '../../utils/roleGuard';
+import React, { useMemo, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Icon from "../../components/common/FeatherIcon";
+import { format, isSameDay } from "date-fns";
+import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
+import EventCard from "../../components/events/EventCard";
+import WeekStrip from "../../components/events/WeekStrip";
+import { useEvents } from "../../hooks/useEvents";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { isAdmin } from "../../utils/roleGuard";
 
-const EventsScreen = ({navigation}: any) => {
+const EventsScreen = ({ navigation }: any) => {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const {error, events, loading} = useEvents();
-  const {user} = useAuthStore();
+  const { error, events, loading } = useEvents();
+  const { user } = useAuthStore();
 
   const visibleEvents = useMemo(() => {
+    const sortedEvents = [...events].sort(
+      (a, b) => a.dateTime.getTime() - b.dateTime.getTime(),
+    );
     if (!selectedDay) {
-      return events;
+      return sortedEvents;
     }
-    return events.filter(event => isSameDay(event.dateTime, selectedDay));
+    return sortedEvents.filter((event) =>
+      isSameDay(event.dateTime, selectedDay),
+    );
   }, [events, selectedDay]);
 
   if (loading) {
@@ -35,37 +47,64 @@ const EventsScreen = ({navigation}: any) => {
         title="Events"
         rightElement={
           isAdmin(user) ? (
-            <TouchableOpacity style={styles.iconButton}>
-              <Icon name="plus" size={18} color={colors.gold.default} />
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() =>
+                Alert.alert(
+                  "Create Event",
+                  "Event creation is ready for the next admin form step.",
+                )
+              }
+            >
+              <Icon name="plus" size={22} color={colors.text.onGold} />
             </TouchableOpacity>
           ) : null
         }
       />
       <View style={styles.content}>
         <View style={styles.monthRow}>
-          <Text style={styles.month}>{format(new Date(), 'MMMM yyyy')}</Text>
-          <Text style={styles.monthMode}>Month View</Text>
+          <Text style={styles.month}>{format(new Date(), "MMMM yyyy")}</Text>
+          <TouchableOpacity
+            onPress={() => setSelectedDay(null)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.monthMode}>
+              {selectedDay ? "Show All" : "Month View"}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <WeekStrip events={events} selectedDay={selectedDay} onDayPress={setSelectedDay} />
+        <WeekStrip
+          events={events}
+          selectedDay={selectedDay}
+          onDayPress={setSelectedDay}
+        />
         <Text style={styles.sectionLabel}>UPCOMING</Text>
         {error ? (
           <EmptyState icon="!" title="Something went wrong" message={error} />
         ) : (
           <FlatList
             data={visibleEvents}
-            keyExtractor={item => item.id}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            renderItem={({item}) => (
+            renderItem={({ item }) => (
               <EventCard
                 event={item}
-                onPress={() => navigation.navigate('EventDetail', {eventId: item.id})}
+                onPress={() =>
+                  navigation.navigate("EventDetail", { eventId: item.id })
+                }
               />
             )}
             ListEmptyComponent={
               <EmptyState
                 icon="📅"
-                title={selectedDay ? 'No events this day' : 'No upcoming events'}
-                message={selectedDay ? 'Select another day or view all events.' : 'Check back later for new events.'}
+                title={
+                  selectedDay ? "No events this day" : "No upcoming events"
+                }
+                message={
+                  selectedDay
+                    ? "Select another day or view all events."
+                    : "Check back later for new events."
+                }
               />
             }
           />
@@ -76,24 +115,34 @@ const EventsScreen = ({navigation}: any) => {
 };
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.bg.secondary},
-  content: {flex: 1, paddingHorizontal: spacing.lg, gap: spacing.lg},
+  safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  content: { flex: 1, paddingHorizontal: spacing.lg, gap: spacing.lg },
   iconButton: {
     width: 48,
     height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: colors.gold.default,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  monthRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  month: {fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: colors.text.primary},
-  monthMode: {fontSize: typography.size.sm, color: colors.text.secondary},
+  monthRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  month: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  monthMode: { fontSize: typography.size.sm, color: colors.text.secondary },
   sectionLabel: {
     fontSize: typography.size.xs,
     fontWeight: typography.weight.bold,
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  list: {gap: spacing.md, paddingBottom: spacing.xxl},
+  list: { gap: spacing.md, paddingBottom: spacing.xxl },
 });
 
 export default EventsScreen;

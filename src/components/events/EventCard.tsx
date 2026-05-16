@@ -1,29 +1,35 @@
-import React from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import Icon from '../common/FeatherIcon';
-import Badge from '../common/Badge';
-import ProgressBar from '../common/ProgressBar';
-import {colors, spacing, typography} from '../../theme';
-import {CATEGORY_COLORS, TiwaniEvent} from '../../types/event';
-import {formatEventDate, formatEventTime} from '../../utils/formatDate';
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Icon from "../common/FeatherIcon";
+import Badge from "../common/Badge";
+import ProgressBar from "../common/ProgressBar";
+import { colors, spacing, typography } from "../../theme";
+import { CATEGORY_COLORS, TiwaniEvent } from "../../types/event";
+import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 
 interface Props {
   event: TiwaniEvent;
   onPress: () => void;
 }
 
-const EventCard = ({event, onPress}: Props) => {
+const EventCard = ({ event, onPress }: Props) => {
   const categoryColor = CATEGORY_COLORS[event.category];
-  const progress = event.capacity > 0 ? event.rsvpList.length / event.capacity : 0;
+  const progress =
+    event.capacity > 0 ? event.rsvpList.length / event.capacity : 0;
+  const capacityLabel =
+    event.capacity > 0
+      ? `${event.rsvpList.length}/${event.capacity}`
+      : `${event.rsvpList.length}`;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      style={[styles.card, {borderLeftColor: categoryColor}]}>
+      style={[styles.card, { borderLeftColor: categoryColor }]}
+    >
       <View style={styles.topRow}>
         <Badge label={event.category.toUpperCase()} color={categoryColor} />
-        <Text style={styles.count}>{event.rsvpList.length} going</Text>
+        <Text style={styles.count}>{capacityLabel}</Text>
       </View>
       <Text style={styles.title}>{event.title}</Text>
       <View style={styles.metaRow}>
@@ -36,14 +42,16 @@ const EventCard = ({event, onPress}: Props) => {
         <Icon name="map-pin" size={14} color={colors.text.secondary} />
         <Text style={styles.meta}>{event.location}</Text>
       </View>
-      {event.capacity > 0 && <ProgressBar value={progress} color={categoryColor} />}
+      {event.capacity > 0 && (
+        <ProgressBar value={progress} color={categoryColor} />
+      )}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.sm,
+    gap: spacing.md,
     padding: spacing.lg,
     backgroundColor: colors.bg.card,
     borderRadius: 8,
@@ -51,15 +59,27 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderColor: colors.border.subtle,
   },
-  topRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   title: {
     fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
   },
-  metaRow: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
-  meta: {flex: 1, fontSize: typography.size.base, color: colors.text.secondary},
-  count: {fontSize: typography.size.sm, color: colors.text.secondary},
+  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  meta: {
+    flex: 1,
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
+  },
+  count: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    fontWeight: typography.weight.semibold,
+  },
 });
 
 export default EventCard;
