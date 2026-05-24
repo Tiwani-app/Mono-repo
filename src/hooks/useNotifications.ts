@@ -11,15 +11,26 @@ export const useNotifications = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     AsyncStorage.getItem(STORAGE_KEY)
       .then(raw => setReadIds(raw ? JSON.parse(raw) : []))
-      .catch(() => setReadIds([]));
-    const unsubscribe = subscribeToNotifications(items => {
-      setNotifications(items);
+      .catch(error => {
+        setReadIds([]);
+        setError(
+          error instanceof Error ? error.message : 'Could not load read state.',
+        );
+      });
+    try {
+      const unsubscribe = subscribeToNotifications(items => {
+        setNotifications(items);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not load notifications.');
       setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [setNotifications, setReadIds, setLoading]);
+    }
+  }, [setError, setNotifications, setReadIds, setLoading]);
 
   const persistReadIds = async (ids: string[]) => {
     setReadIds(ids);

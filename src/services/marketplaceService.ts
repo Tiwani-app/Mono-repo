@@ -58,6 +58,9 @@ export const updateListing = async (
   data: Partial<Listing>,
 ): Promise<void> => {
   await delay();
+  if (!listings.some((listing) => listing.id === id)) {
+    throw new Error("Listing not found.");
+  }
   listings = listings.map((listing) =>
     listing.id === id ? { ...listing, ...data, updatedAt: new Date() } : listing,
   );
@@ -66,6 +69,9 @@ export const updateListing = async (
 
 export const deleteListing = async (id: string): Promise<void> => {
   await delay();
+  if (!listings.some((listing) => listing.id === id)) {
+    throw new Error("Listing not found.");
+  }
   listings = listings.filter((listing) => listing.id !== id);
   emitListings();
 };

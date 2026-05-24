@@ -55,6 +55,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   const listingId = route.params?.listingId as string | undefined;
   const [condition, setCondition] = useState<ListingCondition>("good");
   const [status, setStatus] = useState<ListingStatus>("available");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(listingId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
@@ -84,7 +85,11 @@ const ListingFormScreen = ({ navigation, route }: any) => {
         setCondition(listing.condition);
         setStatus(listing.status);
       })
-      .catch(() => Alert.alert("Marketplace", "Could not load this listing."))
+      .catch((error) =>
+        setLoadError(
+          error instanceof Error ? error.message : "Could not load this listing.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [listingId, reset]);
 
@@ -137,6 +142,21 @@ const ListingFormScreen = ({ navigation, route }: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Listing" showBack onBack={() => safeGoBack(navigation, "Marketplace")} />
+        <EmptyState
+          icon="!"
+          title="Listing unavailable"
+          message={loadError}
+          actionLabel="Back to Market"
+          onAction={() => safeGoBack(navigation, "Marketplace")}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

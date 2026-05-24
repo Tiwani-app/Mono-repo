@@ -2,45 +2,96 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Badge from '../../components/common/Badge';
+import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FinancialGate from '../../components/voting/FinancialGate';
 import PollOption from '../../components/voting/PollOption';
-import {castPollVote, hasCastPollVote} from '../../services/votingService';
+import {castPollVote, getPoll, hasCastPollVote} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
+import {Poll} from '../../types/voting';
 import {safeGoBack} from '../../utils/navigation';
 
 const PollVoteScreen = ({navigation, route}: any) => {
   const [gated, setGated] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [localPoll, setLocalPoll] = useState<Poll | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const {user} = useAuthStore();
   const {hasVotedPoll, polls, selectedPollOption, setHasVotedPoll, setSelectedPollOption} =
     useVotingStore();
-  const poll = useMemo(() => polls.find(item => item.id === route.params.pollId), [polls, route.params.pollId]);
+  const storePoll = useMemo(() => polls.find(item => item.id === route.params.pollId), [polls, route.params.pollId]);
+  const poll = storePoll ?? localPoll;
 
   useEffect(() => {
+    let active = true;
     const init = async () => {
+      setLoading(true);
+      setLoadError(null);
+      setGated(false);
+      setSelectedPollOption(null);
       if (!user) {
+        setLoading(false);
         return;
       }
       if (user.financialStatus === 'red') {
         setGated(true);
+        setLoading(false);
         return;
       }
-      setHasVotedPoll(await hasCastPollVote(route.params.pollId, user.uid));
+      try {
+        const [nextPoll, voted] = await Promise.all([
+          storePoll ? Promise.resolve(storePoll) : getPoll(route.params.pollId),
+          hasCastPollVote(route.params.pollId, user.uid),
+        ]);
+        if (!active) {
+          return;
+        }
+        setLocalPoll(nextPoll);
+        setHasVotedPoll(voted);
+      } catch (error) {
+        if (active) {
+          setLoadError(
+            error instanceof Error ? error.message : 'Could not load this poll.',
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     };
     init();
-  }, [route.params.pollId, setHasVotedPoll, user]);
+    return () => {
+      active = false;
+    };
+  }, [route.params.pollId, setHasVotedPoll, setSelectedPollOption, storePoll, user]);
 
   if (gated) {
     return <FinancialGate />;
   }
 
-  if (!poll) {
+  if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError || !poll) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Poll" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+        <EmptyState
+          icon="!"
+          title="Poll unavailable"
+          message={loadError ?? 'This poll could not be found.'}
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      </SafeAreaView>
+    );
   }
 
   const handleSubmit = async () => {
@@ -51,8 +102,20 @@ const PollVoteScreen = ({navigation, route}: any) => {
       setSubmitting(true);
       await castPollVote(poll.id, selectedPollOption, user.uid);
       setHasVotedPoll(true);
-    } catch (error: any) {
-      Alert.alert('Vote failed', error.message ?? 'Please try again.');
+      setLocalPoll({
+        ...poll,
+        totalVotes: poll.totalVotes + 1,
+        options: poll.options.map(option =>
+          option.id === selectedPollOption
+            ? {...option, voteCount: option.voteCount + 1}
+            : option,
+        ),
+      });
+    } catch (error) {
+      Alert.alert(
+        'Vote failed',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }

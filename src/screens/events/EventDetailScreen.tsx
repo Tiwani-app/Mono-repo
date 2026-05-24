@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
+import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -23,18 +24,42 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 
 const EventDetailScreen = ({ navigation, route }: any) => {
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rsvpPending, setRsvpPending] = useState(false);
+  const [cancelPending, setCancelPending] = useState(false);
   const { user } = useAuthStore();
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
     getEvent(route.params.eventId)
       .then(setEvent)
-      .catch(() => Alert.alert("Error", "Could not load this event."))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : "Could not load this event.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [route.params.eventId]);
 
-  if (loading || !event) {
+  if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError || !event) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Event" showBack onBack={() => safeGoBack(navigation, "EventsList")} />
+        <EmptyState
+          icon="!"
+          title="Event unavailable"
+          message={loadError ?? "This event could not be found."}
+          actionLabel="Back to Events"
+          onAction={() => safeGoBack(navigation, "EventsList")}
+        />
+      </SafeAreaView>
+    );
   }
 
   const isRsvped = user ? event.rsvpList.includes(user.uid) : false;
@@ -48,6 +73,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
       return;
     }
     try {
+      setRsvpPending(true);
       await toggleRsvp(event.id, user.uid);
       setEvent({
         ...event,
@@ -55,8 +81,13 @@ const EventDetailScreen = ({ navigation, route }: any) => {
           ? event.rsvpList.filter((uid) => uid !== user.uid)
           : [...event.rsvpList, user.uid],
       });
-    } catch {
-      Alert.alert("Error", "Could not update your RSVP. Please try again.");
+    } catch (error) {
+      Alert.alert(
+        "RSVP not updated",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setRsvpPending(false);
     }
   };
 
@@ -68,10 +99,16 @@ const EventDetailScreen = ({ navigation, route }: any) => {
         style: "destructive",
         onPress: async () => {
           try {
+            setCancelPending(true);
             await cancelEvent(event.id);
             setEvent({ ...event, status: "cancelled" });
-          } catch {
-            Alert.alert("Error", "Could not cancel this event.");
+          } catch (error) {
+            Alert.alert(
+              "Event not cancelled",
+              error instanceof Error ? error.message : "Please try again.",
+            );
+          } finally {
+            setCancelPending(false);
           }
         },
       },
@@ -130,12 +167,14 @@ const EventDetailScreen = ({ navigation, route }: any) => {
           <OutlineButton
             label="You're Going!"
             onPress={handleToggleRsvp}
+            disabled={rsvpPending}
             fullWidth
           />
         ) : (
           <GoldButton
             label="RSVP to This Event"
             onPress={handleToggleRsvp}
+            loading={rsvpPending}
             fullWidth
           />
         )}
@@ -153,6 +192,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
                 label="Cancel Event"
                 onPress={handleCancelEvent}
                 color={colors.status.error}
+                disabled={cancelPending}
                 fullWidth
               />
             )}

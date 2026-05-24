@@ -7,13 +7,16 @@ export const useVoting = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     try {
       const unsubscribePolls = subscribeToPolls(polls => {
         setPolls(polls);
+        setError(null);
         setLoading(false);
       });
       const unsubscribeElections = subscribeToElections(elections => {
         setElections(elections);
+        setError(null);
         setLoading(false);
       });
       return () => {

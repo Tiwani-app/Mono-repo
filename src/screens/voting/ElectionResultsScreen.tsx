@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Badge from '../../components/common/Badge';
 import EmptyState from '../../components/common/EmptyState';
@@ -18,9 +18,12 @@ import { safeGoBack } from '../../utils/navigation';
 const ElectionResultsScreen = ({ navigation, route }: any) => {
   const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<RaceResult[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
     Promise.all([
       getElection(route.params.electionId),
       getElectionResults(route.params.electionId),
@@ -29,12 +32,37 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
         setElection(nextElection);
         setResults(nextResults);
       })
-      .catch(() => Alert.alert('Election', 'Could not load election results.'))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : 'Could not load election results.',
+        ),
+      )
       .finally(() => setLoading(false));
   }, [route.params.electionId]);
 
-  if (loading || !election) {
+  if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError || !election) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Election Results"
+          showBack
+          onBack={() => safeGoBack(navigation, 'VotingHub')}
+        />
+        <EmptyState
+          icon="!"
+          title="Results unavailable"
+          message={loadError ?? 'This election could not be found.'}
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

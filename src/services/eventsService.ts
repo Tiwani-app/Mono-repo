@@ -58,6 +58,9 @@ export const updateEvent = async (
   data: Partial<EventInput>,
 ): Promise<void> => {
   await delay();
+  if (!events.some(event => event.id === eventId)) {
+    throw new Error('Event not found.');
+  }
   events = events.map(event => (event.id === eventId ? {...event, ...data} : event));
   emitEvents();
 };

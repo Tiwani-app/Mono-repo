@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from '../components/common/FeatherIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/common/EmptyState';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
 import { colors, spacing, typography } from '../theme';
@@ -77,7 +78,8 @@ const navigateToTarget = (navigation: any, target?: NotificationTarget) => {
 };
 
 const NotificationsScreen = ({navigation}: any) => {
-  const {markAllRead, markRead, notifications, readIds} = useNotifications();
+  const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
+  const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const sections = useMemo<Section[]>(() => {
     const unread = notifications.filter(item => !readIds.includes(item.id));
@@ -93,6 +95,24 @@ const NotificationsScreen = ({navigation}: any) => {
     navigateToTarget(navigation, item.target);
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      setMarkingAllRead(true);
+      await markAllRead();
+    } catch (markError) {
+      Alert.alert(
+        'Notifications not updated',
+        markError instanceof Error ? markError.message : 'Please try again.',
+      );
+    } finally {
+      setMarkingAllRead(false);
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -100,8 +120,13 @@ const NotificationsScreen = ({navigation}: any) => {
         showBack
         onBack={() => safeGoBack(navigation, 'DashboardHome')}
         rightElement={
-          <TouchableOpacity style={styles.markButton} onPress={markAllRead}>
-            <Text style={styles.markText}>Read</Text>
+          <TouchableOpacity
+            style={styles.markButton}
+            onPress={handleMarkAllRead}
+            disabled={markingAllRead || notifications.length === 0}>
+            <Text style={[styles.markText, (markingAllRead || notifications.length === 0) && styles.disabledText]}>
+              {markingAllRead ? 'Saving' : 'Read'}
+            </Text>
           </TouchableOpacity>
         }
       />
@@ -140,8 +165,8 @@ const NotificationsScreen = ({navigation}: any) => {
         ListEmptyComponent={
           <EmptyState
             icon="!"
-            title="All caught up"
-            message="You have no notifications."
+            title={error ? 'Notifications unavailable' : 'All caught up'}
+            message={error ?? 'You have no notifications.'}
           />
         }
       />
@@ -154,6 +179,7 @@ const styles = StyleSheet.create({
   content: {padding: spacing.lg, gap: spacing.md},
   markButton: {minHeight: 48, justifyContent: 'center'},
   markText: {color: colors.gold.default, fontWeight: typography.weight.bold},
+  disabledText: {opacity: 0.5},
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,

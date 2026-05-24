@@ -50,6 +50,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
   const [ballotType, setBallotType] = useState<Election['ballotType']>('secret');
   const [status, setStatus] = useState<Election['status']>('open');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(electionId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
@@ -84,7 +85,11 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         setBallotType(election.ballotType);
         setStatus(election.status);
       })
-      .catch(() => Alert.alert('Election', 'Could not load this election.'))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load this election.',
+        ),
+      )
       .finally(() => setLoading(false));
   }, [electionId, reset]);
 
@@ -145,6 +150,21 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Election" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+        <EmptyState
+          icon="!"
+          title="Election unavailable"
+          message={loadError}
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

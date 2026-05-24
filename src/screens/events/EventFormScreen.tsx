@@ -65,6 +65,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
   const eventId = route.params?.eventId as string | undefined;
   const [category, setCategory] = useState<EventCategory>('meeting');
   const [status, setStatus] = useState<EventStatus>('published');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
@@ -96,7 +97,11 @@ const EventFormScreen = ({ navigation, route }: any) => {
         setCategory(event.category);
         setStatus(event.status);
       })
-      .catch(() => Alert.alert('Events', 'Could not load this event.'))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load this event.',
+        ),
+      )
       .finally(() => setLoading(false));
   }, [eventId, reset]);
 
@@ -154,6 +159,21 @@ const EventFormScreen = ({ navigation, route }: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Event" showBack onBack={() => safeGoBack(navigation, 'EventsList')} />
+        <EmptyState
+          icon="!"
+          title="Event unavailable"
+          message={loadError}
+          actionLabel="Back to Events"
+          onAction={() => safeGoBack(navigation, 'EventsList')}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

@@ -44,6 +44,7 @@ const statusOptions: {label: string; value: Poll['status']}[] = [
 const PollFormScreen = ({ navigation, route }: any) => {
   const pollId = route.params?.pollId as string | undefined;
   const [status, setStatus] = useState<Poll['status']>('open');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(pollId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
@@ -69,7 +70,11 @@ const PollFormScreen = ({ navigation, route }: any) => {
         });
         setStatus(poll.status);
       })
-      .catch(() => Alert.alert('Polls', 'Could not load this poll.'))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load this poll.',
+        ),
+      )
       .finally(() => setLoading(false));
   }, [pollId, reset]);
 
@@ -122,6 +127,21 @@ const PollFormScreen = ({ navigation, route }: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Poll" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+        <EmptyState
+          icon="!"
+          title="Poll unavailable"
+          message={loadError}
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

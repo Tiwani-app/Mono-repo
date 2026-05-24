@@ -11,14 +11,24 @@ export const useFinance = (uid?: string, includeAll = false) => {
     }
     const ledgerUid = includeAll ? null : uid ?? null;
     setLoading(true);
-    const unsubscribe = subscribeToLedger(ledgerUid, entries => {
-      setLedgerEntries(entries);
+    setError(null);
+    try {
+      const unsubscribe = subscribeToLedger(ledgerUid, entries => {
+        setLedgerEntries(entries);
+        setError(null);
+        setLoading(false);
+      });
+      getDuesPeriods()
+        .then(periods => {
+          setDuesPeriods(periods);
+          setError(null);
+        })
+        .catch(error => setError(error instanceof Error ? error.message : 'Could not load finance data.'));
+      return () => unsubscribe();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not load finance data.');
       setLoading(false);
-    });
-    getDuesPeriods()
-      .then(setDuesPeriods)
-      .catch(error => setError(error instanceof Error ? error.message : 'Could not load finance data.'));
-    return () => unsubscribe();
+    }
   }, [includeAll, setDuesPeriods, setError, setLedgerEntries, setLoading, uid]);
 
   return useFinanceStore();

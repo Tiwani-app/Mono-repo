@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
 import GoldButton from "../common/GoldButton";
@@ -26,6 +26,25 @@ interface Props {
 
 const AdminListingCard = ({ listing, onEdit }: Props) => {
   const sold = listing.status === "sold";
+  const [pendingAction, setPendingAction] = useState<"delete" | "status" | null>(null);
+
+  const runAction = async (
+    actionName: "delete" | "status",
+    action: () => Promise<void>,
+    failureTitle: string,
+  ) => {
+    try {
+      setPendingAction(actionName);
+      await action();
+    } catch (error) {
+      Alert.alert(
+        failureTitle,
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert("Delete Listing", "Are you sure?", [
@@ -33,7 +52,8 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => deleteListing(listing.id),
+        onPress: () =>
+          runAction("delete", () => deleteListing(listing.id), "Listing not deleted"),
       },
     ]);
   };
@@ -55,22 +75,44 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
         />
       </View>
       <View style={styles.actions}>
-        {onEdit && <OutlineButton label="Edit" onPress={onEdit} />}
+        {onEdit && (
+          <OutlineButton
+            label="Edit"
+            onPress={onEdit}
+            disabled={Boolean(pendingAction)}
+          />
+        )}
         {sold ? (
           <GoldButton
             label="Mark Available"
-            onPress={() => updateListing(listing.id, { status: "available" })}
+            loading={pendingAction === "status"}
+            disabled={Boolean(pendingAction)}
+            onPress={() =>
+              runAction(
+                "status",
+                () => updateListing(listing.id, { status: "available" }),
+                "Listing not updated",
+              )
+            }
           />
         ) : (
           <OutlineButton
             label="Mark Sold"
-            onPress={() => updateListing(listing.id, { status: "sold" })}
+            disabled={Boolean(pendingAction)}
+            onPress={() =>
+              runAction(
+                "status",
+                () => updateListing(listing.id, { status: "sold" }),
+                "Listing not updated",
+              )
+            }
           />
         )}
         <OutlineButton
           label="Delete"
           onPress={handleDelete}
           color={colors.status.error}
+          disabled={Boolean(pendingAction)}
         />
       </View>
     </View>

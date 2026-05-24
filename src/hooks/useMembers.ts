@@ -7,9 +7,11 @@ export const useMembers = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     try {
       const unsubscribe = subscribeToMembers(members => {
         setMembers(members);
+        setError(null);
         setLoading(false);
       });
       return () => unsubscribe();

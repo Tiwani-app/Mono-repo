@@ -59,6 +59,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   const [role, setRole] = useState<Role>('member');
   const [status, setStatus] = useState<MemberStatus>('active');
   const [financialStatus, setFinancialStatus] = useState<FinancialStatus>('green');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(memberId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
@@ -89,7 +90,11 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         setStatus(member.status);
         setFinancialStatus(member.financialStatus);
       })
-      .catch(() => Alert.alert('Members', 'Could not load this member.'))
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load this member.',
+        ),
+      )
       .finally(() => setLoading(false));
   }, [memberId, reset]);
 
@@ -142,6 +147,21 @@ const MemberFormScreen = ({ navigation, route }: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Member" showBack onBack={() => safeGoBack(navigation, 'MembersList')} />
+        <EmptyState
+          icon="!"
+          title="Member unavailable"
+          message={loadError}
+          actionLabel="Back to Members"
+          onAction={() => safeGoBack(navigation, 'MembersList')}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

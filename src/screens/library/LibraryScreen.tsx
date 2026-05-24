@@ -153,6 +153,10 @@ const LibraryScreen = ({ navigation }: any) => {
                 ? "Try a different search term."
                 : "Published documents will appear here.")
             }
+            actionLabel={!error && searchQuery ? "Clear Search" : undefined}
+            onAction={
+              !error && searchQuery ? () => setSearchQuery("") : undefined
+            }
           />
         }
       />

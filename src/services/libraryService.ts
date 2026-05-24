@@ -68,6 +68,9 @@ export const updateLibraryDocument = async (
   data: Partial<LibraryDocument>,
 ): Promise<void> => {
   await delay();
+  if (!documents.some((document) => document.id === documentId)) {
+    throw new Error("Document not found.");
+  }
   documents = documents.map((document) =>
     document.id === documentId ? { ...document, ...data } : document,
   );
@@ -83,6 +86,9 @@ export const setLibraryDocumentStatus = async (
 
 export const deleteLibraryDocument = async (documentId: string): Promise<void> => {
   await delay();
+  if (!documents.some((document) => document.id === documentId)) {
+    throw new Error("Document not found.");
+  }
   documents = documents.filter((document) => document.id !== documentId);
   emitDocuments();
 };

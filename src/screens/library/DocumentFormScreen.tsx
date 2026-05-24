@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -28,9 +29,12 @@ import {
   LibraryCategory,
   LibraryDocumentStatus,
   LibraryDocumentType,
+  LibraryFileType,
   LibraryDocumentVisibility,
 } from "../../types/library";
+import { useAuthStore } from "../../store/authStore";
 import { safeGoBack } from "../../utils/navigation";
+import { isAdmin } from "../../utils/roleGuard";
 
 interface FormValues {
   title: string;
@@ -54,13 +58,29 @@ const typeOptionsByCategory: Record<LibraryCategory, LibraryDocumentType[]> = {
   ],
 };
 
+const inferFileType = (fileName: string): LibraryFileType | null => {
+  const extension = fileName.trim().split(".").pop()?.toLowerCase();
+  if (extension === "pdf") {
+    return "pdf";
+  }
+  if (extension === "doc" || extension === "docx") {
+    return extension;
+  }
+  if (["jpg", "jpeg", "png"].includes(extension ?? "")) {
+    return "image";
+  }
+  return null;
+};
+
 const DocumentFormScreen = ({ navigation, route }: any) => {
   const documentId = route.params?.documentId as string | undefined;
+  const { user } = useAuthStore();
   const [category, setCategory] = useState<LibraryCategory>("constitutional");
   const [type, setType] = useState<LibraryDocumentType>("constitution");
   const [status, setStatus] = useState<LibraryDocumentStatus>("draft");
   const [visibility, setVisibility] =
     useState<LibraryDocumentVisibility>("all_members");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(documentId));
   const [submitting, setSubmitting] = useState(false);
   const { control, handleSubmit, reset, watch, formState } = useForm<FormValues>({
@@ -87,7 +107,11 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         setStatus(document.status);
         setVisibility(document.visibility);
       })
-      .catch(() => Alert.alert("Library", "Could not load this document."))
+      .catch((error) =>
+        setLoadError(
+          error instanceof Error ? error.message : "Could not load this document.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [documentId, reset]);
 
@@ -99,13 +123,26 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   };
 
   const onSubmit = async (values: FormValues) => {
+    const title = values.title.trim();
+    const description = values.description.trim();
+    const fileName = values.fileName.trim();
+    const fileType = inferFileType(fileName);
+    if (!fileType) {
+      Alert.alert(
+        "Unsupported file type",
+        "Use a PDF, DOC, DOCX, JPG, or PNG file name.",
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
       if (documentId) {
         await updateLibraryDocument(documentId, {
-          title: values.title,
-          description: values.description,
-          fileName: values.fileName,
+          title,
+          description,
+          fileName,
+          fileType,
           category,
           type,
           status,
@@ -113,18 +150,16 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         });
       } else {
         await createLibraryDocument({
-          title: values.title,
-          description: values.description,
-          fileName: values.fileName,
+          title,
+          description,
+          fileName,
           category,
           type,
           status,
           visibility,
           documentDate: new Date(),
           fileURL: null,
-          fileType: values.fileName.toLowerCase().endsWith(".pdf")
-            ? "pdf"
-            : "other",
+          fileType,
           fileSize: null,
         });
       }
@@ -139,8 +174,44 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     }
   };
 
+  if (!isAdmin(user)) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Upload Document"
+          showBack
+          onBack={() => safeGoBack(navigation, "Library")}
+        />
+        <EmptyState
+          icon="!"
+          title="Admin only"
+          message="Only admins can upload and edit Library documents."
+        />
+      </SafeAreaView>
+    );
+  }
+
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Document"
+          showBack
+          onBack={() => safeGoBack(navigation, "Library")}
+        />
+        <EmptyState
+          icon="!"
+          title="Document unavailable"
+          message={loadError}
+          actionLabel="Back to Library"
+          onAction={() => safeGoBack(navigation, "Library")}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -176,7 +247,13 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
             error={formState.errors.fileName?.message}
             label="FILE NAME"
             name="fileName"
-            rules={{ required: "File name is required." }}
+            rules={{
+              required: "File name is required.",
+              validate: (value: string) =>
+                inferFileType(value)
+                  ? true
+                  : "Use PDF, DOC, DOCX, JPG, or PNG.",
+            }}
           />
           <Text style={styles.sectionLabel}>CATEGORY</Text>
           <ChipRow

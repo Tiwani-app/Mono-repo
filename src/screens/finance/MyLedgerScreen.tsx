@@ -13,7 +13,7 @@ import {colors, spacing, typography} from '../../theme';
 const MyLedgerScreen = ({navigation, route}: any) => {
   const {user} = useAuthStore();
   const targetUid = route.params?.memberId ?? user?.uid;
-  const {ledgerEntries, loading} = useFinance(targetUid);
+  const {error, ledgerEntries, loading} = useFinance(targetUid);
   const outstanding = ledgerEntries
     .filter(entry => entry.type !== 'payment' && !entry.paid)
     .reduce((sum, entry) => sum + entry.amount, 0);
@@ -28,6 +28,21 @@ const MyLedgerScreen = ({navigation, route}: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="My Finances" showBack onBack={handleBack} />
+        <EmptyState
+          icon="!"
+          title="Ledger unavailable"
+          message={error}
+          actionLabel="Back"
+          onAction={handleBack}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

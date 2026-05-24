@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { useMembers } from '../../hooks/useMembers';
 import { createAdHocCharge } from '../../services/financeService';
@@ -53,7 +54,7 @@ const parseDate = (value: string) => {
 const AdHocChargeScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
-  const { members } = useMembers();
+  const { members, error, loading } = useMembers();
   const [type, setType] = useState<LedgerType>('levy');
   const [targetMode, setTargetMode] = useState<'all' | 'single'>(
     routeMemberId ? 'single' : 'all',
@@ -125,6 +126,25 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
           icon="!"
           title="Admin only"
           message="Only admins can create ad hoc charges."
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error || activeMembers.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
+        <EmptyState
+          icon="!"
+          title={error ? 'Members unavailable' : 'No active members'}
+          message={error ?? 'Active members are required before creating an ad hoc charge.'}
+          actionLabel="Back to Finance"
+          onAction={() => safeGoBack(navigation, 'FinanceAdmin')}
         />
       </SafeAreaView>
     );

@@ -7,9 +7,11 @@ export const useMarketplace = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     try {
       const unsubscribe = subscribeToListings(listings => {
         setListings(listings);
+        setError(null);
         setLoading(false);
       });
       return () => unsubscribe();

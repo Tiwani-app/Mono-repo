@@ -11,9 +11,11 @@ export const useLibraryDocuments = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     try {
       const unsubscribe = subscribeToLibraryDocuments((documents) => {
         setDocuments(documents);
+        setError(null);
         setLoading(false);
       }, includeAdmin);
       return () => unsubscribe();

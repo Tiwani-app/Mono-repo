@@ -35,6 +35,7 @@ interface ProfileFormValues {
 const SettingsScreen = ({navigation}: any) => {
   const {updateCurrentUser, user} = useAuthStore();
   const [editingProfile, setEditingProfile] = useState(false);
+  const [savingPreference, setSavingPreference] = useState<keyof NotificationPreferences | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const { control, handleSubmit, reset, formState } = useForm<ProfileFormValues>({
@@ -55,6 +56,7 @@ const SettingsScreen = ({navigation}: any) => {
     const notificationPreferences = {...previousPreferences, [key]: value};
     updateCurrentUser({notificationPreferences});
     try {
+      setSavingPreference(key);
       await updateMemberProfile(user.uid, {notificationPreferences});
     } catch (error) {
       updateCurrentUser({notificationPreferences: previousPreferences});
@@ -62,6 +64,8 @@ const SettingsScreen = ({navigation}: any) => {
         'Preference not saved',
         error instanceof Error ? error.message : 'Please try again.',
       );
+    } finally {
+      setSavingPreference(null);
     }
   };
 
@@ -76,6 +80,12 @@ const SettingsScreen = ({navigation}: any) => {
   };
 
   const handleSaveProfile = async (values: ProfileFormValues) => {
+    const previousProfile = {
+      fullName: user.fullName,
+      phone: user.phone,
+      address: user.address,
+      photoURL: user.photoURL,
+    };
     const update = {
       fullName: values.fullName.trim(),
       phone: values.phone.trim(),
@@ -88,6 +98,7 @@ const SettingsScreen = ({navigation}: any) => {
       await updateMemberProfile(user.uid, update);
       setEditingProfile(false);
     } catch (error) {
+      updateCurrentUser(previousProfile);
       Alert.alert(
         'Profile not saved',
         error instanceof Error ? error.message : 'Please try again.',
@@ -178,16 +189,19 @@ const SettingsScreen = ({navigation}: any) => {
           <ToggleRow
             label="Events & Meetings"
             value={user.notificationPreferences.events}
+            disabled={Boolean(savingPreference)}
             onValueChange={value => handleToggleNotification('events', value)}
           />
           <ToggleRow
             label="Finance & Dues"
             value={user.notificationPreferences.finance}
+            disabled={Boolean(savingPreference)}
             onValueChange={value => handleToggleNotification('finance', value)}
           />
           <ToggleRow
             label="Voting & Polls"
             value={user.notificationPreferences.voting}
+            disabled={Boolean(savingPreference)}
             onValueChange={value => handleToggleNotification('voting', value)}
           />
           <Text style={styles.sectionLabel}>LINKS</Text>
@@ -246,10 +260,12 @@ const Row = ({label, value}: {label: string; value: string}) => (
 
 const ToggleRow = ({
   label,
+  disabled,
   onValueChange,
   value,
 }: {
   label: string;
+  disabled?: boolean;
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) => (
@@ -257,6 +273,7 @@ const ToggleRow = ({
     <Text style={styles.rowLabel}>{label}</Text>
     <Switch
       value={value}
+      disabled={disabled}
       onValueChange={onValueChange}
       trackColor={{false: colors.bg.elevated, true: colors.gold.dark}}
       thumbColor={colors.bg.secondary}

@@ -19,12 +19,17 @@ import { safeGoBack } from "../../utils/navigation";
 const LibraryCategoryScreen = ({ navigation, route }: any) => {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedYear, setSelectedYear] = useState("all");
-  const { documents, loading } = useLibraryDocuments();
-  const category = route.params.category as LibraryCategory;
+  const { documents, error, loading } = useLibraryDocuments();
+  const category = route.params?.category as LibraryCategory | undefined;
+  const validCategory =
+    category === "constitutional" || category === "minutes_reports";
 
   const categoryDocuments = useMemo(
-    () => documents.filter((document) => document.category === category),
-    [category, documents],
+    () =>
+      validCategory
+        ? documents.filter((document) => document.category === category)
+        : [],
+    [category, documents, validCategory],
   );
 
   const typeOptions = useMemo(() => {
@@ -68,6 +73,25 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
     return <LoadingSpinner />;
   }
 
+  if (!validCategory) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Library"
+          showBack
+          onBack={() => safeGoBack(navigation, "Library")}
+        />
+        <EmptyState
+          icon="!"
+          title="Category unavailable"
+          message="This Library category could not be found."
+          actionLabel="Back to Library"
+          onAction={() => safeGoBack(navigation, "Library")}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -106,8 +130,24 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
         ListEmptyComponent={
           <EmptyState
             icon="!"
-            title="No documents here"
-            message="Try clearing filters or check back after documents are published."
+            title={error ? "Category unavailable" : "No documents here"}
+            message={
+              error ??
+              (categoryDocuments.length
+                ? "Try clearing filters or choosing another year."
+                : "Published documents in this category will appear here.")
+            }
+            actionLabel={
+              !error && categoryDocuments.length ? "Clear Filters" : undefined
+            }
+            onAction={
+              !error && categoryDocuments.length
+                ? () => {
+                    setSelectedType("all");
+                    setSelectedYear("all");
+                  }
+                : undefined
+            }
           />
         }
       />

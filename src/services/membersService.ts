@@ -101,12 +101,18 @@ export const updateMember = async (
   data: Partial<MemberInput>,
 ): Promise<void> => {
   await delay();
+  if (!members.some(member => member.uid === uid)) {
+    throw new Error('Member not found.');
+  }
   members = members.map(member => (member.uid === uid ? {...member, ...data} : member));
   emitMembers();
 };
 
 export const updateMemberProfile = async (uid: string, data: Partial<User>): Promise<void> => {
   await delay();
+  if (!members.some(member => member.uid === uid)) {
+    throw new Error('Member not found.');
+  }
   members = members.map(member => (member.uid === uid ? {...member, ...data} : member));
   emitMembers();
 };

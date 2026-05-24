@@ -85,6 +85,9 @@ export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => 
   await delay();
   const id = `dues-${Date.now()}`;
   const activeMembers = mockUsers.filter(user => user.status === 'active');
+  if (activeMembers.length === 0) {
+    throw new Error('No active members are available for this dues period.');
+  }
   duesPeriods = [
     {
       id,
@@ -118,6 +121,12 @@ export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => 
 
 export const createAdHocCharge = async (data: ChargeInput): Promise<void> => {
   await delay();
+  const missingMember = data.memberIds.find(
+    uid => !mockUsers.some(user => user.uid === uid),
+  );
+  if (missingMember) {
+    throw new Error('One or more selected members could not be found.');
+  }
   ledgerEntries = [
     ...data.memberIds.map((uid, index) => ({
       id: `ledger-${Date.now()}-${index}`,
@@ -138,6 +147,9 @@ export const createAdHocCharge = async (data: ChargeInput): Promise<void> => {
 
 export const recordPayment = async (data: PaymentInput): Promise<void> => {
   await delay();
+  if (!mockUsers.some(user => user.uid === data.uid)) {
+    throw new Error('Member not found.');
+  }
   const paidAt = new Date();
   let remainingAmount = data.amount;
   ledgerEntries = ledgerEntries.map(entry => {

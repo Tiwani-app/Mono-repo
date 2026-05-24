@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
+import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -18,12 +19,22 @@ import { safeGoBack } from "../../utils/navigation";
 
 const DocumentViewerScreen = ({ navigation, route }: any) => {
   const [document, setDocument] = useState<LibraryDocument | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     getLibraryDocument(route.params.documentId)
       .then(setDocument)
-      .catch(() => Alert.alert("Library", "Could not load this document."))
+      .catch((loadError) =>
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Could not load this document.",
+        ),
+      )
       .finally(() => setLoading(false));
   }, [route.params.documentId]);
 
@@ -31,21 +42,46 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
     if (!document) {
       return;
     }
-    const url = await getLibraryDocumentURL(document.id);
-    if (!url) {
-      Alert.alert("File unavailable", "This document does not have a file URL yet.");
-      return;
+    try {
+      setOpening(true);
+      const url = await getLibraryDocumentURL(document.id);
+      if (!url) {
+        Alert.alert("File unavailable", "This document does not have a file URL yet.");
+        return;
+      }
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        return;
+      }
+      Alert.alert("Unsupported file", "This file cannot be opened on this device.");
+    } catch (openError) {
+      Alert.alert(
+        "Document unavailable",
+        openError instanceof Error ? openError.message : "Please try again.",
+      );
+    } finally {
+      setOpening(false);
     }
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-      return;
-    }
-    Alert.alert("Unsupported file", "This file cannot be opened on this device.");
   };
 
-  if (loading || !document) {
+  if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (error || !document) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Document" showBack onBack={() => safeGoBack(navigation, "Library")} />
+        <EmptyState
+          icon="!"
+          title="Document unavailable"
+          message={error ?? "This document could not be found."}
+          actionLabel="Back to Library"
+          onAction={() => safeGoBack(navigation, "Library")}
+        />
+      </SafeAreaView>
+    );
   }
 
   const date = document.documentDate ?? document.uploadedAt;
@@ -80,7 +116,13 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
               : "This file needs an external app or a backend-provided download URL."}
           </Text>
         </View>
-        <GoldButton label="Open Document" onPress={handleOpen} fullWidth />
+        <GoldButton
+          label={previewSupported ? "Open PDF" : "Open Externally"}
+          onPress={handleOpen}
+          loading={opening}
+          disabled={!document.fileURL}
+          fullWidth
+        />
         <OutlineButton
           label="Back to Library"
           onPress={() => safeGoBack(navigation, "Library")}

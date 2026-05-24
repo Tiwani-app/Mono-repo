@@ -134,6 +134,9 @@ export const updatePoll = async (
   data: Partial<PollInput>,
 ): Promise<void> => {
   await delay();
+  if (!polls.some(poll => poll.id === pollId)) {
+    throw new Error('Poll not found.');
+  }
   polls = polls.map(poll => {
     if (poll.id !== pollId) {
       return poll;
@@ -182,6 +185,9 @@ export const updateElection = async (
   data: Partial<ElectionInput>,
 ): Promise<void> => {
   await delay();
+  if (!elections.some(election => election.id === electionId)) {
+    throw new Error('Election not found.');
+  }
   elections = elections.map(election =>
     election.id === electionId
       ? {

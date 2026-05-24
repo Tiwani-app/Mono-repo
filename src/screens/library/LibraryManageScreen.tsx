@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
@@ -20,7 +20,8 @@ import { safeGoBack } from "../../utils/navigation";
 
 const LibraryManageScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const { documents, loading } = useLibraryDocuments();
+  const { documents, error, loading } = useLibraryDocuments();
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
   if (!isAdmin(user)) {
     return (
@@ -39,13 +40,36 @@ const LibraryManageScreen = ({ navigation }: any) => {
     return <LoadingSpinner />;
   }
 
+  const runDocumentAction = async (
+    actionId: string,
+    action: () => Promise<void>,
+    failureTitle: string,
+  ) => {
+    try {
+      setPendingActionId(actionId);
+      await action();
+    } catch (actionError) {
+      Alert.alert(
+        failureTitle,
+        actionError instanceof Error ? actionError.message : "Please try again.",
+      );
+    } finally {
+      setPendingActionId(null);
+    }
+  };
+
   const confirmDelete = (document: LibraryDocument) => {
     Alert.alert("Delete Document", `Delete ${document.title}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => deleteLibraryDocument(document.id),
+        onPress: () =>
+          runDocumentAction(
+            `delete-${document.id}`,
+            () => deleteLibraryDocument(document.id),
+            "Document not deleted",
+          ),
       },
     ]);
   };
@@ -80,6 +104,7 @@ const LibraryManageScreen = ({ navigation }: any) => {
             <View style={styles.actions}>
               <OutlineButton
                 label="Edit"
+                disabled={Boolean(pendingActionId)}
                 onPress={() =>
                   navigation.navigate("DocumentForm", { documentId: item.id })
                 }
@@ -87,17 +112,33 @@ const LibraryManageScreen = ({ navigation }: any) => {
               {item.status === "published" ? (
                 <OutlineButton
                   label="Archive"
-                  onPress={() => setLibraryDocumentStatus(item.id, "archived")}
+                  disabled={Boolean(pendingActionId)}
+                  onPress={() =>
+                    runDocumentAction(
+                      `archive-${item.id}`,
+                      () => setLibraryDocumentStatus(item.id, "archived"),
+                      "Document not archived",
+                    )
+                  }
                 />
               ) : (
                 <GoldButton
                   label="Publish"
-                  onPress={() => setLibraryDocumentStatus(item.id, "published")}
+                  loading={pendingActionId === `publish-${item.id}`}
+                  disabled={Boolean(pendingActionId)}
+                  onPress={() =>
+                    runDocumentAction(
+                      `publish-${item.id}`,
+                      () => setLibraryDocumentStatus(item.id, "published"),
+                      "Document not published",
+                    )
+                  }
                 />
               )}
               <OutlineButton
                 label="Delete"
                 color={colors.status.error}
+                disabled={Boolean(pendingActionId)}
                 onPress={() => confirmDelete(item)}
               />
             </View>
@@ -106,8 +147,10 @@ const LibraryManageScreen = ({ navigation }: any) => {
         ListEmptyComponent={
           <EmptyState
             icon="!"
-            title="No documents"
-            message="Upload a document to start the Library archive."
+            title={error ? "Library management unavailable" : "No documents"}
+            message={error ?? "Upload a document to start the Library archive."}
+            actionLabel={error ? undefined : "Upload Document"}
+            onAction={error ? undefined : () => navigation.navigate("DocumentForm")}
           />
         }
       />

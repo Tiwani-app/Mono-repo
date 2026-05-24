@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import { useMembers } from '../../hooks/useMembers';
 import { recordPayment } from '../../services/financeService';
@@ -35,7 +36,7 @@ interface FormValues {
 const RecordPaymentScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
-  const { members } = useMembers();
+  const { members, error, loading } = useMembers();
   const [selectedUid, setSelectedUid] = useState(routeMemberId ?? '');
   const [submitting, setSubmitting] = useState(false);
   const { control, handleSubmit, formState } = useForm<FormValues>({
@@ -91,6 +92,25 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
           icon="!"
           title="Admin only"
           message="Only admins can record member payments."
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error || members.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Record Payment" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
+        <EmptyState
+          icon="!"
+          title={error ? 'Members unavailable' : 'No members available'}
+          message={error ?? 'Add members before recording a payment.'}
+          actionLabel="Back to Finance"
+          onAction={() => safeGoBack(navigation, 'FinanceAdmin')}
         />
       </SafeAreaView>
     );
