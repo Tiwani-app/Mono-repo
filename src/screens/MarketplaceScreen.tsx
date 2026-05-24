@@ -11,6 +11,7 @@ import Icon from "../components/common/FeatherIcon";
 import Badge from "../components/common/Badge";
 import EmptyState from "../components/common/EmptyState";
 import GoldButton from "../components/common/GoldButton";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 import ScreenHeader from "../components/common/ScreenHeader";
 import AdminListingCard from "../components/marketplace/AdminListingCard";
 import ListingCard from "../components/marketplace/ListingCard";
@@ -61,61 +62,54 @@ const MarketplaceScreen = ({ navigation }: any) => {
           />
         )}
       </View>
-      <FlatList
-        data={listings}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <View style={styles.infoBanner}>
-            <Icon name="tag" size={18} color={colors.gold.light} />
-            <Text style={styles.infoText}>
-              {tab === "browse"
-                ? "Items listed by association members & admin. Enquire directly to arrange."
-                : "Admins can manage up to 2 marketplace listings at a time."}
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) =>
-          tab === "manage" ? (
-            <AdminListingCard
-              listing={item}
-              onEdit={() =>
-                navigation.navigate("ListingForm", { listingId: item.id })
-              }
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <FlatList
+          data={listings}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <View style={styles.infoBanner}>
+              <Icon name="tag" size={18} color={colors.gold.light} />
+              <Text style={styles.infoText}>
+                {tab === "browse"
+                  ? "Items listed by association members & admin. Enquire directly to arrange."
+                  : "Admins can manage up to 2 marketplace listings at a time."}
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) =>
+            tab === "manage" ? (
+              <AdminListingCard
+                listing={item}
+                onEdit={() =>
+                  navigation.navigate("ListingForm", { listingId: item.id })
+                }
+              />
+            ) : (
+              <ListingCard listing={item} />
+            )
+          }
+          ListFooterComponent={
+            admin && tab === "manage" ? (
+              <GoldButton
+                label={maxReached ? "Max 2 listings reached" : "Add New Listing"}
+                onPress={handleAddListing}
+                disabled={maxReached}
+                fullWidth
+              />
+            ) : null
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon="!"
+              title={error ? "Could not load listings" : "Nothing for sale"}
+              message={error ?? "The admin hasn't listed any items yet."}
             />
-          ) : (
-            <ListingCard listing={item} />
-          )
-        }
-        ListFooterComponent={
-          admin && tab === "manage" ? (
-            <GoldButton
-              label={maxReached ? "Max 2 listings reached" : "Add New Listing"}
-              onPress={handleAddListing}
-              disabled={maxReached}
-              fullWidth
-            />
-          ) : null
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon="!"
-            title={
-              error
-                ? "Could not load listings"
-                : loading
-                  ? "Loading listings"
-                  : "Nothing for sale"
-            }
-            message={
-              error ??
-              (loading
-                ? "Please wait a moment."
-                : "The admin hasn't listed any items yet.")
-            }
-          />
-        }
-      />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };

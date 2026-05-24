@@ -123,6 +123,9 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   };
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const title = values.title.trim();
     const description = values.description.trim();
     const fileName = values.fileName.trim();

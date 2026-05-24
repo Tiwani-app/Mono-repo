@@ -94,6 +94,9 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   }, [electionId, reset]);
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const candidates = values.candidates
       .map(candidate => ({
         name: candidate.name.trim(),

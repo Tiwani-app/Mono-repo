@@ -75,6 +75,9 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const amount = Number(values.amount.replace(/,/g, ''));
     const dueDate = parseDate(values.dueDate);
     const memberIds =

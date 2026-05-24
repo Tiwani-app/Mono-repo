@@ -1,8 +1,8 @@
 import React from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
-import Icon from "../common/FeatherIcon";
 import Badge from "../common/Badge";
 import GoldButton from "../common/GoldButton";
+import ListingMedia from "./ListingMedia";
 import { colors, spacing, typography } from "../../theme";
 import { Listing, ListingCondition } from "../../types/marketplace";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -21,9 +21,6 @@ interface Props {
 
 const ListingCard = ({ listing }: Props) => {
   const sold = listing.status === "sold";
-  const iconName = listing.title.toLowerCase().includes("camera")
-    ? "camera"
-    : "shopping-bag";
 
   const handleEnquire = () => {
     const phone = "2348034567890";
@@ -40,13 +37,7 @@ const ListingCard = ({ listing }: Props) => {
 
   return (
     <View style={[styles.card, sold && styles.sold]}>
-      <View style={styles.imageFallback}>
-        <Icon
-          name={iconName}
-          size={28}
-          color={sold ? colors.text.tertiary : colors.gold.light}
-        />
-      </View>
+      <ListingMedia listing={listing} />
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.title}>{listing.title}</Text>
@@ -93,16 +84,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
   },
   sold: { opacity: 0.65 },
-  imageFallback: {
-    width: 76,
-    height: 76,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.bg.elevated,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-  },
   content: { flex: 1, gap: spacing.md },
   topRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   title: {

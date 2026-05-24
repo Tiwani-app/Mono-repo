@@ -4,6 +4,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Badge from '../../components/common/Badge';
 import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OutlineButton from '../../components/common/OutlineButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FinancialGate from '../../components/voting/FinancialGate';
@@ -15,7 +16,7 @@ import {colors, spacing, typography} from '../../theme';
 import {isAdmin} from '../../utils/roleGuard';
 
 const VotingHubScreen = ({navigation}: any) => {
-  const {elections, polls} = useVoting();
+  const {elections, error, loading, polls} = useVoting();
   const {user} = useAuthStore();
   const empty = elections.length === 0 && polls.length === 0;
   const admin = isAdmin(user);
@@ -26,7 +27,16 @@ const VotingHubScreen = ({navigation}: any) => {
       {
         text: 'Close Poll',
         style: 'destructive',
-        onPress: () => closePoll(pollId),
+        onPress: async () => {
+          try {
+            await closePoll(pollId);
+          } catch (closeError) {
+            Alert.alert(
+              'Poll not closed',
+              closeError instanceof Error ? closeError.message : 'Please try again.',
+            );
+          }
+        },
       },
     ]);
   };
@@ -37,13 +47,35 @@ const VotingHubScreen = ({navigation}: any) => {
       {
         text: 'Close Election',
         style: 'destructive',
-        onPress: () => closeElection(electionId),
+        onPress: async () => {
+          try {
+            await closeElection(electionId);
+          } catch (closeError) {
+            Alert.alert(
+              'Election not closed',
+              closeError instanceof Error ? closeError.message : 'Please try again.',
+            );
+          }
+        },
       },
     ]);
   };
 
   if (user?.financialStatus === 'red') {
     return <FinancialGate />;
+  }
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Vote & Polls" />
+        <EmptyState icon="!" title="Voting unavailable" message={error} />
+      </SafeAreaView>
+    );
   }
 
   return (

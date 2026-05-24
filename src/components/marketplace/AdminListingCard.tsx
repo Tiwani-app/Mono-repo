@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
 import GoldButton from "../common/GoldButton";
 import OutlineButton from "../common/OutlineButton";
+import ListingMedia from "./ListingMedia";
 import {
   deleteListing,
   updateListing,
@@ -61,6 +62,7 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
   return (
     <View style={styles.card}>
       <View style={styles.row}>
+        <ListingMedia listing={listing} size={64} />
         <View style={styles.content}>
           <Text style={styles.title}>{listing.title}</Text>
           <Text style={styles.price}>{formatCurrency(listing.price)}</Text>

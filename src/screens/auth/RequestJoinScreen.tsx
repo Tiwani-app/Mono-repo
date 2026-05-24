@@ -36,6 +36,9 @@ const RequestJoinScreen = ({ navigation }: any) => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     try {
       setSubmitting(true);
       await createJoinRequest({

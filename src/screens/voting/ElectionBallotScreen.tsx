@@ -17,6 +17,7 @@ import {safeGoBack} from '../../utils/navigation';
 import {isElectionBallotComplete} from '../../utils/votingGuards';
 
 const ElectionBallotScreen = ({navigation, route}: any) => {
+  const electionId = route.params?.electionId as string | undefined;
   const [gated, setGated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,8 +34,8 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
     setHasVotedElection,
   } = useVotingStore();
   const storeElection = useMemo(
-    () => elections.find(item => item.id === route.params.electionId),
-    [elections, route.params.electionId],
+    () => elections.find(item => item.id === electionId),
+    [elections, electionId],
   );
   const election = storeElection ?? localElection;
 
@@ -48,6 +49,11 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
         setLoading(false);
         return;
       }
+      if (!electionId) {
+        setLoadError('This election could not be found.');
+        setLoading(false);
+        return;
+      }
       if (user.financialStatus === 'red') {
         setGated(true);
         setLoading(false);
@@ -55,8 +61,8 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
       }
       try {
         const [nextElection, voted] = await Promise.all([
-          storeElection ? Promise.resolve(storeElection) : getElection(route.params.electionId),
-          hasCastElectionVote(route.params.electionId, user.uid),
+          storeElection ? Promise.resolve(storeElection) : getElection(electionId),
+          hasCastElectionVote(electionId, user.uid),
         ]);
         if (!active) {
           return;
@@ -81,10 +87,10 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
     return () => {
       active = false;
     };
-  }, [route.params.electionId, setHasVotedElection, storeElection, user]);
+  }, [electionId, setHasVotedElection, storeElection, user]);
 
   if (gated) {
-    return <FinancialGate />;
+    return <FinancialGate showBack />;
   }
 
   if (loading) {

@@ -16,6 +16,7 @@ import { Election } from '../../types/voting';
 import { safeGoBack } from '../../utils/navigation';
 
 const ElectionResultsScreen = ({ navigation, route }: any) => {
+  const electionId = route.params?.electionId as string | undefined;
   const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<RaceResult[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -24,9 +25,14 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
+    if (!electionId) {
+      setLoadError('This election could not be found.');
+      setLoading(false);
+      return;
+    }
     Promise.all([
-      getElection(route.params.electionId),
-      getElectionResults(route.params.electionId),
+      getElection(electionId),
+      getElectionResults(electionId),
     ])
       .then(([nextElection, nextResults]) => {
         setElection(nextElection);
@@ -40,7 +46,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
         ),
       )
       .finally(() => setLoading(false));
-  }, [route.params.electionId]);
+  }, [electionId]);
 
   if (loading) {
     return <LoadingSpinner />;

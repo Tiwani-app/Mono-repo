@@ -1,5 +1,7 @@
 import { LibraryDocument } from "../types/library";
+import { Listing } from "../types/marketplace";
 import { JoinRequest, User } from "../types/user";
+import type { ListingInput } from "../services/marketplaceService";
 
 const loadIsolatedService = <T>(path: string): T => {
   let service: T | undefined;
@@ -10,6 +12,7 @@ const loadIsolatedService = <T>(path: string): T => {
 };
 
 type LibraryService = typeof import("../services/libraryService");
+type MarketplaceService = typeof import("../services/marketplaceService");
 type MembersService = typeof import("../services/membersService");
 
 const libraryDocumentInput: Omit<
@@ -74,6 +77,47 @@ describe("service workflows", () => {
 
     unsubscribeAdmin();
     unsubscribeMember();
+  });
+
+  it("runs the marketplace cap, status, delete, and create flow", async () => {
+    const service = loadIsolatedService<MarketplaceService>(
+      "../services/marketplaceService",
+    );
+    const snapshots: Listing[][] = [];
+    const input: ListingInput = {
+      title: "Community Laptop",
+      price: 120000,
+      description: "Clean laptop available for member purchase.",
+      condition: "good",
+      status: "available",
+      imageURL: "https://example.com/laptop.jpg",
+      contactInstruction: "Message the admin to inspect.",
+    };
+
+    const unsubscribe = service.subscribeToListings(listings =>
+      snapshots.push(listings),
+    );
+
+    expect(snapshots.at(-1)?.length).toBe(2);
+    await expect(service.createListing(input)).rejects.toThrow(
+      "Marketplace listings are limited to 2 active items.",
+    );
+
+    await service.updateListing("listing-1", {status: "sold"});
+    expect(snapshots.at(-1)?.find(item => item.id === "listing-1")?.status).toBe(
+      "sold",
+    );
+
+    await service.deleteListing("listing-2");
+    expect(snapshots.at(-1)?.map(item => item.id)).toEqual(["listing-1"]);
+
+    await service.createListing(input);
+    expect(
+      snapshots.at(-1)?.find(item => item.title === "Community Laptop")?.imageURL,
+    ).toBe("https://example.com/laptop.jpg");
+    expect(snapshots.at(-1)?.length).toBe(2);
+
+    unsubscribe();
   });
 
   it("reviews a join request and creates a member on approval", async () => {

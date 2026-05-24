@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from 'react';
+import React, {useMemo} from 'react';
 import {FlatList, StyleSheet, TextInput, TouchableOpacity} from 'react-native';
 import Icon from '../../components/common/FeatherIcon';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -14,13 +14,7 @@ import {isAdmin} from '../../utils/roleGuard';
 
 const MembersListScreen = ({navigation}: any) => {
   const {user} = useAuthStore();
-  const {loading, members, searchQuery, setSearchQuery} = useMembers();
-
-  useEffect(() => {
-    if (user && !isAdmin(user)) {
-      navigation.getParent()?.navigate('Dashboard');
-    }
-  }, [navigation, user]);
+  const {error, loading, members, searchQuery, setSearchQuery} = useMembers();
 
   const filteredMembers = useMemo(() => {
     if (searchQuery.trim()) {
@@ -32,6 +26,40 @@ const MembersListScreen = ({navigation}: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (!isAdmin(user)) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Members"
+          showBack
+          onBack={() => safeGoBack(navigation, 'DashboardHome')}
+        />
+        <EmptyState
+          icon="!"
+          title="Admin only"
+          message="Only admins can browse and manage the member directory."
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Members"
+          showBack
+          onBack={() => safeGoBack(navigation, 'DashboardHome')}
+        />
+        <EmptyState
+          icon="!"
+          title="Members unavailable"
+          message={error}
+        />
+      </SafeAreaView>
+    );
   }
 
   return (

@@ -9,12 +9,21 @@ import {
 import Icon from "../components/common/FeatherIcon";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../components/common/Badge";
+import EmptyState from "../components/common/EmptyState";
 import EventCard from "../components/events/EventCard";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useEvents } from "../hooks/useEvents";
+import { useJoinRequests } from "../hooks/useJoinRequests";
+import { useMembers } from "../hooks/useMembers";
 import { useNotifications } from "../hooks/useNotifications";
 import { colors, spacing, typography } from "../theme";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
+import {
+  formatPendingReviewCount,
+  formatReadyRequestCount,
+  getPendingJoinRequests,
+} from "../utils/joinRequests";
 import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
 import { getDashboardQuickActions } from "./dashboardQuickActions";
@@ -38,13 +47,48 @@ const QuickAction = ({ icon, label, onPress }: any) => (
   </TouchableOpacity>
 );
 
+const RequestReviewAction = ({ count, onPress }: any) => (
+  <TouchableOpacity
+    style={styles.requestReview}
+    onPress={onPress}
+    activeOpacity={0.85}
+  >
+    <View style={styles.requestIcon}>
+      <Icon name="inbox" size={18} color={colors.gold.default} />
+    </View>
+    <View style={styles.requestCopy}>
+      <Text style={styles.requestTitle}>Join Requests</Text>
+      <Text style={styles.requestMeta}>{formatPendingReviewCount(count)}</Text>
+    </View>
+    <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
+  </TouchableOpacity>
+);
+
 const DashboardScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const { events } = useEvents();
-  const { notifications, unreadCount } = useNotifications();
+  const { events, error: eventsError, loading: eventsLoading } = useEvents();
+  const { members, error: membersError, loading: membersLoading } = useMembers();
+  const {
+    error: requestsError,
+    loading: requestsLoading,
+    requests,
+  } = useJoinRequests();
+  const {
+    error: notificationsError,
+    loading: notificationsLoading,
+    notifications,
+    unreadCount,
+  } = useNotifications();
   const admin = isAdmin(user);
   const firstName = user?.fullName.split(" ")[0] ?? "there";
   const quickActions = getDashboardQuickActions(admin, navigation);
+  const pendingRequests = getPendingJoinRequests(requests);
+  const loading =
+    eventsLoading || membersLoading || notificationsLoading || requestsLoading;
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -75,9 +119,9 @@ const DashboardScreen = ({ navigation }: any) => {
           {admin ? (
             <>
               <StatTile
-                value="3"
+                value={String(members.length)}
                 label="Members"
-                subLabel="requests ready"
+                subLabel={formatReadyRequestCount(pendingRequests.length)}
                 accentColor={colors.gold.default}
               />
               <StatTile
@@ -123,6 +167,21 @@ const DashboardScreen = ({ navigation }: any) => {
           )}
         </View>
 
+        {admin && pendingRequests.length > 0 && (
+          <RequestReviewAction
+            count={pendingRequests.length}
+            onPress={() => navigation.navigate("JoinRequests")}
+          />
+        )}
+
+        {admin && (membersError || requestsError) && (
+          <EmptyState
+            icon="!"
+            title="Admin summary unavailable"
+            message={membersError ?? requestsError ?? "Please try again."}
+          />
+        )}
+
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.quickGrid}>
           {quickActions.map(({ icon, label, onPress }) => (
@@ -136,34 +195,62 @@ const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <Text style={styles.sectionLabel}>UPCOMING</Text>
-        {events.slice(0, 2).map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onPress={() =>
-              navigation.navigate("Events", {
-                screen: "EventDetail",
-                params: { eventId: event.id },
-              })
-            }
+        {eventsError ? (
+          <EmptyState
+            icon="!"
+            title="Events unavailable"
+            message={eventsError}
           />
-        ))}
+        ) : events.length === 0 ? (
+          <EmptyState
+            icon="!"
+            title="No upcoming events"
+            message="New events will appear here."
+          />
+        ) : (
+          events.slice(0, 2).map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() =>
+                navigation.navigate("Events", {
+                  screen: "EventDetail",
+                  params: { eventId: event.id },
+                })
+              }
+            />
+          ))
+        )}
 
         <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
-        {notifications.slice(0, 3).map((item) => (
-          <View key={item.id} style={styles.activityRow}>
-            <Badge
-              label={item.type.toUpperCase()}
-              color={colors.gold.default}
-            />
-            <View style={styles.activityText}>
-              <Text style={styles.activityTitle}>{item.title}</Text>
-              <Text style={styles.activityTime}>
-                {formatRelativeTime(item.sentAt)}
-              </Text>
+        {notificationsError ? (
+          <EmptyState
+            icon="!"
+            title="Activity unavailable"
+            message={notificationsError}
+          />
+        ) : notifications.length === 0 ? (
+          <EmptyState
+            icon="!"
+            title="No recent activity"
+            message="Updates will appear here."
+          />
+        ) : (
+          notifications.slice(0, 3).map((item) => (
+            <View key={item.id} style={styles.activityRow}>
+              <Badge
+                label={item.type.toUpperCase()}
+                color={colors.gold.default}
+              />
+              <View style={styles.activityText}>
+                <Text style={styles.activityTitle}>{item.title}</Text>
+                <Text style={styles.activityTime}>
+                  {formatRelativeTime(item.sentAt)}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -238,6 +325,35 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     color: colors.text.primary,
     textAlign: "center",
+  },
+  requestReview: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  requestIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg.elevated,
+  },
+  requestCopy: { flex: 1, gap: spacing.xs },
+  requestTitle: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  requestMeta: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
   },
   activityRow: {
     minHeight: 64,

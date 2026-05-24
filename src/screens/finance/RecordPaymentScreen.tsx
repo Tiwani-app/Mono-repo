@@ -54,6 +54,9 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   );
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const amount = Number(values.amount.replace(/,/g, ''));
     if (!selectedUid) {
       Alert.alert('Member required', 'Choose the member who made this payment.');

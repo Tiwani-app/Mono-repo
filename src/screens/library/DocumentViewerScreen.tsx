@@ -18,6 +18,7 @@ import { formatDisplayDate } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 
 const DocumentViewerScreen = ({ navigation, route }: any) => {
+  const documentId = route.params?.documentId as string | undefined;
   const [document, setDocument] = useState<LibraryDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,12 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getLibraryDocument(route.params.documentId)
+    if (!documentId) {
+      setError("This document could not be found.");
+      setLoading(false);
+      return;
+    }
+    getLibraryDocument(documentId)
       .then(setDocument)
       .catch((loadError) =>
         setError(
@@ -36,7 +42,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         ),
       )
       .finally(() => setLoading(false));
-  }, [route.params.documentId]);
+  }, [documentId]);
 
   const handleOpen = async () => {
     if (!document) {

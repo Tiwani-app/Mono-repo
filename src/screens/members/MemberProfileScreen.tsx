@@ -3,6 +3,7 @@ import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
+import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import BalanceBanner from '../../components/finance/BalanceBanner';
@@ -19,13 +20,41 @@ import {
 import {safeGoBack} from '../../utils/navigation';
 
 const MemberProfileScreen = ({navigation, route}: any) => {
+  const memberId = route.params?.memberId as string | undefined;
   const [member, setMember] = useState<User | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'family' | 'finance'>('info');
   const {user} = useAuthStore();
 
   useEffect(() => {
-    getMember(route.params.memberId).then(setMember);
-  }, [route.params.memberId]);
+    setLoadError(null);
+    if (!memberId) {
+      setLoadError('This profile could not be found.');
+      return;
+    }
+    getMember(memberId)
+      .then(setMember)
+      .catch(error =>
+        setLoadError(
+          error instanceof Error ? error.message : 'Could not load this profile.',
+        ),
+      );
+  }, [memberId]);
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Profile" showBack onBack={() => safeGoBack(navigation, 'MembersList')} />
+        <EmptyState
+          icon="!"
+          title="Profile unavailable"
+          message={loadError}
+          actionLabel="Back to Members"
+          onAction={() => safeGoBack(navigation, 'MembersList')}
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (!member) {
     return <LoadingSpinner />;

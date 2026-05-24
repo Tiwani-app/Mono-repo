@@ -24,12 +24,16 @@ interface FormValues {
 
 const LoginScreen = ({navigation}: any) => {
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const {control, handleSubmit, formState} = useForm<FormValues>({
     defaultValues: {email: 'admin@tiwani.app', password: 'password'},
   });
 
   const onSubmit = async ({email, password}: FormValues) => {
+    if (submitting) {
+      return;
+    }
     try {
       setLoginError(null);
       setSubmitting(true);
@@ -50,8 +54,18 @@ const LoginScreen = ({navigation}: any) => {
   const handleForgotPassword = () => {
     Alert.prompt('Reset Password', 'Enter your email address and we will send you a reset link.', async email => {
       if (email) {
-        await sendPasswordReset(email);
-        Alert.alert('Check your email', 'A password reset link has been sent.');
+        try {
+          setResetSubmitting(true);
+          await sendPasswordReset(email);
+          Alert.alert('Check your email', 'A password reset link has been sent.');
+        } catch (error) {
+          Alert.alert(
+            'Reset not sent',
+            error instanceof Error ? error.message : 'Please try again.',
+          );
+        } finally {
+          setResetSubmitting(false);
+        }
       }
     });
   };
@@ -106,8 +120,13 @@ const LoginScreen = ({navigation}: any) => {
             )}
           />
           {loginError && <Text style={styles.errorText}>{loginError}</Text>}
-          <TouchableOpacity style={styles.forgot} onPress={handleForgotPassword}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
+          <TouchableOpacity
+            style={styles.forgot}
+            onPress={handleForgotPassword}
+            disabled={resetSubmitting}>
+            <Text style={[styles.forgotText, resetSubmitting && styles.disabledText]}>
+              {resetSubmitting ? 'Sending reset link' : 'Forgot password?'}
+            </Text>
           </TouchableOpacity>
           <GoldButton
             label="Sign In"
@@ -159,6 +178,7 @@ const styles = StyleSheet.create({
   errorText: {fontSize: typography.size.xs, color: colors.status.error},
   forgot: {alignSelf: 'flex-end', minHeight: 48, justifyContent: 'center'},
   forgotText: {fontSize: typography.size.base, color: colors.gold.default},
+  disabledText: {opacity: 0.5},
   joinLink: {minHeight: 48, justifyContent: 'center'},
   joinText: {textAlign: 'center', color: colors.text.secondary, marginTop: spacing.md},
   link: {color: colors.gold.default, fontWeight: typography.weight.bold},

@@ -16,6 +16,7 @@ import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import ListingMedia from "../../components/marketplace/ListingMedia";
 import {
   createListing,
   getListing,
@@ -59,7 +60,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(Boolean(listingId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
+  const { control, handleSubmit, reset, formState, watch } = useForm<FormValues>({
     defaultValues: {
       title: "",
       price: "",
@@ -68,6 +69,8 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       imageURL: "",
     },
   });
+  const titleValue = watch("title");
+  const imageURLValue = watch("imageURL");
 
   useEffect(() => {
     if (!listingId) {
@@ -94,6 +97,9 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   }, [listingId, reset]);
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const price = Number(values.price.replace(/,/g, ""));
     if (!Number.isFinite(price) || price <= 0) {
       Alert.alert("Price required", "Enter a price greater than zero.");
@@ -226,13 +232,24 @@ const ListingFormScreen = ({ navigation, route }: any) => {
             label="IMAGE URL"
             name="imageURL"
           />
-          <View style={styles.uploadFallback}>
-            <Text style={styles.uploadTitle}>Image picker fallback</Text>
-            <Text style={styles.uploadText}>
-              Use an image URL for now. Device image selection can be wired once
-              storage endpoints are available.
-            </Text>
-          </View>
+          {Boolean(imageURLValue.trim()) && (
+            <View style={styles.imagePreview}>
+              <ListingMedia
+                listing={{
+                  title: titleValue.trim() || "Marketplace listing",
+                  imageURL: imageURLValue.trim(),
+                  status,
+                }}
+                size={72}
+              />
+              <View style={styles.previewCopy}>
+                <Text style={styles.previewTitle}>Image preview</Text>
+                <Text style={styles.previewMeta} numberOfLines={2}>
+                  {imageURLValue.trim()}
+                </Text>
+              </View>
+            </View>
+          )}
           <GoldButton
             label={listingId ? "Save Listing" : "Create Listing"}
             onPress={handleSubmit(onSubmit)}
@@ -358,23 +375,26 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
-  uploadFallback: {
+  imagePreview: {
     gap: spacing.sm,
-    padding: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.card,
   },
-  uploadTitle: {
-    fontSize: typography.size.md,
+  previewCopy: { flex: 1, gap: spacing.xs },
+  previewTitle: {
+    fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
   },
-  uploadText: {
-    fontSize: typography.size.sm,
+  previewMeta: {
+    fontSize: typography.size.xs,
     color: colors.text.secondary,
-    lineHeight: 18,
+    lineHeight: 17,
   },
 });
 

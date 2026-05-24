@@ -1,29 +1,46 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import GoldButton from '../common/GoldButton';
+import ScreenHeader from '../common/ScreenHeader';
 import {colors, spacing, typography} from '../../theme';
+import {safeGoBack} from '../../utils/navigation';
 
-const FinancialGate = () => {
+interface Props {
+  showBack?: boolean;
+}
+
+const FinancialGate = ({showBack = false}: Props) => {
   const navigation = useNavigation<any>();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.icon}>!</Text>
-      <Text style={styles.title}>Dues Outstanding</Text>
-      <Text style={styles.body}>
-        You are not in good financial standing. Please settle your outstanding dues before voting.
-      </Text>
-      <GoldButton
-        label="View My Ledger"
-        onPress={() => navigation.navigate('Finance', {screen: 'MyLedger'})}
-        fullWidth
-      />
-    </View>
+    <SafeAreaView style={styles.safe}>
+      {showBack && (
+        <ScreenHeader
+          title="Voting"
+          showBack
+          onBack={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      )}
+      <View style={styles.container}>
+        <Text style={styles.icon}>!</Text>
+        <Text style={styles.title}>Dues Outstanding</Text>
+        <Text style={styles.body}>
+          You are not in good financial standing. Please settle your outstanding dues before voting.
+        </Text>
+        <GoldButton
+          label="View My Ledger"
+          onPress={() => navigation.navigate('Finance', {screen: 'MyLedger'})}
+          fullWidth
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safe: {flex: 1, backgroundColor: colors.bg.secondary},
   container: {
     flex: 1,
     alignItems: 'center',

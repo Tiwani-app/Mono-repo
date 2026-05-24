@@ -3,7 +3,9 @@ import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
+import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OutlineButton from '../../components/common/OutlineButton';
 import DuesPeriodCard from '../../components/finance/DuesPeriodCard';
 import ScreenHeader from '../../components/common/ScreenHeader';
@@ -24,14 +26,41 @@ const SummaryTile = ({label, value}: any) => (
 
 const FinanceAdminScreen = ({navigation}: any) => {
   const {user} = useAuthStore();
-  const {duesPeriods, ledgerEntries} = useFinance(undefined, true);
-  const {members} = useMembers();
+  const admin = isAdmin(user);
+  const {
+    duesPeriods,
+    error: financeError,
+    ledgerEntries,
+    loading: financeLoading,
+  } = useFinance(undefined, admin);
+  const {error: membersError, loading: membersLoading, members} = useMembers();
 
   useEffect(() => {
-    if (user && !isAdmin(user)) {
+    if (user && !admin) {
       navigation.replace('MyLedger');
     }
-  }, [navigation, user]);
+  }, [admin, navigation, user]);
+
+  if (user && !admin) {
+    return <LoadingSpinner />;
+  }
+
+  if (financeLoading || membersLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (financeError || membersError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Finance" />
+        <EmptyState
+          icon="!"
+          title="Finance unavailable"
+          message={financeError ?? membersError ?? 'Please try again.'}
+        />
+      </SafeAreaView>
+    );
+  }
 
   const totalCharged = ledgerEntries
     .filter(entry => entry.type !== 'payment')

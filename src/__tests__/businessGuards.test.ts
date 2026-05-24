@@ -1,6 +1,7 @@
 import { LibraryDocument } from "../types/library";
 import { Listing } from "../types/marketplace";
 import { Election } from "../types/voting";
+import { canViewLedgerForMember } from "../utils/financeGuards";
 import {
   filterLibraryDocumentsByCategory,
   filterLibraryDocumentsBySearch,
@@ -179,5 +180,21 @@ describe("business guardrails", () => {
       "family",
       "finance",
     ]);
+  });
+
+  it("limits ledger access to admins or the owning member", () => {
+    expect(canViewLedgerForMember(user("admin-1", "admin"), "member-1")).toBe(
+      true,
+    );
+    expect(canViewLedgerForMember(user("member-1", "member"), undefined)).toBe(
+      true,
+    );
+    expect(canViewLedgerForMember(user("member-1", "member"), "member-1")).toBe(
+      true,
+    );
+    expect(canViewLedgerForMember(user("member-1", "member"), "member-2")).toBe(
+      false,
+    );
+    expect(canViewLedgerForMember(null, "member-1")).toBe(false);
   });
 });

@@ -27,6 +27,7 @@ export const useNotifications = () => {
     try {
       const unsubscribe = subscribeToNotifications(items => {
         setNotifications(items);
+        setError(null);
         setLoading(false);
       });
       return () => unsubscribe();

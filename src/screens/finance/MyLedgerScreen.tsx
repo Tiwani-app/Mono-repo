@@ -9,10 +9,13 @@ import ScreenHeader from '../../components/common/ScreenHeader';
 import {useFinance} from '../../hooks/useFinance';
 import {useAuthStore} from '../../store/authStore';
 import {colors, spacing, typography} from '../../theme';
+import {canViewLedgerForMember} from '../../utils/financeGuards';
 
 const MyLedgerScreen = ({navigation, route}: any) => {
   const {user} = useAuthStore();
-  const targetUid = route.params?.memberId ?? user?.uid;
+  const routeMemberId = route.params?.memberId as string | undefined;
+  const canViewLedger = canViewLedgerForMember(user, routeMemberId);
+  const targetUid = canViewLedger ? routeMemberId ?? user?.uid : undefined;
   const {error, ledgerEntries, loading} = useFinance(targetUid);
   const outstanding = ledgerEntries
     .filter(entry => entry.type !== 'payment' && !entry.paid)
@@ -28,6 +31,21 @@ const MyLedgerScreen = ({navigation, route}: any) => {
 
   if (loading) {
     return <LoadingSpinner />;
+  }
+
+  if (!canViewLedger) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="My Finances" showBack onBack={handleBack} />
+        <EmptyState
+          icon="!"
+          title="Permission denied"
+          message="You can only view your own ledger."
+          actionLabel="Back"
+          onAction={handleBack}
+        />
+      </SafeAreaView>
+    );
   }
 
   if (error) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Badge from '../../components/common/Badge';
@@ -6,10 +6,8 @@ import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
 import OutlineButton from '../../components/common/OutlineButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
-import {
-  reviewJoinRequest,
-  subscribeToJoinRequests,
-} from '../../services/membersService';
+import { useJoinRequests } from '../../hooks/useJoinRequests';
+import { reviewJoinRequest } from '../../services/membersService';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { JoinRequest } from '../../types/user';
@@ -29,12 +27,7 @@ const statusColor = (status: JoinRequest['status']) => {
 
 const JoinRequestsScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const [requests, setRequests] = useState<JoinRequest[]>([]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToJoinRequests(setRequests);
-    return () => unsubscribe();
-  }, []);
+  const { requests } = useJoinRequests();
 
   const handleReview = (request: JoinRequest, status: 'approved' | 'declined') => {
     const verb = status === 'approved' ? 'Approve' : 'Decline';

@@ -7,9 +7,11 @@ export const useEvents = () => {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     try {
       const unsubscribe = subscribeToEvents(events => {
         setEvents(events);
+        setError(null);
         setLoading(false);
       });
       return () => unsubscribe();

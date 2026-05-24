@@ -33,6 +33,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 };
 
 const EventDetailScreen = ({ navigation, route }: any) => {
+  const eventId = route.params?.eventId as string | undefined;
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -44,9 +45,14 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
+    if (!eventId) {
+      setLoadError("This event could not be found.");
+      setLoading(false);
+      return;
+    }
     Promise.all([
-      getEvent(route.params.eventId),
-      getEventAttendees(route.params.eventId),
+      getEvent(eventId),
+      getEventAttendees(eventId),
     ])
       .then(([nextEvent, nextAttendees]) => {
         setEvent(nextEvent);
@@ -58,7 +64,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
         ),
       )
       .finally(() => setLoading(false));
-  }, [route.params.eventId]);
+  }, [eventId]);
 
   if (loading) {
     return <LoadingSpinner />;

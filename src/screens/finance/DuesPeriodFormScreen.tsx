@@ -56,6 +56,9 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const dueDate = parseDate(values.dueDate);
     const amount = Number(values.amount.replace(/,/g, ''));
     if (!dueDate) {
@@ -150,7 +153,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
             <Text style={styles.noteTitle}>Ledger impact</Text>
             <Text style={styles.noteText}>
               Creating a dues period adds an unpaid dues row for every active
-              member in the mock data.
+              member.
             </Text>
           </View>
           <GoldButton

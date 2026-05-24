@@ -99,6 +99,9 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   }, [memberId, reset]);
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const outstandingBalance = Number(values.outstandingBalance.replace(/,/g, ''));
     if (!Number.isFinite(outstandingBalance) || outstandingBalance < 0) {
       Alert.alert('Balance invalid', 'Outstanding balance must be zero or more.');

@@ -83,6 +83,9 @@ const SettingsScreen = ({navigation}: any) => {
   };
 
   const handleSaveProfile = async (values: ProfileFormValues) => {
+    if (savingProfile) {
+      return;
+    }
     const previousProfile = getPreviousProfile(user);
     const update = buildProfileUpdate(values);
     try {

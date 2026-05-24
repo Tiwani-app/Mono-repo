@@ -106,6 +106,9 @@ const EventFormScreen = ({ navigation, route }: any) => {
   }, [eventId, reset]);
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const dateTime = parseDateTime(values.date, values.time);
     if (!dateTime) {
       Alert.alert('Date required', 'Use date format YYYY-MM-DD and time format HH:mm.');

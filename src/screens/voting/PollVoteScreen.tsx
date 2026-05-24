@@ -16,6 +16,7 @@ import {Poll} from '../../types/voting';
 import {safeGoBack} from '../../utils/navigation';
 
 const PollVoteScreen = ({navigation, route}: any) => {
+  const pollId = route.params?.pollId as string | undefined;
   const [gated, setGated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ const PollVoteScreen = ({navigation, route}: any) => {
   const {user} = useAuthStore();
   const {hasVotedPoll, polls, selectedPollOption, setHasVotedPoll, setSelectedPollOption} =
     useVotingStore();
-  const storePoll = useMemo(() => polls.find(item => item.id === route.params.pollId), [polls, route.params.pollId]);
+  const storePoll = useMemo(() => polls.find(item => item.id === pollId), [polls, pollId]);
   const poll = storePoll ?? localPoll;
 
   useEffect(() => {
@@ -38,6 +39,11 @@ const PollVoteScreen = ({navigation, route}: any) => {
         setLoading(false);
         return;
       }
+      if (!pollId) {
+        setLoadError('This poll could not be found.');
+        setLoading(false);
+        return;
+      }
       if (user.financialStatus === 'red') {
         setGated(true);
         setLoading(false);
@@ -45,8 +51,8 @@ const PollVoteScreen = ({navigation, route}: any) => {
       }
       try {
         const [nextPoll, voted] = await Promise.all([
-          storePoll ? Promise.resolve(storePoll) : getPoll(route.params.pollId),
-          hasCastPollVote(route.params.pollId, user.uid),
+          storePoll ? Promise.resolve(storePoll) : getPoll(pollId),
+          hasCastPollVote(pollId, user.uid),
         ]);
         if (!active) {
           return;
@@ -69,10 +75,10 @@ const PollVoteScreen = ({navigation, route}: any) => {
     return () => {
       active = false;
     };
-  }, [route.params.pollId, setHasVotedPoll, setSelectedPollOption, storePoll, user]);
+  }, [pollId, setHasVotedPoll, setSelectedPollOption, storePoll, user]);
 
   if (gated) {
-    return <FinancialGate />;
+    return <FinancialGate showBack />;
   }
 
   if (loading) {

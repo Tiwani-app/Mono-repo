@@ -79,6 +79,9 @@ const PollFormScreen = ({ navigation, route }: any) => {
   }, [pollId, reset]);
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
     const options = values.options
       .map(option => option.label.trim())
       .filter(Boolean);
