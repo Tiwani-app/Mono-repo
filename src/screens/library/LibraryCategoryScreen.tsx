@@ -13,11 +13,17 @@ import {
   LIBRARY_TYPE_LABELS,
   LibraryCategory,
   LibraryDocument,
+  LibraryDocumentType,
 } from "../../types/library";
 import { safeGoBack } from "../../utils/navigation";
+import {
+  filterLibraryDocumentsByCategory,
+  filterLibraryDocumentsByTypeAndYear,
+} from "../../utils/libraryFilters";
 
 const LibraryCategoryScreen = ({ navigation, route }: any) => {
-  const [selectedType, setSelectedType] = useState("all");
+  const [selectedType, setSelectedType] =
+    useState<LibraryDocumentType | "all">("all");
   const [selectedYear, setSelectedYear] = useState("all");
   const { documents, error, loading } = useLibraryDocuments();
   const category = route.params?.category as LibraryCategory | undefined;
@@ -27,7 +33,7 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
   const categoryDocuments = useMemo(
     () =>
       validCategory
-        ? documents.filter((document) => document.category === category)
+        ? filterLibraryDocumentsByCategory(documents, category)
         : [],
     [category, documents, validCategory],
   );
@@ -59,13 +65,11 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
 
   const visibleDocuments = useMemo(
     () =>
-      categoryDocuments.filter((document) => {
-        const date = document.documentDate ?? document.uploadedAt;
-        const typeMatch = selectedType === "all" || document.type === selectedType;
-        const yearMatch =
-          selectedYear === "all" || String(date.getFullYear()) === selectedYear;
-        return typeMatch && yearMatch;
-      }),
+      filterLibraryDocumentsByTypeAndYear(
+        categoryDocuments,
+        selectedType,
+        selectedYear,
+      ),
     [categoryDocuments, selectedType, selectedYear],
   );
 
@@ -109,7 +113,9 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
             <DocumentFilterBar
               options={typeOptions}
               selectedValue={selectedType}
-              onChange={setSelectedType}
+              onChange={(value) =>
+                setSelectedType(value as LibraryDocumentType | "all")
+              }
             />
             <Text style={styles.sectionLabel}>YEAR</Text>
             <DocumentFilterBar

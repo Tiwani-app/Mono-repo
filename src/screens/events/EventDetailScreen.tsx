@@ -7,10 +7,20 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import { cancelEvent, getEvent, toggleRsvp } from "../../services/eventsService";
+import {
+  cancelEvent,
+  getEvent,
+  getEventAttendees,
+  toggleRsvp,
+} from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { CATEGORY_COLORS, EventStatus, TiwaniEvent } from "../../types/event";
+import {
+  CATEGORY_COLORS,
+  EventAttendee,
+  EventStatus,
+  TiwaniEvent,
+} from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
@@ -24,6 +34,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 
 const EventDetailScreen = ({ navigation, route }: any) => {
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
+  const [attendees, setAttendees] = useState<EventAttendee[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [rsvpPending, setRsvpPending] = useState(false);
@@ -33,8 +44,14 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
-    getEvent(route.params.eventId)
-      .then(setEvent)
+    Promise.all([
+      getEvent(route.params.eventId),
+      getEventAttendees(route.params.eventId),
+    ])
+      .then(([nextEvent, nextAttendees]) => {
+        setEvent(nextEvent);
+        setAttendees(nextAttendees);
+      })
       .catch(error =>
         setLoadError(
           error instanceof Error ? error.message : "Could not load this event.",
@@ -75,12 +92,14 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     try {
       setRsvpPending(true);
       await toggleRsvp(event.id, user.uid);
+      const nextAttendees = await getEventAttendees(event.id);
       setEvent({
         ...event,
         rsvpList: isRsvped
           ? event.rsvpList.filter((uid) => uid !== user.uid)
           : [...event.rsvpList, user.uid],
       });
+      setAttendees(nextAttendees);
     } catch (error) {
       Alert.alert(
         "RSVP not updated",
@@ -158,6 +177,30 @@ const EventDetailScreen = ({ navigation, route }: any) => {
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>ABOUT</Text>
           <Text style={styles.body}>{event.description}</Text>
+        </View>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoLabel}>ATTENDEES</Text>
+          {attendees.length === 0 ? (
+            <Text style={styles.body}>No RSVPs yet.</Text>
+          ) : (
+            <View style={styles.attendeeGrid}>
+              {attendees.map(attendee => (
+                <View
+                  key={attendee.uid}
+                  style={[
+                    styles.attendeeChip,
+                    attendee.checkedIn && styles.checkedInChip,
+                  ]}>
+                  <Text style={styles.attendeeName} numberOfLines={1}>
+                    {attendee.fullName}
+                  </Text>
+                  {attendee.checkedIn && (
+                    <Badge label="IN" color={colors.status.success} />
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
         {rsvpClosed ? (
           <Text style={styles.fullText}>RSVP is not available for this event.</Text>
@@ -248,6 +291,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.status.error,
     fontWeight: typography.weight.bold,
+  },
+  attendeeGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  attendeeChip: {
+    maxWidth: "100%",
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.elevated,
+  },
+  checkedInChip: { borderColor: colors.status.success },
+  attendeeName: {
+    maxWidth: 180,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
   },
   adminActions: { gap: spacing.sm },
 });

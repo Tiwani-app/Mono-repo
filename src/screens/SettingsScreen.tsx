@@ -24,13 +24,12 @@ import { colors, spacing, typography } from '../theme';
 import { NotificationPreferences } from '../types/user';
 import { getInitials } from '../utils/getInitials';
 import { safeGoBack } from '../utils/navigation';
-
-interface ProfileFormValues {
-  fullName: string;
-  phone: string;
-  address: string;
-  photoURL: string;
-}
+import {
+  ProfileFormValues,
+  buildNotificationPreferences,
+  buildProfileUpdate,
+  getPreviousProfile,
+} from '../utils/settingsProfile';
 
 const SettingsScreen = ({navigation}: any) => {
   const {updateCurrentUser, user} = useAuthStore();
@@ -53,7 +52,11 @@ const SettingsScreen = ({navigation}: any) => {
 
   const handleToggleNotification = async (key: keyof NotificationPreferences, value: boolean) => {
     const previousPreferences = user.notificationPreferences;
-    const notificationPreferences = {...previousPreferences, [key]: value};
+    const notificationPreferences = buildNotificationPreferences(
+      previousPreferences,
+      key,
+      value,
+    );
     updateCurrentUser({notificationPreferences});
     try {
       setSavingPreference(key);
@@ -80,18 +83,8 @@ const SettingsScreen = ({navigation}: any) => {
   };
 
   const handleSaveProfile = async (values: ProfileFormValues) => {
-    const previousProfile = {
-      fullName: user.fullName,
-      phone: user.phone,
-      address: user.address,
-      photoURL: user.photoURL,
-    };
-    const update = {
-      fullName: values.fullName.trim(),
-      phone: values.phone.trim(),
-      address: values.address.trim(),
-      photoURL: values.photoURL.trim() || null,
-    };
+    const previousProfile = getPreviousProfile(user);
+    const update = buildProfileUpdate(values);
     try {
       setSavingProfile(true);
       updateCurrentUser(update);

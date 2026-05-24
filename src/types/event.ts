@@ -21,3 +21,11 @@ export interface TiwaniEvent {
   capacity: number;
   attendees: string[];
 }
+
+export interface EventAttendee {
+  uid: string;
+  fullName: string;
+  email: string;
+  photoURL: string | null;
+  checkedIn: boolean;
+}

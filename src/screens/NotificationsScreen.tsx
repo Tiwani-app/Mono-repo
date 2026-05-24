@@ -8,12 +8,15 @@ import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
 import { colors, spacing, typography } from '../theme';
 import {
-  NotificationTarget,
   NotificationType,
   TiwaniNotification,
 } from '../types/notification';
 import { formatRelativeTime } from '../utils/formatDate';
 import { safeGoBack } from '../utils/navigation';
+import {
+  getNotificationSections,
+  navigateToNotificationTarget,
+} from '../utils/notificationHelpers';
 
 const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   event: colors.status.info,
@@ -31,68 +34,18 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   marketplace: 'shopping-bag',
 };
 
-interface Section {
-  title: string;
-  data: TiwaniNotification[];
-}
-
-const navigateToTarget = (navigation: any, target?: NotificationTarget) => {
-  if (!target) {
-    return;
-  }
-  if (target.route === 'event_detail') {
-    navigation.navigate('Events', {
-      screen: 'EventDetail',
-      params: { eventId: target.eventId },
-    });
-    return;
-  }
-  if (target.route === 'poll_vote') {
-    navigation.navigate('Voting', {
-      screen: 'PollVote',
-      params: { pollId: target.pollId },
-    });
-    return;
-  }
-  if (target.route === 'election_ballot') {
-    navigation.navigate('Voting', {
-      screen: 'ElectionBallot',
-      params: { electionId: target.electionId },
-    });
-    return;
-  }
-  if (target.route === 'my_ledger') {
-    navigation.navigate('Finance', {
-      screen: 'MyLedger',
-      params: { memberId: target.memberId },
-    });
-    return;
-  }
-  if (target.route === 'marketplace') {
-    navigation.navigate('Market');
-    return;
-  }
-  if (target.route === 'library') {
-    navigation.navigate('Library');
-  }
-};
-
 const NotificationsScreen = ({navigation}: any) => {
   const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
-  const sections = useMemo<Section[]>(() => {
-    const unread = notifications.filter(item => !readIds.includes(item.id));
-    const read = notifications.filter(item => readIds.includes(item.id));
-    return [
-      ...(unread.length > 0 ? [{title: 'New', data: unread}] : []),
-      ...(read.length > 0 ? [{title: 'Earlier', data: read}] : []),
-    ];
-  }, [notifications, readIds]);
+  const sections = useMemo(
+    () => getNotificationSections(notifications, readIds),
+    [notifications, readIds],
+  );
 
   const handlePress = async (item: TiwaniNotification) => {
     await markRead(item.id);
-    navigateToTarget(navigation, item.target);
+    navigateToNotificationTarget(navigation, item.target);
   };
 
   const handleMarkAllRead = async () => {

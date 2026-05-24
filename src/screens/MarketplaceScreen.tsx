@@ -17,6 +17,7 @@ import ListingCard from "../components/marketplace/ListingCard";
 import { useMarketplace } from "../hooks/useMarketplace";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
+import { canAddMarketplaceListing } from "../utils/marketplaceGuards";
 import { isAdmin } from "../utils/roleGuard";
 
 const MarketplaceScreen = ({ navigation }: any) => {
@@ -24,7 +25,7 @@ const MarketplaceScreen = ({ navigation }: any) => {
   const { error, listings, loading } = useMarketplace();
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const maxReached = listings.length >= 2;
+  const maxReached = !canAddMarketplaceListing(listings);
 
   const handleAddListing = async () => {
     if (maxReached) {

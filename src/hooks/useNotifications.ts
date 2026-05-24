@@ -2,6 +2,10 @@ import {useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {subscribeToNotifications} from '../services/notificationsService';
 import {useNotificationsStore} from '../store/notificationsStore';
+import {
+  getAllNotificationIds,
+  getNextReadIds,
+} from '../utils/notificationHelpers';
 
 const STORAGE_KEY = 'tiwani_read_notifications';
 
@@ -42,15 +46,11 @@ export const useNotifications = () => {
   };
 
   const markRead = async (id: string) => {
-    if (readIds.includes(id)) {
-      return;
-    }
-    await persistReadIds([...readIds, id]);
+    await persistReadIds(getNextReadIds(readIds, id));
   };
 
   const markAllRead = async () => {
-    const ids = notifications.map(item => item.id);
-    await persistReadIds(ids);
+    await persistReadIds(getAllNotificationIds(notifications));
   };
 
   const unreadCount = notifications.filter(item => !readIds.includes(item.id)).length;

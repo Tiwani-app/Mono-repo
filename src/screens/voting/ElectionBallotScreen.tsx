@@ -14,6 +14,7 @@ import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
 import {Election} from '../../types/voting';
 import {safeGoBack} from '../../utils/navigation';
+import {isElectionBallotComplete} from '../../utils/votingGuards';
 
 const ElectionBallotScreen = ({navigation, route}: any) => {
   const [gated, setGated] = useState(false);
@@ -120,7 +121,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
     );
   }
 
-  const allRacesFilled = election.races.every(race => electionChoices[race.raceId] !== undefined);
+  const allRacesFilled = isElectionBallotComplete(election, electionChoices);
 
   const handleSubmitBallot = async () => {
     if (!user) {

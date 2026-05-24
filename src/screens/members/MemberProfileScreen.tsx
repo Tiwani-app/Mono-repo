@@ -12,8 +12,11 @@ import {colors, spacing, typography} from '../../theme';
 import {User} from '../../types/user';
 import {formatDisplayDate} from '../../utils/formatDate';
 import {getInitials} from '../../utils/getInitials';
+import {
+  canViewMemberPrivateDetails,
+  getVisibleMemberProfileTabs,
+} from '../../utils/memberPrivacy';
 import {safeGoBack} from '../../utils/navigation';
-import {isAdmin} from '../../utils/roleGuard';
 
 const MemberProfileScreen = ({navigation, route}: any) => {
   const [member, setMember] = useState<User | null>(null);
@@ -28,9 +31,8 @@ const MemberProfileScreen = ({navigation, route}: any) => {
     return <LoadingSpinner />;
   }
 
-  const canViewFinance = isAdmin(user) || user?.uid === member.uid;
-  const canViewPrivate = canViewFinance;
-  const tabs = canViewPrivate ? (['info', 'family', 'finance'] as const) : (['info'] as const);
+  const canViewPrivate = canViewMemberPrivateDetails(user, member);
+  const tabs = getVisibleMemberProfileTabs(user, member);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -94,7 +96,7 @@ const MemberProfileScreen = ({navigation, route}: any) => {
           </View>
         )}
         {activeTab === 'finance' &&
-          (canViewFinance ? (
+          (canViewPrivate ? (
             <BalanceBanner outstanding={member.outstandingBalance} />
           ) : (
             <Text style={styles.restricted}>You do not have permission to view this information.</Text>

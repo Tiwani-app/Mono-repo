@@ -1,4 +1,8 @@
 import { Listing } from "../types/marketplace";
+import {
+  canAddMarketplaceListing,
+  visibleMarketplaceListings,
+} from "../utils/marketplaceGuards";
 import { delay, mockListings } from "./mockData";
 
 let listings = mockListings.slice(0, 2);
@@ -10,7 +14,7 @@ export type ListingInput = Omit<
 >;
 
 const emitListings = () => {
-  const snapshot = listings.slice(0, 2);
+  const snapshot = visibleMarketplaceListings(listings);
   subscribers.forEach((callback) => callback(snapshot));
 };
 
@@ -18,7 +22,7 @@ export const subscribeToListings = (
   callback: (listings: Listing[]) => void,
 ) => {
   subscribers.add(callback);
-  callback(listings.slice(0, 2));
+  callback(visibleMarketplaceListings(listings));
   return () => {
     subscribers.delete(callback);
   };
@@ -35,7 +39,7 @@ export const getListing = async (id: string): Promise<Listing> => {
 
 export const createListing = async (data: ListingInput): Promise<void> => {
   await delay();
-  if (listings.length >= 2) {
+  if (!canAddMarketplaceListing(listings)) {
     throw new Error("Marketplace listings are limited to 2 active items.");
   }
   const now = new Date();

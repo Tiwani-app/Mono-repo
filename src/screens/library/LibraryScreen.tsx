@@ -25,6 +25,7 @@ import {
 } from "../../types/library";
 import { isAdmin } from "../../utils/roleGuard";
 import { safeGoBack } from "../../utils/navigation";
+import { filterLibraryDocumentsBySearch } from "../../utils/libraryFilters";
 
 const categorySubtitles: Record<LibraryCategory, string> = {
   constitutional: "Constitution, by-laws, conduct, and governance references.",
@@ -43,15 +44,7 @@ const LibraryScreen = ({ navigation }: any) => {
     useLibraryDocuments();
 
   const filteredDocuments = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return documents;
-    }
-    return documents.filter(
-      (document) =>
-        document.title.toLowerCase().includes(query) ||
-        document.description.toLowerCase().includes(query),
-    );
+    return filterLibraryDocumentsBySearch(documents, searchQuery);
   }, [documents, searchQuery]);
 
   const counts = useMemo(

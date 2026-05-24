@@ -1,18 +1,12 @@
 import { LibraryDocument, LibraryDocumentStatus } from "../types/library";
+import { sortLibraryDocuments } from "../utils/libraryFilters";
 import { delay, mockLibraryDocuments } from "./mockData";
 
 let documents = mockLibraryDocuments.slice();
 const subscribers = new Set<(documents: LibraryDocument[]) => void>();
 
-const sortDocuments = (items: LibraryDocument[]) =>
-  [...items].sort((a, b) => {
-    const left = a.documentDate ?? a.uploadedAt;
-    const right = b.documentDate ?? b.uploadedAt;
-    return right.getTime() - left.getTime();
-  });
-
 const visibleDocuments = (includeAdmin = false) =>
-  sortDocuments(
+  sortLibraryDocuments(
     documents.filter((document) =>
       includeAdmin
         ? true

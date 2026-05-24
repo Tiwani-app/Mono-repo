@@ -19,8 +19,8 @@ export interface JoinRequestInput {
   message: string;
 }
 
-let members = mockUsers;
-let joinRequests = mockJoinRequests;
+let members = mockUsers.slice();
+let joinRequests = mockJoinRequests.slice();
 const memberSubscribers = new Set<(members: User[]) => void>();
 const joinRequestSubscribers = new Set<(requests: JoinRequest[]) => void>();
 
