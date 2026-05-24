@@ -3,6 +3,8 @@ import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
+import GoldButton from '../../components/common/GoldButton';
+import OutlineButton from '../../components/common/OutlineButton';
 import DuesPeriodCard from '../../components/finance/DuesPeriodCard';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import {useFinance} from '../../hooks/useFinance';
@@ -53,6 +55,20 @@ const FinanceAdminScreen = ({navigation}: any) => {
               <SummaryTile label="Collected" value={formatCurrency(totalCollected)} />
               <SummaryTile label="Outstanding" value={formatCurrency(outstanding)} />
             </View>
+            <View style={styles.actionGrid}>
+              <GoldButton
+                label="Record Payment"
+                onPress={() => navigation.navigate('RecordPayment')}
+              />
+              <OutlineButton
+                label="New Dues"
+                onPress={() => navigation.navigate('DuesPeriodForm')}
+              />
+              <OutlineButton
+                label="Ad Hoc Charge"
+                onPress={() => navigation.navigate('AdHocCharge')}
+              />
+            </View>
             <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>DUES PERIODS</Text>
             {duesPeriods.map(period => (
               <DuesPeriodCard key={period.id} period={period} />
@@ -90,6 +106,7 @@ const styles = StyleSheet.create({
   summaryTile: {flex: 1, minHeight: 78, padding: spacing.md, borderRadius: 8, backgroundColor: colors.bg.card},
   summaryValue: {fontSize: typography.size.md, fontWeight: typography.weight.black, color: colors.text.primary},
   summaryLabel: {fontSize: typography.size.xs, color: colors.text.secondary},
+  actionGrid: {gap: spacing.sm},
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,

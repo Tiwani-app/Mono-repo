@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -49,12 +48,7 @@ const EventsScreen = ({ navigation }: any) => {
           isAdmin(user) ? (
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() =>
-                Alert.alert(
-                  "Create Event",
-                  "Event creation is ready for the next admin form step.",
-                )
-              }
+              onPress={() => navigation.navigate("EventForm")}
             >
               <Icon name="plus" size={22} color={colors.text.onGold} />
             </TouchableOpacity>

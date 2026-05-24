@@ -43,6 +43,38 @@ const DashboardScreen = ({ navigation }: any) => {
   const { notifications, unreadCount } = useNotifications();
   const admin = isAdmin(user);
   const firstName = user?.fullName.split(" ")[0] ?? "there";
+  const quickActions = admin
+    ? [
+        ["user-plus", "Add Member", () => navigation.navigate("MemberForm")],
+        [
+          "calendar",
+          "New Event",
+          () => navigation.navigate("Events", { screen: "EventForm" }),
+        ],
+        [
+          "check-circle",
+          "New Poll",
+          () => navigation.navigate("Voting", { screen: "PollForm" }),
+        ],
+        [
+          "credit-card",
+          "Record Pay",
+          () => navigation.navigate("Finance", { screen: "RecordPayment" }),
+        ],
+        ["book-open", "Library", () => navigation.navigate("Library")],
+        ["upload", "Upload Doc", () => navigation.navigate("DocumentForm")],
+      ]
+    : [
+        ["calendar", "Events", () => navigation.navigate("Events")],
+        ["check-circle", "Vote", () => navigation.navigate("Voting")],
+        [
+          "credit-card",
+          "My Ledger",
+          () => navigation.navigate("Finance", { screen: "MyLedger" }),
+        ],
+        ["shopping-bag", "Marketplace", () => navigation.navigate("Market")],
+        ["book-open", "Library", () => navigation.navigate("Library")],
+      ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -123,40 +155,7 @@ const DashboardScreen = ({ navigation }: any) => {
 
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.quickGrid}>
-          {(admin
-            ? [
-                [
-                  "user-plus",
-                  "Add Member",
-                  () => navigation.navigate("MembersList"),
-                ],
-                ["calendar", "New Event", () => navigation.navigate("Events")],
-                [
-                  "check-circle",
-                  "New Poll",
-                  () => navigation.navigate("Voting"),
-                ],
-                [
-                  "credit-card",
-                  "Record Pay",
-                  () => navigation.navigate("Finance"),
-                ],
-              ]
-            : [
-                ["calendar", "Events", () => navigation.navigate("Events")],
-                ["check-circle", "Vote", () => navigation.navigate("Voting")],
-                [
-                  "credit-card",
-                  "My Ledger",
-                  () => navigation.navigate("Finance", { screen: "MyLedger" }),
-                ],
-                [
-                  "shopping-bag",
-                  "Marketplace",
-                  () => navigation.navigate("Market"),
-                ],
-              ]
-          ).map(([icon, label, onPress]) => (
+          {quickActions.map(([icon, label, onPress]) => (
             <QuickAction
               key={label as string}
               icon={icon}
@@ -255,9 +254,9 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  quickGrid: { flexDirection: "row", gap: spacing.sm },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   quickAction: {
-    flex: 1,
+    width: "31%",
     minHeight: 72,
     alignItems: "center",
     justifyContent: "center",

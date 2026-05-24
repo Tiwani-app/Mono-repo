@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -16,12 +15,11 @@ import ScreenHeader from "../components/common/ScreenHeader";
 import AdminListingCard from "../components/marketplace/AdminListingCard";
 import ListingCard from "../components/marketplace/ListingCard";
 import { useMarketplace } from "../hooks/useMarketplace";
-import { createListing } from "../services/marketplaceService";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import { isAdmin } from "../utils/roleGuard";
 
-const MarketplaceScreen = () => {
+const MarketplaceScreen = ({ navigation }: any) => {
   const [tab, setTab] = useState<"browse" | "manage">("browse");
   const { error, listings, loading } = useMarketplace();
   const { user } = useAuthStore();
@@ -32,24 +30,7 @@ const MarketplaceScreen = () => {
     if (maxReached) {
       return;
     }
-    try {
-      await createListing({
-        title: "Member Notice Board Slot",
-        price: 0,
-        description:
-          "Draft listing created by admin. Edit support can be connected to the listing form next.",
-        status: "available",
-        imageURL: null,
-        contactInstruction: "Contact admin for details.",
-      });
-    } catch (createError) {
-      Alert.alert(
-        "Marketplace",
-        createError instanceof Error
-          ? createError.message
-          : "Could not create listing.",
-      );
-    }
+    navigation.navigate("ListingForm");
   };
 
   return (
@@ -95,7 +76,12 @@ const MarketplaceScreen = () => {
         }
         renderItem={({ item }) =>
           tab === "manage" ? (
-            <AdminListingCard listing={item} />
+            <AdminListingCard
+              listing={item}
+              onEdit={() =>
+                navigation.navigate("ListingForm", { listingId: item.id })
+              }
+            />
           ) : (
             <ListingCard listing={item} />
           )

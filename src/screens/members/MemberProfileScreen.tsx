@@ -28,6 +28,8 @@ const MemberProfileScreen = ({navigation, route}: any) => {
   }
 
   const canViewFinance = isAdmin(user) || user?.uid === member.uid;
+  const canViewPrivate = canViewFinance;
+  const tabs = canViewPrivate ? (['info', 'family', 'finance'] as const) : (['info'] as const);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -60,7 +62,7 @@ const MemberProfileScreen = ({navigation, route}: any) => {
           </View>
         </View>
         <View style={styles.tabs}>
-          {(['info', 'family', 'finance'] as const).map(tab => (
+          {tabs.map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
@@ -73,12 +75,12 @@ const MemberProfileScreen = ({navigation, route}: any) => {
           <View style={styles.card}>
             <Info label="Phone" value={member.phone} />
             <Info label="Email" value={member.email} />
-            <Info label="Address" value={member.address} />
-            <Info label="Marital Status" value={member.maritalStatus} />
+            {canViewPrivate && <Info label="Address" value={member.address} />}
+            {canViewPrivate && <Info label="Marital Status" value={member.maritalStatus} />}
             <Info label="Member Since" value={formatDisplayDate(new Date(member.memberSince))} />
           </View>
         )}
-        {activeTab === 'family' && (
+        {activeTab === 'family' && canViewPrivate && (
           <View style={styles.card}>
             {member.maritalStatus === 'married' && member.spouseName && (
               <Info label="Spouse" value={member.spouseName} />

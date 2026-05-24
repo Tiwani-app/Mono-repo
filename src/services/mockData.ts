@@ -1,6 +1,7 @@
 import { TiwaniEvent } from "../types/event";
 import { DuesPeriod, LedgerEntry } from "../types/finance";
 import { Listing } from "../types/marketplace";
+import { LibraryDocument } from "../types/library";
 import { TiwaniNotification } from "../types/notification";
 import { Election, Poll } from "../types/voting";
 import { User } from "../types/user";
@@ -273,6 +274,77 @@ export const mockListings: Listing[] = [
     postedBy: "admin-1",
     postedByName: "Chukwuemeka Obi",
     contactInstruction: "Sold items remain visible for price reference.",
+  },
+];
+
+export const mockLibraryDocuments: LibraryDocument[] = [
+  {
+    id: "doc-1",
+    title: "Tiwani Constitution",
+    description: "Current association constitution and governance reference.",
+    category: "constitutional",
+    type: "constitution",
+    documentDate: new Date("2026-01-15"),
+    uploadedAt: new Date("2026-01-20T10:00:00+01:00"),
+    uploadedBy: "admin-1",
+    uploadedByName: "Chukwuemeka Obi",
+    status: "published",
+    visibility: "all_members",
+    fileName: "tiwani-constitution.pdf",
+    fileURL: "https://example.com/tiwani-constitution.pdf",
+    fileType: "pdf",
+    fileSize: 542000,
+  },
+  {
+    id: "doc-2",
+    title: "Code of Conduct",
+    description: "Member conduct standards for meetings, committees, and events.",
+    category: "constitutional",
+    type: "code_of_conduct",
+    documentDate: new Date("2026-02-05"),
+    uploadedAt: new Date("2026-02-06T12:30:00+01:00"),
+    uploadedBy: "admin-1",
+    uploadedByName: "Chukwuemeka Obi",
+    status: "published",
+    visibility: "all_members",
+    fileName: "code-of-conduct.pdf",
+    fileURL: "https://example.com/code-of-conduct.pdf",
+    fileType: "pdf",
+    fileSize: 214000,
+  },
+  {
+    id: "doc-3",
+    title: "April 2026 General Meeting Minutes",
+    description: "Attendance, motions, finance notes, and action items from April.",
+    category: "minutes_reports",
+    type: "meeting_minutes",
+    documentDate: new Date("2026-04-27"),
+    uploadedAt: new Date("2026-04-29T09:15:00+01:00"),
+    uploadedBy: "admin-1",
+    uploadedByName: "Chukwuemeka Obi",
+    status: "published",
+    visibility: "all_members",
+    fileName: "april-2026-minutes.pdf",
+    fileURL: "https://example.com/april-2026-minutes.pdf",
+    fileType: "pdf",
+    fileSize: 318000,
+  },
+  {
+    id: "doc-4",
+    title: "Q1 2026 Finance Report",
+    description: "Treasurer report covering collections, balances, and expenses.",
+    category: "minutes_reports",
+    type: "financial_report",
+    documentDate: new Date("2026-03-31"),
+    uploadedAt: new Date("2026-04-03T14:45:00+01:00"),
+    uploadedBy: "admin-1",
+    uploadedByName: "Chukwuemeka Obi",
+    status: "draft",
+    visibility: "admin_only",
+    fileName: "q1-2026-finance-report.pdf",
+    fileURL: null,
+    fileType: "pdf",
+    fileSize: 486000,
   },
 ];
 

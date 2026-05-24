@@ -11,6 +11,7 @@ import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { CATEGORY_COLORS, TiwaniEvent } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
+import { isAdmin } from "../../utils/roleGuard";
 
 const EventDetailScreen = ({ navigation, route }: any) => {
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
@@ -106,6 +107,24 @@ const EventDetailScreen = ({ navigation, route }: any) => {
             fullWidth
           />
         )}
+        {isAdmin(user) && (
+          <View style={styles.adminActions}>
+            <OutlineButton
+              label="Edit Event"
+              onPress={() =>
+                navigation.navigate("EventForm", { eventId: event.id })
+              }
+              fullWidth
+            />
+            <GoldButton
+              label="Check In Attendees"
+              onPress={() =>
+                navigation.navigate("EventCheckIn", { eventId: event.id })
+              }
+              fullWidth
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -150,6 +169,7 @@ const styles = StyleSheet.create({
     color: colors.status.error,
     fontWeight: typography.weight.bold,
   },
+  adminActions: { gap: spacing.sm },
 });
 
 export default EventDetailScreen;

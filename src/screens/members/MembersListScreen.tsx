@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo} from 'react';
-import {FlatList, StyleSheet, TextInput} from 'react-native';
+import {FlatList, StyleSheet, TextInput, TouchableOpacity} from 'react-native';
+import Icon from '../../components/common/FeatherIcon';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -34,7 +35,18 @@ const MembersListScreen = ({navigation}: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Members" />
+      <ScreenHeader
+        title="Members"
+        rightElement={
+          isAdmin(user) ? (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('MemberForm')}>
+              <Icon name="user-plus" size={20} color={colors.text.onGold} />
+            </TouchableOpacity>
+          ) : null
+        }
+      />
       <FlatList
         data={filteredMembers}
         keyExtractor={item => item.uid}
@@ -77,6 +89,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.tertiary,
     color: colors.text.primary,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold.default,
   },
 });
 

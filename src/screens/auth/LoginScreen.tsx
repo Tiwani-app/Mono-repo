@@ -22,7 +22,7 @@ interface FormValues {
   password: string;
 }
 
-const LoginScreen = () => {
+const LoginScreen = ({navigation}: any) => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const {control, handleSubmit, formState} = useForm<FormValues>({
@@ -115,9 +115,13 @@ const LoginScreen = () => {
             loading={submitting}
             fullWidth
           />
-          <Text style={styles.joinText}>
-            Not a member? <Text style={styles.link}>Request to Join</Text>
-          </Text>
+          <TouchableOpacity
+            style={styles.joinLink}
+            onPress={() => navigation.navigate('RequestJoin')}>
+            <Text style={styles.joinText}>
+              Not a member? <Text style={styles.link}>Request to Join</Text>
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -155,6 +159,7 @@ const styles = StyleSheet.create({
   errorText: {fontSize: typography.size.xs, color: colors.status.error},
   forgot: {alignSelf: 'flex-end', minHeight: 48, justifyContent: 'center'},
   forgotText: {fontSize: typography.size.base, color: colors.gold.default},
+  joinLink: {minHeight: 48, justifyContent: 'center'},
   joinText: {textAlign: 'center', color: colors.text.secondary, marginTop: spacing.md},
   link: {color: colors.gold.default, fontWeight: typography.weight.bold},
 });

@@ -13,9 +13,10 @@ import { formatCurrency } from "../../utils/formatCurrency";
 
 interface Props {
   listing: Listing;
+  onEdit?: () => void;
 }
 
-const AdminListingCard = ({ listing }: Props) => {
+const AdminListingCard = ({ listing, onEdit }: Props) => {
   const sold = listing.status === "sold";
 
   const handleDelete = () => {
@@ -43,6 +44,7 @@ const AdminListingCard = ({ listing }: Props) => {
         />
       </View>
       <View style={styles.actions}>
+        {onEdit && <OutlineButton label="Edit" onPress={onEdit} />}
         {sold ? (
           <GoldButton
             label="Mark Available"
