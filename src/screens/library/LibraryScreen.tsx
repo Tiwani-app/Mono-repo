@@ -100,20 +100,20 @@ const LibraryScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
-            <View style={styles.hero}>
+          <TextInput
+              style={[styles.search, { marginBottom: spacing.md }]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search title or description"
+              placeholderTextColor={colors.text.tertiary}
+            />
+            <View style={[styles.hero, { marginBottom: spacing.md }]}>
               <Badge label="OFFICIAL DOCUMENTS" color={colors.gold.default} />
               <Text style={styles.heroTitle}>Association Library</Text>
               <Text style={styles.heroBody}>
                 Browse current governance documents, meeting minutes, and reports.
               </Text>
             </View>
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search title or description"
-              placeholderTextColor={colors.text.tertiary}
-              style={styles.search}
-            />
             <View style={styles.categoryGrid}>
               {(Object.keys(LIBRARY_CATEGORY_LABELS) as LibraryCategory[]).map(
                 (category) => (
