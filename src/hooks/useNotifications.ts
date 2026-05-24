@@ -21,8 +21,7 @@ export const useNotifications = () => {
     return () => unsubscribe();
   }, [setNotifications, setReadIds, setLoading]);
 
-  const markAllRead = async () => {
-    const ids = notifications.map(item => item.id);
+  const persistReadIds = async (ids: string[]) => {
     setReadIds(ids);
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
@@ -31,7 +30,19 @@ export const useNotifications = () => {
     }
   };
 
+  const markRead = async (id: string) => {
+    if (readIds.includes(id)) {
+      return;
+    }
+    await persistReadIds([...readIds, id]);
+  };
+
+  const markAllRead = async () => {
+    const ids = notifications.map(item => item.id);
+    await persistReadIds(ids);
+  };
+
   const unreadCount = notifications.filter(item => !readIds.includes(item.id)).length;
 
-  return {...useNotificationsStore(), markAllRead, unreadCount};
+  return {...useNotificationsStore(), markAllRead, markRead, unreadCount};
 };

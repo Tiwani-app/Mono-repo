@@ -251,6 +251,7 @@ export const mockNotifications: TiwaniNotification[] = [
     title: "Meeting reminder",
     body: "May General Meeting is this weekend.",
     sentAt: new Date("2026-05-12T09:00:00+01:00"),
+    target: { route: "event_detail", eventId: "event-1" },
   },
   {
     id: "notif-2",
@@ -258,6 +259,7 @@ export const mockNotifications: TiwaniNotification[] = [
     title: "Dues update",
     body: "Q2 dues are now open for payment.",
     sentAt: new Date("2026-05-10T12:00:00+01:00"),
+    target: { route: "my_ledger" },
   },
   {
     id: "notif-3",
@@ -265,6 +267,7 @@ export const mockNotifications: TiwaniNotification[] = [
     title: "Election opened",
     body: "The 2026 Executive Election is now active.",
     sentAt: new Date("2026-05-09T08:30:00+01:00"),
+    target: { route: "election_ballot", electionId: "election-1" },
   },
 ];
 
