@@ -17,6 +17,7 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
 import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
+import { getDashboardQuickActions } from "./dashboardQuickActions";
 
 const StatTile = ({ accentColor, label, subLabel, value }: any) => (
   <View style={[styles.statTile, { borderTopColor: accentColor }]}>
@@ -43,39 +44,7 @@ const DashboardScreen = ({ navigation }: any) => {
   const { notifications, unreadCount } = useNotifications();
   const admin = isAdmin(user);
   const firstName = user?.fullName.split(" ")[0] ?? "there";
-  const quickActions = admin
-    ? [
-        ["user-plus", "Add Member", () => navigation.navigate("MemberForm")],
-        [
-          "calendar",
-          "New Event",
-          () => navigation.navigate("Events", { screen: "EventForm" }),
-        ],
-        [
-          "check-circle",
-          "New Poll",
-          () => navigation.navigate("Voting", { screen: "PollForm" }),
-        ],
-        [
-          "credit-card",
-          "Record Pay",
-          () => navigation.navigate("Finance", { screen: "RecordPayment" }),
-        ],
-        ["book-open", "Library", () => navigation.navigate("Library")],
-        ["upload", "Upload Doc", () => navigation.navigate("DocumentForm")],
-        ["inbox", "Requests", () => navigation.navigate("JoinRequests")],
-      ]
-    : [
-        ["calendar", "Events", () => navigation.navigate("Events")],
-        ["check-circle", "Vote", () => navigation.navigate("Voting")],
-        [
-          "credit-card",
-          "My Ledger",
-          () => navigation.navigate("Finance", { screen: "MyLedger" }),
-        ],
-        ["shopping-bag", "Marketplace", () => navigation.navigate("Market")],
-        ["book-open", "Library", () => navigation.navigate("Library")],
-      ];
+  const quickActions = getDashboardQuickActions(admin, navigation);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -156,9 +125,9 @@ const DashboardScreen = ({ navigation }: any) => {
 
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.quickGrid}>
-          {quickActions.map(([icon, label, onPress]) => (
+          {quickActions.map(({ icon, label, onPress }) => (
             <QuickAction
-              key={label as string}
+              key={label}
               icon={icon}
               label={label}
               onPress={onPress}

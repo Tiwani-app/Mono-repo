@@ -8,6 +8,7 @@ import MarketStack from "./MarketStack";
 import VotingStack from "./VotingStack";
 import { colors } from "../theme";
 import { AppTabParamList } from "./types";
+import { TAB_ROOT_ROUTES } from "./tabRoutes";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
@@ -50,7 +51,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Dashboard", { screen: "DashboardHome" });
+          navigation.navigate("Dashboard", TAB_ROOT_ROUTES.Dashboard);
         },
       })}
     />
@@ -60,7 +61,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Events", { screen: "EventsList" });
+          navigation.navigate("Events", TAB_ROOT_ROUTES.Events);
         },
       })}
     />
@@ -70,7 +71,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Voting", { screen: "VotingHub" });
+          navigation.navigate("Voting", TAB_ROOT_ROUTES.Voting);
         },
       })}
     />
@@ -80,7 +81,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Finance", { screen: "FinanceAdmin" });
+          navigation.navigate("Finance", TAB_ROOT_ROUTES.Finance);
         },
       })}
     />
@@ -90,7 +91,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Market", { screen: "Marketplace" });
+          navigation.navigate("Market", TAB_ROOT_ROUTES.Market);
         },
       })}
     />
