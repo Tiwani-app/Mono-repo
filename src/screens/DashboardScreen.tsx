@@ -63,6 +63,7 @@ const DashboardScreen = ({ navigation }: any) => {
         ],
         ["book-open", "Library", () => navigation.navigate("Library")],
         ["upload", "Upload Doc", () => navigation.navigate("DocumentForm")],
+        ["inbox", "Requests", () => navigation.navigate("JoinRequests")],
       ]
     : [
         ["calendar", "Events", () => navigation.navigate("Events")],
@@ -107,7 +108,7 @@ const DashboardScreen = ({ navigation }: any) => {
               <StatTile
                 value="3"
                 label="Members"
-                subLabel="0 pending"
+                subLabel="requests ready"
                 accentColor={colors.gold.default}
               />
               <StatTile

@@ -35,3 +35,15 @@ export interface User {
   currencySymbol: string;
   timezone: string;
 }
+
+export interface JoinRequest {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  message: string;
+  status: 'pending' | 'approved' | 'declined';
+  createdAt: Date;
+  reviewedAt: Date | null;
+  reviewedBy: string | null;
+}

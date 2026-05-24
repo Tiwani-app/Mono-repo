@@ -4,7 +4,7 @@ import { Listing } from "../types/marketplace";
 import { LibraryDocument } from "../types/library";
 import { TiwaniNotification } from "../types/notification";
 import { Election, Poll } from "../types/voting";
-import { User } from "../types/user";
+import { JoinRequest, User } from "../types/user";
 
 export const mockUsers: User[] = [
   {
@@ -72,6 +72,20 @@ export const mockUsers: User[] = [
     notificationPreferences: { events: true, finance: true, voting: true },
     currencySymbol: "₦",
     timezone: "WAT",
+  },
+];
+
+export const mockJoinRequests: JoinRequest[] = [
+  {
+    id: "join-1",
+    fullName: "Amaka Eze",
+    email: "amaka@example.com",
+    phone: "08022223333",
+    message: "I would like to join and participate in community activities.",
+    status: "pending",
+    createdAt: new Date("2026-05-08T11:00:00+01:00"),
+    reviewedAt: null,
+    reviewedBy: null,
   },
 ];
 
