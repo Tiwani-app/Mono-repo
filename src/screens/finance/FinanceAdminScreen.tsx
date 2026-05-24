@@ -53,7 +53,7 @@ const FinanceAdminScreen = ({navigation}: any) => {
               <SummaryTile label="Collected" value={formatCurrency(totalCollected)} />
               <SummaryTile label="Outstanding" value={formatCurrency(outstanding)} />
             </View>
-            <Text style={styles.sectionLabel}>DUES PERIODS</Text>
+            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>DUES PERIODS</Text>
             {duesPeriods.map(period => (
               <DuesPeriodCard key={period.id} period={period} />
             ))}
