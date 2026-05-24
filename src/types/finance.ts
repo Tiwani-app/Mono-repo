@@ -9,7 +9,10 @@ export interface LedgerEntry {
   dueDate: Date | null;
   paid: boolean;
   paidAt: Date | null;
+  paymentMethod?: string;
+  reference?: string;
   note: string;
+  duesPeriodId?: string;
 }
 
 export interface DuesPeriod {
