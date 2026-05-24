@@ -20,6 +20,7 @@ import { createDuesPeriod } from '../../services/financeService';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { DuesPeriod } from '../../types/finance';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -74,7 +75,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
         dueDate,
         status,
       });
-      navigation.goBack();
+      safeGoBack(navigation, 'FinanceAdmin');
     } catch (error) {
       Alert.alert(
         'Dues period not saved',
@@ -88,7 +89,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="New Dues" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="New Dues" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -100,7 +101,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="New Dues Period" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="New Dues Period" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>

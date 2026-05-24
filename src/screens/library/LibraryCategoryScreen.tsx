@@ -14,6 +14,7 @@ import {
   LibraryCategory,
   LibraryDocument,
 } from "../../types/library";
+import { safeGoBack } from "../../utils/navigation";
 
 const LibraryCategoryScreen = ({ navigation, route }: any) => {
   const [selectedType, setSelectedType] = useState("all");
@@ -72,7 +73,7 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={LIBRARY_CATEGORY_LABELS[category]}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, "Library")}
       />
       <FlatList
         data={visibleDocuments}

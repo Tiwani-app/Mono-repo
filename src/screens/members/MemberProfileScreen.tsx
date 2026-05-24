@@ -12,6 +12,7 @@ import {colors, spacing, typography} from '../../theme';
 import {User} from '../../types/user';
 import {formatDisplayDate} from '../../utils/formatDate';
 import {getInitials} from '../../utils/getInitials';
+import {safeGoBack} from '../../utils/navigation';
 import {isAdmin} from '../../utils/roleGuard';
 
 const MemberProfileScreen = ({navigation, route}: any) => {
@@ -33,7 +34,7 @@ const MemberProfileScreen = ({navigation, route}: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Profile" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Profile" showBack onBack={() => safeGoBack(navigation, 'MembersList')} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Avatar

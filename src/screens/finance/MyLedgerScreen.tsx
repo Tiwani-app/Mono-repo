@@ -17,6 +17,14 @@ const MyLedgerScreen = ({navigation, route}: any) => {
   const outstanding = ledgerEntries
     .filter(entry => entry.type !== 'payment' && !entry.paid)
     .reduce((sum, entry) => sum + entry.amount, 0);
+  const handleBack = () => {
+    if (navigation.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.getParent?.()?.navigate('Dashboard', {screen: 'DashboardHome'});
+  };
 
   if (loading) {
     return <LoadingSpinner />;
@@ -24,7 +32,7 @@ const MyLedgerScreen = ({navigation, route}: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="My Finances" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="My Finances" showBack onBack={handleBack} />
       <FlatList
         data={ledgerEntries}
         keyExtractor={item => item.id}

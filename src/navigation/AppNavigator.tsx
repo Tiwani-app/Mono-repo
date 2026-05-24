@@ -15,6 +15,7 @@ const AppNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
+      popToTopOnBlur: true,
       tabBarStyle: {
         backgroundColor: colors.bg.secondary,
         borderTopColor: colors.border.subtle,
@@ -43,11 +44,56 @@ const AppNavigator = () => (
       },
     })}
   >
-    <Tab.Screen name="Dashboard" component={DashboardStack} />
-    <Tab.Screen name="Events" component={EventsStack} />
-    <Tab.Screen name="Voting" component={VotingStack} />
-    <Tab.Screen name="Finance" component={FinanceStack} />
-    <Tab.Screen name="Market" component={MarketStack} />
+    <Tab.Screen
+      name="Dashboard"
+      component={DashboardStack}
+      listeners={({ navigation }) => ({
+        tabPress: (event) => {
+          event.preventDefault();
+          navigation.navigate("Dashboard", { screen: "DashboardHome" });
+        },
+      })}
+    />
+    <Tab.Screen
+      name="Events"
+      component={EventsStack}
+      listeners={({ navigation }) => ({
+        tabPress: (event) => {
+          event.preventDefault();
+          navigation.navigate("Events", { screen: "EventsList" });
+        },
+      })}
+    />
+    <Tab.Screen
+      name="Voting"
+      component={VotingStack}
+      listeners={({ navigation }) => ({
+        tabPress: (event) => {
+          event.preventDefault();
+          navigation.navigate("Voting", { screen: "VotingHub" });
+        },
+      })}
+    />
+    <Tab.Screen
+      name="Finance"
+      component={FinanceStack}
+      listeners={({ navigation }) => ({
+        tabPress: (event) => {
+          event.preventDefault();
+          navigation.navigate("Finance", { screen: "FinanceAdmin" });
+        },
+      })}
+    />
+    <Tab.Screen
+      name="Market"
+      component={MarketStack}
+      listeners={({ navigation }) => ({
+        tabPress: (event) => {
+          event.preventDefault();
+          navigation.navigate("Market", { screen: "Marketplace" });
+        },
+      })}
+    />
   </Tab.Navigator>
 );
 

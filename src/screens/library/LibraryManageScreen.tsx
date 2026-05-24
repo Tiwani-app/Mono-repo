@@ -16,6 +16,7 @@ import { useAuthStore } from "../../store/authStore";
 import { colors, spacing } from "../../theme";
 import { LibraryDocument } from "../../types/library";
 import { isAdmin } from "../../utils/roleGuard";
+import { safeGoBack } from "../../utils/navigation";
 
 const LibraryManageScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -24,7 +25,7 @@ const LibraryManageScreen = ({ navigation }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Library Manage" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Library Manage" showBack onBack={() => safeGoBack(navigation, "Library")} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -54,7 +55,7 @@ const LibraryManageScreen = ({ navigation }: any) => {
       <ScreenHeader
         title="Manage Library"
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, "Library")}
         rightElement={
           <GoldButton
             label="Upload"

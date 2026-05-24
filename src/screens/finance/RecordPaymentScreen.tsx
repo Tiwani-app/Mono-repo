@@ -22,6 +22,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { getInitials } from '../../utils/getInitials';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -71,7 +72,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
         reference: values.reference.trim(),
         note: values.note.trim(),
       });
-      navigation.goBack();
+      safeGoBack(navigation, 'FinanceAdmin');
     } catch (error) {
       Alert.alert(
         'Payment not recorded',
@@ -85,7 +86,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Record Payment" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Record Payment" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -97,7 +98,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Record Payment" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Record Payment" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>

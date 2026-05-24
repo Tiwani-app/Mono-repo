@@ -32,5 +32,5 @@ export interface Election {
   title: string;
   ballotType: 'open' | 'secret';
   races: Race[];
-  status: 'open' | 'closed';
+  status: 'draft' | 'open' | 'closed';
 }

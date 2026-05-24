@@ -11,6 +11,7 @@ import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { CATEGORY_COLORS, EventStatus, TiwaniEvent } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
+import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
 const STATUS_COLORS: Record<EventStatus, string> = {
@@ -82,7 +83,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title="Event"
         showBack
-        onBack={() => navigation.navigate("EventsList")}
+        onBack={() => safeGoBack(navigation, "EventsList")}
         rightElement={
           <Badge label={event.category.toUpperCase()} color={categoryColor} />
         }

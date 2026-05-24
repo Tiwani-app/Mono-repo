@@ -15,6 +15,7 @@ import ScreenHeader from '../../components/common/ScreenHeader';
 import { createJoinRequest } from '../../services/membersService';
 import { colors, spacing, typography } from '../../theme';
 import { emailRules } from '../../utils/validators';
+import { safeGoBack } from '../../utils/navigation';
 
 interface FormValues {
   fullName: string;
@@ -44,7 +45,7 @@ const RequestJoinScreen = ({ navigation }: any) => {
         message: values.message.trim(),
       });
       Alert.alert('Request sent', 'An admin will review your request.', [
-        {text: 'OK', onPress: navigation.goBack},
+        {text: 'OK', onPress: () => safeGoBack(navigation, 'Login')},
       ]);
     } catch (error) {
       Alert.alert(
@@ -58,7 +59,7 @@ const RequestJoinScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Request to Join" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Request to Join" showBack onBack={() => safeGoBack(navigation, 'Login')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>

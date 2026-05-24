@@ -1,4 +1,4 @@
-import { Election, Poll } from '../types/voting';
+import { Election, Poll, Race } from '../types/voting';
 import { delay, mockElections, mockPolls } from './mockData';
 
 export interface PollInput {
@@ -8,12 +8,29 @@ export interface PollInput {
   options: string[];
 }
 
+export interface ElectionInput {
+  title: string;
+  ballotType: Election['ballotType'];
+  status: Election['status'];
+  races: {
+    office: string;
+    candidates: {name: string; manifestoLine: string}[];
+  }[];
+}
+
+export interface RaceResult {
+  raceId: string;
+  office: string;
+  candidates: {name: string; voteCount: number}[];
+}
+
 let polls = mockPolls.slice();
 let elections = mockElections.slice();
 const pollSubscribers = new Set<(polls: Poll[]) => void>();
 const electionSubscribers = new Set<(elections: Election[]) => void>();
 const pollVotes = new Set<string>();
 const electionVotes = new Set<string>();
+const electionBallots: Record<string, Record<string, string>[]> = {};
 
 const visiblePolls = () => polls.filter(poll => poll.status === 'open');
 const visibleElections = () => elections.filter(election => election.status === 'open');
@@ -36,6 +53,27 @@ const optionIdFromLabel = (label: string, index: number) => {
     .replace(/^-|-$/g, '');
   return slug || `option-${index + 1}`;
 };
+
+const raceIdFromOffice = (office: string, index: number) => {
+  const slug = office
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug || `race-${index + 1}`;
+};
+
+const racesFromInput = (data: ElectionInput): Race[] =>
+  data.races.map((race, raceIndex) => ({
+    raceId: raceIdFromOffice(race.office, raceIndex),
+    office: race.office,
+    candidates: race.candidates.map(candidate => ({
+      uid: null,
+      name: candidate.name,
+      manifestoLine: candidate.manifestoLine,
+      photoURL: null,
+    })),
+  }));
 
 export const subscribeToPolls = (callback: (polls: Poll[]) => void) => {
   pollSubscribers.add(callback);
@@ -60,6 +98,15 @@ export const getPoll = async (pollId: string): Promise<Poll> => {
     throw new Error('Poll not found.');
   }
   return poll;
+};
+
+export const getElection = async (electionId: string): Promise<Election> => {
+  await delay();
+  const election = elections.find(item => item.id === electionId);
+  if (!election) {
+    throw new Error('Election not found.');
+  }
+  return election;
 };
 
 export const createPoll = async (data: PollInput): Promise<Poll> => {
@@ -116,6 +163,58 @@ export const closePoll = async (pollId: string): Promise<void> => {
   await updatePoll(pollId, { status: 'closed' });
 };
 
+export const createElection = async (data: ElectionInput): Promise<Election> => {
+  await delay();
+  const election: Election = {
+    id: `election-${Date.now()}`,
+    title: data.title,
+    ballotType: data.ballotType,
+    status: data.status,
+    races: racesFromInput(data),
+  };
+  elections = [election, ...elections];
+  emitElections();
+  return election;
+};
+
+export const updateElection = async (
+  electionId: string,
+  data: Partial<ElectionInput>,
+): Promise<void> => {
+  await delay();
+  elections = elections.map(election =>
+    election.id === electionId
+      ? {
+          ...election,
+          ...data,
+          races: data.races ? racesFromInput(data as ElectionInput) : election.races,
+        }
+      : election,
+  );
+  emitElections();
+};
+
+export const closeElection = async (electionId: string): Promise<void> => {
+  await updateElection(electionId, {status: 'closed'});
+};
+
+export const getElectionResults = async (electionId: string): Promise<RaceResult[]> => {
+  await delay();
+  const election = elections.find(item => item.id === electionId);
+  if (!election) {
+    throw new Error('Election not found.');
+  }
+  const ballots = electionBallots[electionId] ?? [];
+  return election.races.map(race => ({
+    raceId: race.raceId,
+    office: race.office,
+    candidates: race.candidates.map(candidate => ({
+      name: candidate.name,
+      voteCount: ballots.filter(ballot => ballot[race.raceId] === candidate.name).length,
+    })),
+  }));
+};
+
 export const hasCastPollVote = async (pollId: string, userId: string): Promise<boolean> => {
   await delay();
   return pollVotes.has(`${pollId}:${userId}`);
@@ -158,6 +257,7 @@ export const castElectionBallot = async (
   if (!election || !completeBallot) {
     throw new Error('Ballot is incomplete.');
   }
+  electionBallots[electionId] = [...(electionBallots[electionId] ?? []), choices];
   electionVotes.add(voteKey);
   emitElections();
 };

@@ -11,6 +11,7 @@ import {castElectionBallot, hasCastElectionVote} from '../../services/votingServ
 import {useAuthStore} from '../../store/authStore';
 import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
+import {safeGoBack} from '../../utils/navigation';
 
 const ElectionBallotScreen = ({navigation, route}: any) => {
   const [gated, setGated] = useState(false);
@@ -74,7 +75,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
   if (voteSubmitted || hasVotedElection) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Ballot Submitted" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Ballot Submitted" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
         <View style={styles.successContainer}>
           <View style={styles.checkCircle}>
             <Icon name="check" size={28} color={colors.status.success} />
@@ -83,7 +84,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
           <Text style={styles.successBody}>
             Your {election.ballotType === 'secret' ? 'secret ' : ''}ballot has been recorded.
           </Text>
-          <GoldButton label="Back to Voting" onPress={navigation.goBack} />
+          <GoldButton label="Back to Voting" onPress={() => safeGoBack(navigation, 'VotingHub')} />
         </View>
       </SafeAreaView>
     );
@@ -91,7 +92,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title={election.title} showBack onBack={navigation.goBack} />
+      <ScreenHeader title={election.title} showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
       <ScrollView contentContainerStyle={styles.content}>
         {election.ballotType === 'secret' && (
           <View style={styles.disclaimer}>

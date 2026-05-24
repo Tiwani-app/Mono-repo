@@ -11,6 +11,7 @@ import {castPollVote, hasCastPollVote} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
+import {safeGoBack} from '../../utils/navigation';
 
 const PollVoteScreen = ({navigation, route}: any) => {
   const [gated, setGated] = useState(false);
@@ -59,7 +60,7 @@ const PollVoteScreen = ({navigation, route}: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Cast Your Vote" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Cast Your Vote" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.contextCard}>
           <Badge label={`${poll.totalVotes} VOTES`} color={colors.gold.default} />

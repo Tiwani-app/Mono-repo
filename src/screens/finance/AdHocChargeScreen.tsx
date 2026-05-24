@@ -23,6 +23,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { LedgerType } from '../../types/finance';
 import { getInitials } from '../../utils/getInitials';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -105,7 +106,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
         dueDate,
         note: values.note.trim(),
       });
-      navigation.goBack();
+      safeGoBack(navigation, 'FinanceAdmin');
     } catch (error) {
       Alert.alert(
         'Charge not created',
@@ -119,7 +120,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Ad Hoc Charge" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -131,7 +132,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Ad Hoc Charge" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>

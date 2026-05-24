@@ -27,6 +27,7 @@ import {
   ListingCondition,
   ListingStatus,
 } from "../../types/marketplace";
+import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
 interface FormValues {
@@ -110,7 +111,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       } else {
         await createListing(payload);
       }
-      navigation.goBack();
+      safeGoBack(navigation, "Marketplace");
     } catch (error) {
       Alert.alert(
         "Listing not saved",
@@ -124,7 +125,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Listing" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Listing" showBack onBack={() => safeGoBack(navigation, "Marketplace")} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -143,7 +144,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={listingId ? "Edit Listing" : "Add Listing"}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, "Marketplace")}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

@@ -9,7 +9,7 @@ import ScreenHeader from '../../components/common/ScreenHeader';
 import FinancialGate from '../../components/voting/FinancialGate';
 import PollCard from '../../components/voting/PollCard';
 import {useVoting} from '../../hooks/useVoting';
-import {closePoll} from '../../services/votingService';
+import {closeElection, closePoll} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {colors, spacing, typography} from '../../theme';
 import {isAdmin} from '../../utils/roleGuard';
@@ -27,6 +27,17 @@ const VotingHubScreen = ({navigation}: any) => {
         text: 'Close Poll',
         style: 'destructive',
         onPress: () => closePoll(pollId),
+      },
+    ]);
+  };
+
+  const confirmCloseElection = (electionId: string) => {
+    Alert.alert('Close Election', 'Close this election and show results?', [
+      {text: 'Keep Open', style: 'cancel'},
+      {
+        text: 'Close Election',
+        style: 'destructive',
+        onPress: () => closeElection(electionId),
       },
     ]);
   };
@@ -51,23 +62,41 @@ const VotingHubScreen = ({navigation}: any) => {
           <>
             {elections.length > 0 && <Text style={styles.sectionLabel}>ACTIVE ELECTION</Text>}
             {elections.map(election => (
-              <TouchableOpacity
-                key={election.id}
-                style={styles.electionCard}
-                onPress={() => navigation.navigate('ElectionBallot', {electionId: election.id})}
-                activeOpacity={0.8}>
-                <Text style={styles.title}>{election.title}</Text>
-                <Badge
-                  label={election.ballotType === 'secret' ? 'SECRET BALLOT' : 'OPEN BALLOT'}
-                  color={colors.gold.default}
-                />
-                <Text style={styles.meta}>{election.races.length} races</Text>
-                <GoldButton
-                  label="Cast Your Vote"
+              <View key={election.id} style={styles.electionBlock}>
+                <TouchableOpacity
+                  style={styles.electionCard}
                   onPress={() => navigation.navigate('ElectionBallot', {electionId: election.id})}
-                  size="sm"
-                />
-              </TouchableOpacity>
+                  activeOpacity={0.8}>
+                  <Text style={styles.title}>{election.title}</Text>
+                  <Badge
+                    label={election.ballotType === 'secret' ? 'SECRET BALLOT' : 'OPEN BALLOT'}
+                    color={colors.gold.default}
+                  />
+                  <Text style={styles.meta}>{election.races.length} races</Text>
+                  <GoldButton
+                    label="Cast Your Vote"
+                    onPress={() => navigation.navigate('ElectionBallot', {electionId: election.id})}
+                    size="sm"
+                  />
+                </TouchableOpacity>
+                {admin && (
+                  <View style={styles.pollActions}>
+                    <OutlineButton
+                      label="Edit"
+                      onPress={() => navigation.navigate('ElectionForm', {electionId: election.id})}
+                    />
+                    <OutlineButton
+                      label="Results"
+                      onPress={() => navigation.navigate('ElectionResults', {electionId: election.id})}
+                    />
+                    <OutlineButton
+                      label="Close"
+                      color={colors.status.error}
+                      onPress={() => confirmCloseElection(election.id)}
+                    />
+                  </View>
+                )}
+              </View>
             ))}
             {polls.length > 0 && <Text style={styles.sectionLabel}>ACTIVE POLLS</Text>}
             {polls.map(poll => (
@@ -102,6 +131,7 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.secondary},
   content: {padding: spacing.lg, gap: spacing.md},
   adminActions: {gap: spacing.sm},
+  electionBlock: {gap: spacing.sm},
   pollBlock: {gap: spacing.sm},
   pollActions: {gap: spacing.sm},
   sectionLabel: {fontSize: typography.size.xs, color: colors.text.secondary, fontWeight: typography.weight.bold},

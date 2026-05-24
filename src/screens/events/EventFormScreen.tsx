@@ -25,6 +25,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { EventCategory, EventStatus } from '../../types/event';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -127,7 +128,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
       } else {
         await createEvent(payload);
       }
-      navigation.goBack();
+      safeGoBack(navigation, 'EventsList');
     } catch (error) {
       Alert.alert(
         'Event not saved',
@@ -141,7 +142,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Event" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Event" showBack onBack={() => safeGoBack(navigation, 'EventsList')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -160,7 +161,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={eventId ? 'Edit Event' : 'New Event'}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, 'EventsList')}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

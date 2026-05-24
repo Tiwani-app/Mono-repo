@@ -30,6 +30,7 @@ import {
   LibraryDocumentType,
   LibraryDocumentVisibility,
 } from "../../types/library";
+import { safeGoBack } from "../../utils/navigation";
 
 interface FormValues {
   title: string;
@@ -127,7 +128,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           fileSize: null,
         });
       }
-      navigation.goBack();
+      safeGoBack(navigation, "Library");
     } catch (error) {
       Alert.alert(
         "Document not saved",
@@ -147,7 +148,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={documentId ? "Edit Document" : "Upload Document"}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, "Library")}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

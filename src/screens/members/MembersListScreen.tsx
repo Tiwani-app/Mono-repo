@@ -9,6 +9,7 @@ import MemberCard from '../../components/members/MemberCard';
 import {useMembers} from '../../hooks/useMembers';
 import {useAuthStore} from '../../store/authStore';
 import {colors, spacing} from '../../theme';
+import {safeGoBack} from '../../utils/navigation';
 import {isAdmin} from '../../utils/roleGuard';
 
 const MembersListScreen = ({navigation}: any) => {
@@ -37,6 +38,8 @@ const MembersListScreen = ({navigation}: any) => {
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
         title="Members"
+        showBack
+        onBack={() => safeGoBack(navigation, 'DashboardHome')}
         rightElement={
           isAdmin(user) ? (
             <TouchableOpacity

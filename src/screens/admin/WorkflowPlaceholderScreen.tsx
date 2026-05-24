@@ -4,24 +4,27 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { colors, spacing, typography } from "../../theme";
+import { safeGoBack } from "../../utils/navigation";
 
 interface Props {
   title: string;
   badge?: string;
   body: string;
   bullets?: string[];
-  navigation: { goBack: () => void };
+  fallbackRoute?: string;
+  navigation: { canGoBack?: () => boolean; goBack: () => void; navigate: (...args: any[]) => void };
 }
 
 const WorkflowPlaceholderScreen = ({
   badge = "NEXT FORM STEP",
   body,
   bullets = [],
+  fallbackRoute = "DashboardHome",
   navigation,
   title,
 }: Props) => (
   <SafeAreaView style={styles.safe}>
-    <ScreenHeader title={title} showBack onBack={navigation.goBack} />
+    <ScreenHeader title={title} showBack onBack={() => safeGoBack(navigation, fallbackRoute)} />
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Badge label={badge} color={colors.gold.default} />

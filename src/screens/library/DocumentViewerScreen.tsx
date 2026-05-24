@@ -14,6 +14,7 @@ import {
   LibraryDocument,
 } from "../../types/library";
 import { formatDisplayDate } from "../../utils/formatDate";
+import { safeGoBack } from "../../utils/navigation";
 
 const DocumentViewerScreen = ({ navigation, route }: any) => {
   const [document, setDocument] = useState<LibraryDocument | null>(null);
@@ -52,7 +53,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Document" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Document" showBack onBack={() => safeGoBack(navigation, "Library")} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>
@@ -82,7 +83,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         <GoldButton label="Open Document" onPress={handleOpen} fullWidth />
         <OutlineButton
           label="Back to Library"
-          onPress={navigation.goBack}
+          onPress={() => safeGoBack(navigation, "Library")}
           fullWidth
         />
       </ScrollView>

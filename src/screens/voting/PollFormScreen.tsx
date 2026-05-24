@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { Poll } from '../../types/voting';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -95,7 +96,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
       } else {
         await createPoll(payload);
       }
-      navigation.goBack();
+      safeGoBack(navigation, 'VotingHub');
     } catch (error) {
       Alert.alert(
         'Poll not saved',
@@ -109,7 +110,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Poll" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Poll" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -128,7 +129,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={pollId ? 'Edit Poll' : 'New Poll'}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, 'VotingHub')}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

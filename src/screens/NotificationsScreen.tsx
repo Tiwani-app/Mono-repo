@@ -12,6 +12,7 @@ import {
   TiwaniNotification,
 } from '../types/notification';
 import { formatRelativeTime } from '../utils/formatDate';
+import { safeGoBack } from '../utils/navigation';
 
 const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   event: colors.status.info,
@@ -97,7 +98,7 @@ const NotificationsScreen = ({navigation}: any) => {
       <ScreenHeader
         title="Notifications"
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, 'DashboardHome')}
         rightElement={
           <TouchableOpacity style={styles.markButton} onPress={markAllRead}>
             <Text style={styles.markText}>Read</Text>

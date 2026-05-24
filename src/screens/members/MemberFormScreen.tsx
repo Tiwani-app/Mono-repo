@@ -25,6 +25,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { FinancialStatus, MemberStatus, Role } from '../../types/user';
 import { emailRules } from '../../utils/validators';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 interface FormValues {
@@ -115,7 +116,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       } else {
         await createMember(payload);
       }
-      navigation.goBack();
+      safeGoBack(navigation, 'MembersList');
     } catch (error) {
       Alert.alert(
         'Member not saved',
@@ -129,7 +130,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Member" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Member" showBack onBack={() => safeGoBack(navigation, 'DashboardHome')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -148,7 +149,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       <ScreenHeader
         title={memberId ? 'Edit Member' : 'Add Member'}
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, 'DashboardHome')}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

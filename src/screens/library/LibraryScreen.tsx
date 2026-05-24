@@ -24,6 +24,7 @@ import {
   LibraryDocument,
 } from "../../types/library";
 import { isAdmin } from "../../utils/roleGuard";
+import { safeGoBack } from "../../utils/navigation";
 
 const categorySubtitles: Record<LibraryCategory, string> = {
   constitutional: "Constitution, by-laws, conduct, and governance references.",
@@ -74,7 +75,7 @@ const LibraryScreen = ({ navigation }: any) => {
       <ScreenHeader
         title="Library"
         showBack
-        onBack={navigation.goBack}
+        onBack={() => safeGoBack(navigation, "DashboardHome")}
         rightElement={
           admin ? (
             <View style={styles.headerActions}>

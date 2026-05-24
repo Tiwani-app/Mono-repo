@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { JoinRequest } from '../../types/user';
 import { formatRelativeTime } from '../../utils/formatDate';
+import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
 
 const statusColor = (status: JoinRequest['status']) => {
@@ -50,7 +51,7 @@ const JoinRequestsScreen = ({ navigation }: any) => {
   if (!isAdmin(user)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Join Requests" showBack onBack={navigation.goBack} />
+        <ScreenHeader title="Join Requests" showBack onBack={() => safeGoBack(navigation, 'DashboardHome')} />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -62,7 +63,7 @@ const JoinRequestsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Join Requests" showBack onBack={navigation.goBack} />
+      <ScreenHeader title="Join Requests" showBack onBack={() => safeGoBack(navigation, 'DashboardHome')} />
       <FlatList
         data={requests}
         keyExtractor={item => item.id}
