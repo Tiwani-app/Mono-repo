@@ -257,11 +257,14 @@ export const mockListings: Listing[] = [
     price: 85000,
     description:
       "Used twice, excellent condition. Includes box, charger and 16GB card.",
+    condition: "like_new",
     status: "available",
     imageURL: null,
     postedBy: "admin-1",
     postedByName: "Chukwuemeka Obi",
     contactInstruction: "WhatsApp the seller to arrange inspection and pickup.",
+    createdAt: new Date("2026-05-01T10:00:00+01:00"),
+    updatedAt: new Date("2026-05-01T10:00:00+01:00"),
   },
   {
     id: "listing-2",
@@ -269,11 +272,14 @@ export const mockListings: Listing[] = [
     price: 45000,
     description:
       "Height-adjustable desk, minor scratch on base. Lagos pickup only.",
+    condition: "good",
     status: "sold",
     imageURL: null,
     postedBy: "admin-1",
     postedByName: "Chukwuemeka Obi",
     contactInstruction: "Sold items remain visible for price reference.",
+    createdAt: new Date("2026-04-18T14:30:00+01:00"),
+    updatedAt: new Date("2026-05-05T09:00:00+01:00"),
   },
 ];
 

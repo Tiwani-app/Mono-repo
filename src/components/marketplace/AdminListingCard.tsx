@@ -8,8 +8,16 @@ import {
   updateListing,
 } from "../../services/marketplaceService";
 import { colors, spacing, typography } from "../../theme";
-import { Listing } from "../../types/marketplace";
+import { Listing, ListingCondition } from "../../types/marketplace";
 import { formatCurrency } from "../../utils/formatCurrency";
+
+const CONDITION_LABELS: Record<ListingCondition, string> = {
+  new: "New",
+  like_new: "Like New",
+  good: "Good",
+  fair: "Fair",
+  used: "Used",
+};
 
 interface Props {
   listing: Listing;
@@ -36,6 +44,9 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
         <View style={styles.content}>
           <Text style={styles.title}>{listing.title}</Text>
           <Text style={styles.price}>{formatCurrency(listing.price)}</Text>
+          <Text style={styles.condition}>
+            {CONDITION_LABELS[listing.condition]} condition
+          </Text>
           <Text style={styles.description}>{listing.description}</Text>
         </View>
         <Badge
@@ -87,6 +98,7 @@ const styles = StyleSheet.create({
     color: colors.gold.light,
     fontWeight: typography.weight.bold,
   },
+  condition: { fontSize: typography.size.xs, color: colors.text.tertiary },
   description: { fontSize: typography.size.sm, color: colors.text.secondary },
   actions: { gap: spacing.sm },
 });

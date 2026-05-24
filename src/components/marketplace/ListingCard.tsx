@@ -4,8 +4,16 @@ import Icon from "../common/FeatherIcon";
 import Badge from "../common/Badge";
 import GoldButton from "../common/GoldButton";
 import { colors, spacing, typography } from "../../theme";
-import { Listing } from "../../types/marketplace";
+import { Listing, ListingCondition } from "../../types/marketplace";
 import { formatCurrency } from "../../utils/formatCurrency";
+
+const CONDITION_LABELS: Record<ListingCondition, string> = {
+  new: "New",
+  like_new: "Like New",
+  good: "Good",
+  fair: "Fair",
+  used: "Used",
+};
 
 interface Props {
   listing: Listing;
@@ -47,7 +55,12 @@ const ListingCard = ({ listing }: Props) => {
             color={sold ? colors.text.tertiary : colors.status.success}
           />
         </View>
+        <Badge
+          label={CONDITION_LABELS[listing.condition].toUpperCase()}
+          color={colors.gold.default}
+        />
         <Text style={styles.description}>{listing.description}</Text>
+        <Text style={styles.contact}>{listing.contactInstruction}</Text>
         <View style={styles.bottomRow}>
           <View style={styles.priceBlock}>
             <Text style={[styles.price, sold && styles.soldPrice]}>
@@ -102,6 +115,11 @@ const styles = StyleSheet.create({
     fontSize: typography.size.base,
     color: colors.text.secondary,
     lineHeight: 20,
+  },
+  contact: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    lineHeight: 17,
   },
   price: {
     fontSize: typography.size.xl,
