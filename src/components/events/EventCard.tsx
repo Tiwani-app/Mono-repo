@@ -4,8 +4,15 @@ import Icon from "../common/FeatherIcon";
 import Badge from "../common/Badge";
 import ProgressBar from "../common/ProgressBar";
 import { colors, spacing, typography } from "../../theme";
-import { CATEGORY_COLORS, TiwaniEvent } from "../../types/event";
+import { CATEGORY_COLORS, EventStatus, TiwaniEvent } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
+
+const STATUS_COLORS: Record<EventStatus, string> = {
+  draft: colors.text.tertiary,
+  published: colors.status.success,
+  cancelled: colors.status.error,
+  completed: colors.text.secondary,
+};
 
 interface Props {
   event: TiwaniEvent;
@@ -29,7 +36,12 @@ const EventCard = ({ event, onPress }: Props) => {
     >
       <View style={styles.topRow}>
         <Badge label={event.category.toUpperCase()} color={categoryColor} />
-        <Text style={styles.count}>{capacityLabel}</Text>
+        <View style={styles.badgeGroup}>
+          {event.status !== "published" && (
+            <Badge label={event.status.toUpperCase()} color={STATUS_COLORS[event.status]} />
+          )}
+          <Text style={styles.count}>{capacityLabel}</Text>
+        </View>
       </View>
       <Text style={styles.title}>{event.title}</Text>
       <View style={styles.metaRow}>
@@ -63,7 +75,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.sm,
   },
+  badgeGroup: { alignItems: "flex-end", gap: spacing.xs },
   title: {
     fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,

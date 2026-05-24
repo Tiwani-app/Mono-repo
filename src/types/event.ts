@@ -1,4 +1,5 @@
 export type EventCategory = 'meeting' | 'social' | 'volunteer' | 'committee';
+export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';
 
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
   meeting: '#C9962A',
@@ -15,6 +16,7 @@ export interface TiwaniEvent {
   dateTime: Date;
   location: string;
   createdBy: string;
+  status: EventStatus;
   rsvpList: string[];
   capacity: number;
   attendees: string[];

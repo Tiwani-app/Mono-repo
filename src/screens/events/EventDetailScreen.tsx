@@ -6,12 +6,19 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import { getEvent, toggleRsvp } from "../../services/eventsService";
+import { cancelEvent, getEvent, toggleRsvp } from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { CATEGORY_COLORS, TiwaniEvent } from "../../types/event";
+import { CATEGORY_COLORS, EventStatus, TiwaniEvent } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 import { isAdmin } from "../../utils/roleGuard";
+
+const STATUS_COLORS: Record<EventStatus, string> = {
+  draft: colors.text.tertiary,
+  published: colors.status.success,
+  cancelled: colors.status.error,
+  completed: colors.text.secondary,
+};
 
 const EventDetailScreen = ({ navigation, route }: any) => {
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
@@ -32,6 +39,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   const isRsvped = user ? event.rsvpList.includes(user.uid) : false;
   const isFull =
     event.capacity > 0 && event.rsvpList.length >= event.capacity && !isRsvped;
+  const rsvpClosed = event.status !== "published";
   const categoryColor = CATEGORY_COLORS[event.category];
 
   const handleToggleRsvp = async () => {
@@ -51,6 +59,24 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handleCancelEvent = () => {
+    Alert.alert("Cancel Event", "Cancel this event?", [
+      { text: "Keep Event", style: "cancel" },
+      {
+        text: "Cancel Event",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await cancelEvent(event.id);
+            setEvent({ ...event, status: "cancelled" });
+          } catch {
+            Alert.alert("Error", "Could not cancel this event.");
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -63,6 +89,9 @@ const EventDetailScreen = ({ navigation, route }: any) => {
       />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
+          <View style={styles.badgeRow}>
+            <Badge label={event.status.toUpperCase()} color={STATUS_COLORS[event.status]} />
+          </View>
           <Text style={styles.title}>{event.title}</Text>
           <View style={styles.badgeRow}>
             <Badge
@@ -92,7 +121,9 @@ const EventDetailScreen = ({ navigation, route }: any) => {
           <Text style={styles.infoLabel}>ABOUT</Text>
           <Text style={styles.body}>{event.description}</Text>
         </View>
-        {isFull ? (
+        {rsvpClosed ? (
+          <Text style={styles.fullText}>RSVP is not available for this event.</Text>
+        ) : isFull ? (
           <Text style={styles.fullText}>This event is full.</Text>
         ) : isRsvped ? (
           <OutlineButton
@@ -116,6 +147,14 @@ const EventDetailScreen = ({ navigation, route }: any) => {
               }
               fullWidth
             />
+            {event.status !== "cancelled" && (
+              <OutlineButton
+                label="Cancel Event"
+                onPress={handleCancelEvent}
+                color={colors.status.error}
+                fullWidth
+              />
+            )}
             <GoldButton
               label="Check In Attendees"
               onPress={() =>
