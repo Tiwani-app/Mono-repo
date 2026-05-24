@@ -10,7 +10,7 @@ export interface Poll {
   title: string;
   question: string;
   options: PollOption[];
-  status: 'open' | 'closed';
+  status: 'draft' | 'open' | 'closed';
   totalVotes: number;
 }
 

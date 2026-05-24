@@ -1,13 +1,15 @@
 import React from 'react';
-import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Badge from '../../components/common/Badge';
 import EmptyState from '../../components/common/EmptyState';
 import GoldButton from '../../components/common/GoldButton';
+import OutlineButton from '../../components/common/OutlineButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FinancialGate from '../../components/voting/FinancialGate';
 import PollCard from '../../components/voting/PollCard';
 import {useVoting} from '../../hooks/useVoting';
+import {closePoll} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {colors, spacing, typography} from '../../theme';
 import {isAdmin} from '../../utils/roleGuard';
@@ -17,6 +19,17 @@ const VotingHubScreen = ({navigation}: any) => {
   const {user} = useAuthStore();
   const empty = elections.length === 0 && polls.length === 0;
   const admin = isAdmin(user);
+
+  const confirmClosePoll = (pollId: string) => {
+    Alert.alert('Close Poll', 'Close this poll and remove it from active voting?', [
+      {text: 'Keep Open', style: 'cancel'},
+      {
+        text: 'Close Poll',
+        style: 'destructive',
+        onPress: () => closePoll(pollId),
+      },
+    ]);
+  };
 
   if (user?.financialStatus === 'red') {
     return <FinancialGate />;
@@ -58,11 +71,25 @@ const VotingHubScreen = ({navigation}: any) => {
             ))}
             {polls.length > 0 && <Text style={styles.sectionLabel}>ACTIVE POLLS</Text>}
             {polls.map(poll => (
-              <PollCard
-                key={poll.id}
-                poll={poll}
-                onPress={() => navigation.navigate('PollVote', {pollId: poll.id})}
-              />
+              <View key={poll.id} style={styles.pollBlock}>
+                <PollCard
+                  poll={poll}
+                  onPress={() => navigation.navigate('PollVote', {pollId: poll.id})}
+                />
+                {admin && (
+                  <View style={styles.pollActions}>
+                    <OutlineButton
+                      label="Edit"
+                      onPress={() => navigation.navigate('PollForm', {pollId: poll.id})}
+                    />
+                    <OutlineButton
+                      label="Close"
+                      color={colors.status.error}
+                      onPress={() => confirmClosePoll(poll.id)}
+                    />
+                  </View>
+                )}
+              </View>
             ))}
           </>
         )}
@@ -75,6 +102,8 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.secondary},
   content: {padding: spacing.lg, gap: spacing.md},
   adminActions: {gap: spacing.sm},
+  pollBlock: {gap: spacing.sm},
+  pollActions: {gap: spacing.sm},
   sectionLabel: {fontSize: typography.size.xs, color: colors.text.secondary, fontWeight: typography.weight.bold},
   electionCard: {
     gap: spacing.md,
