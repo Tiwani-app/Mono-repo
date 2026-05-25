@@ -13,6 +13,13 @@ interface Props {
   onPress: () => void;
 }
 
+const memberStatusColors = {
+  active: colors.status.success,
+  pending: colors.status.info,
+  inactive: colors.text.secondary,
+  suspended: colors.status.error,
+};
+
 const MemberCard = ({member, onPress}: Props) => (
   <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
     <Avatar
@@ -24,9 +31,17 @@ const MemberCard = ({member, onPress}: Props) => (
     <View style={styles.content}>
       <Text style={styles.name}>{member.fullName}</Text>
       <Text style={styles.role}>{member.role.replace('_', ' ')}</Text>
-      {member.financialStatus === 'red' && (
-        <Badge label={`Owes ${formatCurrency(member.outstandingBalance)}`} color={colors.status.error} />
-      )}
+      <View style={styles.badgeRow}>
+        <Badge label={member.status.toUpperCase()} color={memberStatusColors[member.status]} />
+        <Badge
+          label={
+            member.financialStatus === 'green'
+              ? 'CLEAR'
+              : `OWES ${formatCurrency(member.outstandingBalance)}`
+          }
+          color={member.financialStatus === 'green' ? colors.status.success : colors.status.error}
+        />
+      </View>
     </View>
     <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
   </TouchableOpacity>
@@ -55,6 +70,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textTransform: 'capitalize',
   },
+  badgeRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
 });
 
 export default MemberCard;

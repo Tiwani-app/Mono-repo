@@ -13,6 +13,7 @@ import EmptyState from "../components/common/EmptyState";
 import EventCard from "../components/events/EventCard";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useEvents } from "../hooks/useEvents";
+import { useFinance } from "../hooks/useFinance";
 import { useJoinRequests } from "../hooks/useJoinRequests";
 import { useMembers } from "../hooks/useMembers";
 import { useNotifications } from "../hooks/useNotifications";
@@ -21,19 +22,36 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
 import {
   formatPendingReviewCount,
-  formatReadyRequestCount,
   getPendingJoinRequests,
 } from "../utils/joinRequests";
 import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
 import { getDashboardQuickActions } from "./dashboardQuickActions";
 
-const StatTile = ({ accentColor, label, subLabel, value }: any) => (
-  <View style={[styles.statTile, { borderTopColor: accentColor }]}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-    <Text style={styles.statSub}>{subLabel}</Text>
-  </View>
+const StatTile = ({
+  accentColor,
+  label,
+  onPress,
+  subLabel,
+  value,
+}: any) => (
+  <TouchableOpacity
+    disabled={!onPress}
+    onPress={onPress}
+    activeOpacity={0.85}
+    style={[styles.statTile, { borderTopColor: accentColor }]}
+  >
+    <View style={styles.statMainAction}>
+      <Text style={styles.statValue}>{value}</Text>
+      <View style={styles.statLabelRow}>
+        <Text style={styles.statLabel}>{label}</Text>
+        {onPress ? (
+          <Icon name="chevron-right" size={14} color={colors.text.tertiary} />
+        ) : null}
+      </View>
+      <Text style={styles.statSub}>{subLabel}</Text>
+    </View>
+  </TouchableOpacity>
 );
 
 const QuickAction = ({ icon, label, onPress }: any) => (
@@ -66,7 +84,14 @@ const RequestReviewAction = ({ count, onPress }: any) => (
 
 const DashboardScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
+  const admin = isAdmin(user);
   const { events, error: eventsError, loading: eventsLoading } = useEvents();
+  const {
+    duesPeriods,
+    error: financeError,
+    ledgerEntries,
+    loading: financeLoading,
+  } = useFinance(undefined, admin);
   const { members, error: membersError, loading: membersLoading } = useMembers();
   const {
     error: requestsError,
@@ -79,12 +104,22 @@ const DashboardScreen = ({ navigation }: any) => {
     notifications,
     unreadCount,
   } = useNotifications();
-  const admin = isAdmin(user);
   const firstName = user?.fullName.split(" ")[0] ?? "there";
   const quickActions = getDashboardQuickActions(admin, navigation);
   const pendingRequests = getPendingJoinRequests(requests);
+  const activeMembers = members.filter(member => member.status === "active");
+  const overdueMembers = members.filter(member => member.outstandingBalance > 0);
+  const totalCollected = ledgerEntries
+    .filter(entry => entry.type !== "payment" && entry.paid)
+    .reduce((sum, entry) => sum + entry.amount, 0);
+  const currentDuesPeriod =
+    duesPeriods.find(period => period.status === "active") ?? duesPeriods[0];
   const loading =
-    eventsLoading || membersLoading || notificationsLoading || requestsLoading;
+    eventsLoading ||
+    membersLoading ||
+    notificationsLoading ||
+    requestsLoading ||
+    (admin && financeLoading);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -121,8 +156,9 @@ const DashboardScreen = ({ navigation }: any) => {
               <StatTile
                 value={String(members.length)}
                 label="Members"
-                subLabel={formatReadyRequestCount(pendingRequests.length)}
+                subLabel={`${activeMembers.length} active`}
                 accentColor={colors.gold.default}
+                onPress={() => navigation.navigate("MembersList")}
               />
               <StatTile
                 value={String(events.length)}
@@ -131,15 +167,15 @@ const DashboardScreen = ({ navigation }: any) => {
                 accentColor={colors.status.info}
               />
               <StatTile
-                value={formatCurrency(30000)}
+                value={formatCurrency(totalCollected)}
                 label="Collected"
-                subLabel="Q2 2026"
+                subLabel={currentDuesPeriod?.name ?? "all periods"}
                 accentColor={colors.status.success}
               />
               <StatTile
-                value="1"
+                value={String(overdueMembers.length)}
                 label="Overdue"
-                subLabel="member"
+                subLabel={overdueMembers.length === 1 ? "member" : "members"}
                 accentColor={colors.status.error}
               />
             </>
@@ -174,11 +210,11 @@ const DashboardScreen = ({ navigation }: any) => {
           />
         )}
 
-        {admin && (membersError || requestsError) && (
+        {admin && (membersError || requestsError || financeError) && (
           <EmptyState
             icon="!"
             title="Admin summary unavailable"
-            message={membersError ?? requestsError ?? "Please try again."}
+            message={membersError ?? requestsError ?? financeError ?? "Please try again."}
           />
         )}
 
@@ -297,10 +333,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
+  statMainAction: { gap: spacing.xs },
   statValue: {
     fontSize: typography.size.xxl,
     fontWeight: typography.weight.black,
     color: colors.text.primary,
+  },
+  statLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xs,
   },
   statLabel: { fontSize: typography.size.base, color: colors.text.secondary },
   statSub: { fontSize: typography.size.sm, color: colors.text.tertiary },

@@ -4,6 +4,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
 import EmptyState from '../../components/common/EmptyState';
+import Icon from '../../components/common/FeatherIcon';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import BalanceBanner from '../../components/finance/BalanceBanner';
@@ -18,6 +19,7 @@ import {
   getVisibleMemberProfileTabs,
 } from '../../utils/memberPrivacy';
 import {safeGoBack} from '../../utils/navigation';
+import {isAdmin} from '../../utils/roleGuard';
 
 const MemberProfileScreen = ({navigation, route}: any) => {
   const memberId = route.params?.memberId as string | undefined;
@@ -61,11 +63,26 @@ const MemberProfileScreen = ({navigation, route}: any) => {
   }
 
   const canViewPrivate = canViewMemberPrivateDetails(user, member);
+  const canEditMember = isAdmin(user);
   const tabs = getVisibleMemberProfileTabs(user, member);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Profile" showBack onBack={() => safeGoBack(navigation, 'MembersList')} />
+      <ScreenHeader
+        title="Profile"
+        showBack
+        onBack={() => safeGoBack(navigation, 'MembersList')}
+        rightElement={
+          canEditMember ? (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate('MemberForm', {memberId: member.uid})}
+              activeOpacity={0.85}>
+              <Icon name="edit-2" size={18} color={colors.text.onGold} />
+            </TouchableOpacity>
+          ) : null
+        }
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Avatar
@@ -161,6 +178,14 @@ const styles = StyleSheet.create({
   infoValue: {fontSize: typography.size.base, color: colors.text.primary, textTransform: 'capitalize'},
   emptyText: {color: colors.text.secondary},
   restricted: {color: colors.status.error, textAlign: 'center'},
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold.default,
+  },
 });
 
 export default MemberProfileScreen;
