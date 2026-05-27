@@ -5,6 +5,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
+import SyncStatusBanner from '../../components/common/SyncStatusBanner';
 import MemberCard from '../../components/members/MemberCard';
 import {useMembers} from '../../hooks/useMembers';
 import {useAuthStore} from '../../store/authStore';
@@ -25,7 +26,7 @@ const statusFilters: {label: string; value: StatusFilter}[] = [
 
 const MembersListScreen = ({navigation}: any) => {
   const {user} = useAuthStore();
-  const {error, loading, members, searchQuery, setSearchQuery} = useMembers();
+  const {error, lastSyncedAt, loading, members, searchQuery, setSearchQuery, syncState} = useMembers();
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
 
   const filteredMembers = useMemo(() => {
@@ -98,6 +99,7 @@ const MembersListScreen = ({navigation}: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.listHeader}>
+            <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}

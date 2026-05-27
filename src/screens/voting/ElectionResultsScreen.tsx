@@ -11,12 +11,15 @@ import {
   getElection,
   getElectionResults,
 } from '../../services/votingService';
+import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { Election } from '../../types/voting';
 import { safeGoBack } from '../../utils/navigation';
+import { canViewElectionResults } from '../../utils/roleGuard';
 
 const ElectionResultsScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
+  const { user } = useAuthStore();
   const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<RaceResult[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -64,6 +67,29 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
           icon="!"
           title="Results unavailable"
           message={loadError ?? 'This election could not be found.'}
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, 'VotingHub')}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const canViewResults =
+    canViewElectionResults(user) ||
+    (election.status === 'closed' && election.resultVisibility === 'after_close');
+
+  if (!canViewResults) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Election Results"
+          showBack
+          onBack={() => safeGoBack(navigation, 'VotingHub')}
+        />
+        <EmptyState
+          icon="!"
+          title="Results not available"
+          message="Election results will be available after voting closes."
           actionLabel="Back to Voting"
           onAction={() => safeGoBack(navigation, 'VotingHub')}
         />

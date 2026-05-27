@@ -8,7 +8,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import CandidateCard from '../../components/voting/CandidateCard';
 import FinancialGate from '../../components/voting/FinancialGate';
-import {castElectionBallot, getElection, hasCastElectionVote} from '../../services/votingService';
+import {castElectionBallot, getElection, getElectionVoterState} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
@@ -23,6 +23,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
   const [loading, setLoading] = useState(true);
   const [localElection, setLocalElection] = useState<Election | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ballotReceipt, setBallotReceipt] = useState<string | null>(null);
   const [voteSubmitted, setVoteSubmitted] = useState(false);
   const {user} = useAuthStore();
   const {
@@ -45,6 +46,7 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
       setLoading(true);
       setLoadError(null);
       setGated(false);
+      setBallotReceipt(null);
       if (!user) {
         setLoading(false);
         return;
@@ -60,15 +62,16 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
         return;
       }
       try {
-        const [nextElection, voted] = await Promise.all([
+        const [nextElection, voterState] = await Promise.all([
           storeElection ? Promise.resolve(storeElection) : getElection(electionId),
-          hasCastElectionVote(electionId, user.uid),
+          getElectionVoterState(electionId, user.uid),
         ]);
         if (!active) {
           return;
         }
         setLocalElection(nextElection);
-        setHasVotedElection(voted);
+        setHasVotedElection(voterState.hasVoted);
+        setBallotReceipt(voterState.ballotReceipt);
       } catch (error) {
         if (active) {
           setLoadError(
@@ -136,7 +139,9 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
     try {
       setSubmitting(true);
       await castElectionBallot(election.id, electionChoices, user.uid);
+      const voterState = await getElectionVoterState(election.id, user.uid);
       setHasVotedElection(true);
+      setBallotReceipt(voterState.ballotReceipt);
       setVoteSubmitted(true);
       resetElectionChoices();
     } catch (error) {
@@ -161,6 +166,12 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
           <Text style={styles.successBody}>
             Your {election.ballotType === 'secret' ? 'secret ' : ''}ballot has been recorded.
           </Text>
+          {ballotReceipt && (
+            <View style={styles.receiptCard}>
+              <Text style={styles.receiptLabel}>BALLOT RECEIPT</Text>
+              <Text style={styles.receiptValue}>{ballotReceipt}</Text>
+            </View>
+          )}
           <GoldButton label="Back to Voting" onPress={() => safeGoBack(navigation, 'VotingHub')} />
         </View>
       </SafeAreaView>
@@ -228,6 +239,24 @@ const styles = StyleSheet.create({
   },
   successTitle: {fontSize: typography.size.xl, color: colors.text.primary, fontWeight: typography.weight.black},
   successBody: {fontSize: typography.size.base, color: colors.text.secondary, textAlign: 'center'},
+  receiptCard: {
+    width: '100%',
+    gap: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  receiptLabel: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.bold,
+  },
+  receiptValue: {
+    fontSize: typography.size.sm,
+    color: colors.text.primary,
+  },
 });
 
 export default ElectionBallotScreen;

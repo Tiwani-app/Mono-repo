@@ -9,6 +9,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OutlineButton from '../../components/common/OutlineButton';
 import DuesPeriodCard from '../../components/finance/DuesPeriodCard';
 import ScreenHeader from '../../components/common/ScreenHeader';
+import SyncStatusBanner from '../../components/common/SyncStatusBanner';
 import {useFinance} from '../../hooks/useFinance';
 import {useMembers} from '../../hooks/useMembers';
 import {useAuthStore} from '../../store/authStore';
@@ -30,8 +31,10 @@ const FinanceAdminScreen = ({navigation}: any) => {
   const {
     duesPeriods,
     error: financeError,
+    lastSyncedAt,
     ledgerEntries,
     loading: financeLoading,
+    syncState,
   } = useFinance(undefined, admin);
   const {error: membersError, loading: membersLoading, members} = useMembers();
 
@@ -79,6 +82,7 @@ const FinanceAdminScreen = ({navigation}: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
+            <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
             <View style={styles.summaryRow}>
               <SummaryTile label="Charged" value={formatCurrency(totalCharged)} />
               <SummaryTile label="Collected" value={formatCurrency(totalCollected)} />

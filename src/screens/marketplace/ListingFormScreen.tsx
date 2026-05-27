@@ -50,6 +50,7 @@ const conditionOptions: { label: string; value: ListingCondition }[] = [
 const statusOptions: { label: string; value: ListingStatus }[] = [
   { label: "Available", value: "available" },
   { label: "Sold", value: "sold" },
+  { label: "Archived", value: "archived" },
 ];
 
 const ListingFormScreen = ({ navigation, route }: any) => {

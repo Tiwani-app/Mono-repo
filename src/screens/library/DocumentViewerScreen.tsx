@@ -119,7 +119,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
           <Text style={styles.previewBody}>
             {previewSupported
               ? "Use the open action to preview this PDF through the available document handler."
-              : "This file needs an external app or a backend-provided download URL."}
+              : "This file is not available for preview yet. Use the open action when a file has been attached."}
           </Text>
         </View>
         <GoldButton

@@ -15,15 +15,22 @@ import {
 import {
   canViewMemberPrivateDetails,
   getVisibleMemberProfileTabs,
+  sanitizeMemberProfile,
 } from "../utils/memberPrivacy";
 import { isElectionBallotComplete } from "../utils/votingGuards";
+import {
+  canStandForElection,
+  findFinanciallyBlockedCandidateNames,
+} from "../utils/votingGuards";
 import { User } from "../types/user";
+import { canViewElectionResults } from "../utils/roleGuard";
 
 const election: Election = {
   id: "election-1",
   title: "Executive Election",
   ballotType: "secret",
   status: "open",
+  resultVisibility: "after_close",
   races: [
     {
       raceId: "president",
@@ -110,8 +117,42 @@ describe("business guardrails", () => {
     ).toBe(true);
   });
 
+  it("allows admins and electoral chairmen to view election results", () => {
+    expect(canViewElectionResults(user("admin-1", "admin"))).toBe(true);
+    expect(canViewElectionResults(user("chair-1", "electoral_chairman"))).toBe(true);
+    expect(canViewElectionResults(user("member-1", "member"))).toBe(false);
+  });
+
+  it("blocks financially red members from candidacy when matched to directory", () => {
+    const redMember = {
+      ...user("member-1", "member"),
+      fullName: "Tiwalade Adebayo",
+      financialStatus: "red" as const,
+    };
+    const greenMember = {
+      ...user("member-2", "member"),
+      fullName: "Nkiru Okafor",
+      financialStatus: "green" as const,
+    };
+
+    expect(canStandForElection(greenMember)).toBe(true);
+    expect(canStandForElection(redMember)).toBe(false);
+    expect(
+      findFinanciallyBlockedCandidateNames(
+        ["Tiwalade Adebayo", "Unknown Candidate", "Nkiru Okafor"],
+        [redMember, greenMember],
+      ),
+    ).toEqual(["Tiwalade Adebayo"]);
+  });
+
   it("enforces the marketplace visible listing cap", () => {
-    const listings = [listing("1"), listing("2"), listing("3")];
+    const archivedListing = {...listing("archived"), status: "archived" as const};
+    const listings = [
+      listing("1"),
+      archivedListing,
+      listing("2"),
+      listing("3"),
+    ];
 
     expect(visibleMarketplaceListings(listings).map(item => item.id)).toEqual([
       "1",
@@ -120,6 +161,7 @@ describe("business guardrails", () => {
     expect(canAddMarketplaceListing([])).toBe(true);
     expect(canAddMarketplaceListing([listing("1")])).toBe(true);
     expect(canAddMarketplaceListing([listing("1"), listing("2")])).toBe(false);
+    expect(canAddMarketplaceListing([listing("1"), archivedListing])).toBe(true);
   });
 
   it("sorts and filters library documents", () => {
@@ -180,6 +222,26 @@ describe("business guardrails", () => {
       "family",
       "finance",
     ]);
+  });
+
+  it("sanitizes partial member profile fields for defensive rendering", () => {
+    const profile = sanitizeMemberProfile({
+      uid: "member-1",
+      fullName: "",
+      memberSince: "not-a-date",
+      children: [{name: "", dateOfBirth: ""}],
+    });
+
+    expect(profile).toMatchObject({
+      displayName: "Unnamed member",
+      email: "Not provided",
+      phone: "Not provided",
+      address: "Not provided",
+      maritalStatus: "Not provided",
+      memberSince: null,
+      spouseName: null,
+      children: [{name: "Child 1", dateOfBirth: "Not provided"}],
+    });
   });
 
   it("limits ledger access to admins or the owning member", () => {

@@ -12,6 +12,7 @@ export interface Poll {
   options: PollOption[];
   status: 'draft' | 'open' | 'closed';
   totalVotes: number;
+  resultVisibility: 'after_vote' | 'after_close';
 }
 
 export interface Candidate {
@@ -33,4 +34,16 @@ export interface Election {
   ballotType: 'open' | 'secret';
   races: Race[];
   status: 'draft' | 'open' | 'closed';
+  resultVisibility: 'after_close' | 'admin_only';
+}
+
+export interface PollVoterState {
+  hasVoted: boolean;
+  resultsVisible: boolean;
+}
+
+export interface ElectionVoterState {
+  hasVoted: boolean;
+  ballotReceipt: string | null;
+  resultsVisible: boolean;
 }

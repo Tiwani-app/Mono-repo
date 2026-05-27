@@ -1,4 +1,4 @@
-import { TAB_ROOT_ROUTES } from "../navigation/tabRoutes";
+import { getTabRootResetState, TAB_ROOT_ROUTES } from "../navigation/tabRoutes";
 import { safeGoBack } from "../utils/navigation";
 
 describe("navigation behavior", () => {
@@ -9,6 +9,19 @@ describe("navigation behavior", () => {
       Voting: { screen: "VotingHub" },
       Finance: { screen: "FinanceAdmin" },
       Market: { screen: "Marketplace" },
+    });
+  });
+
+  it("builds a reset state that clears nested tab stacks", () => {
+    expect(getTabRootResetState("Events")).toEqual({
+      index: 1,
+      routes: [
+        { name: "Dashboard", state: { routes: [{ name: "DashboardHome" }] } },
+        { name: "Events", state: { routes: [{ name: "EventsList" }] } },
+        { name: "Voting", state: { routes: [{ name: "VotingHub" }] } },
+        { name: "Finance", state: { routes: [{ name: "FinanceAdmin" }] } },
+        { name: "Market", state: { routes: [{ name: "Marketplace" }] } },
+      ],
     });
   });
 

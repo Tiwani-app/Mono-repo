@@ -13,6 +13,7 @@ import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import DocumentCard from "../../components/library/DocumentCard";
 import DocumentCategoryCard from "../../components/library/DocumentCategoryCard";
 import { useLibraryDocuments } from "../../hooks/useLibraryDocuments";
@@ -40,7 +41,7 @@ const categoryIcons: Record<LibraryCategory, string> = {
 const LibraryScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const { documents, error, loading, searchQuery, setSearchQuery } =
+  const { documents, error, lastSyncedAt, loading, searchQuery, setSearchQuery, syncState } =
     useLibraryDocuments();
 
   const filteredDocuments = useMemo(() => {
@@ -94,7 +95,8 @@ const LibraryScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
-          <TextInput
+            <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
+            <TextInput
               style={[styles.search, { marginBottom: spacing.md }]}
               value={searchQuery}
               onChangeText={setSearchQuery}

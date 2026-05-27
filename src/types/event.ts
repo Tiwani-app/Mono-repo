@@ -18,6 +18,7 @@ export interface TiwaniEvent {
   createdBy: string;
   status: EventStatus;
   rsvpList: string[];
+  rsvpCount: number;
   capacity: number;
   attendees: string[];
 }

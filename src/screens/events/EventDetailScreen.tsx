@@ -87,7 +87,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
 
   const isRsvped = user ? event.rsvpList.includes(user.uid) : false;
   const isFull =
-    event.capacity > 0 && event.rsvpList.length >= event.capacity && !isRsvped;
+    event.capacity > 0 && event.rsvpCount >= event.capacity && !isRsvped;
   const rsvpClosed = event.status !== "published";
   const categoryColor = CATEGORY_COLORS[event.category];
 
@@ -98,13 +98,11 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     try {
       setRsvpPending(true);
       await toggleRsvp(event.id, user.uid);
-      const nextAttendees = await getEventAttendees(event.id);
-      setEvent({
-        ...event,
-        rsvpList: isRsvped
-          ? event.rsvpList.filter((uid) => uid !== user.uid)
-          : [...event.rsvpList, user.uid],
-      });
+      const [nextEvent, nextAttendees] = await Promise.all([
+        getEvent(event.id),
+        getEventAttendees(event.id),
+      ]);
+      setEvent(nextEvent);
       setAttendees(nextAttendees);
     } catch (error) {
       Alert.alert(
@@ -158,12 +156,12 @@ const EventDetailScreen = ({ navigation, route }: any) => {
           <Text style={styles.title}>{event.title}</Text>
           <View style={styles.badgeRow}>
             <Badge
-              label={`${event.rsvpList.length} GOING`}
+              label={`${event.rsvpCount} GOING`}
               color={colors.status.success}
             />
             {event.capacity > 0 && (
               <Badge
-                label={`${Math.max(event.capacity - event.rsvpList.length, 0)} SPOTS LEFT`}
+                label={`${Math.max(event.capacity - event.rsvpCount, 0)} SPOTS LEFT`}
                 color={colors.gold.default}
               />
             )}

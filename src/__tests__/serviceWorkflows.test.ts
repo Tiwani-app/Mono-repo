@@ -38,44 +38,113 @@ describe("service workflows", () => {
   });
 
   it("runs the Library document create, publish, update, archive, and delete flow", async () => {
-    const service = loadIsolatedService<LibraryService>("../services/libraryService");
+    const service = loadIsolatedService<LibraryService>(
+      "../services/libraryService",
+    );
     const adminSnapshots: LibraryDocument[][] = [];
     const memberSnapshots: LibraryDocument[][] = [];
 
     const unsubscribeAdmin = service.subscribeToLibraryDocuments(
-      documents => adminSnapshots.push(documents),
+      (documents) => adminSnapshots.push(documents),
       true,
     );
-    const unsubscribeMember = service.subscribeToLibraryDocuments(documents =>
+    const unsubscribeMember = service.subscribeToLibraryDocuments((documents) =>
       memberSnapshots.push(documents),
     );
 
     const created = await service.createLibraryDocument(libraryDocumentInput);
     expect(created.uploadedByName).toBe("Chukwuemeka Obi");
-    expect(adminSnapshots.at(-1)?.some(item => item.id === created.id)).toBe(true);
-    expect(memberSnapshots.at(-1)?.some(item => item.id === created.id)).toBe(false);
+    expect(adminSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      true,
+    );
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      false,
+    );
 
     await service.setLibraryDocumentStatus(created.id, "published");
-    expect(memberSnapshots.at(-1)?.some(item => item.id === created.id)).toBe(false);
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      false,
+    );
 
     await service.updateLibraryDocument(created.id, {
       title: "Published Board Resolution",
       visibility: "all_members",
     });
     expect(
-      memberSnapshots.at(-1)?.find(item => item.id === created.id)?.title,
+      memberSnapshots.at(-1)?.find((item) => item.id === created.id)?.title,
     ).toBe("Published Board Resolution");
 
     await service.setLibraryDocumentStatus(created.id, "archived");
-    expect(memberSnapshots.at(-1)?.some(item => item.id === created.id)).toBe(false);
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      false,
+    );
+
+    await service.unarchiveLibraryDocument(created.id);
+    expect(
+      adminSnapshots.at(-1)?.find((item) => item.id === created.id)?.status,
+    ).toBe("published");
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      true,
+    );
 
     await service.deleteLibraryDocument(created.id);
     await expect(service.getLibraryDocument(created.id)).rejects.toThrow(
       "Document not found.",
     );
-    expect(adminSnapshots.at(-1)?.some(item => item.id === created.id)).toBe(false);
+    expect(adminSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      false,
+    );
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === created.id)).toBe(
+      false,
+    );
 
     unsubscribeAdmin();
+    unsubscribeMember();
+  });
+
+  it("keeps draft, archived, and admin-only Library documents out of member subscriptions", async () => {
+    const service = loadIsolatedService<LibraryService>(
+      "../services/libraryService",
+    );
+    const memberSnapshots: LibraryDocument[][] = [];
+    const unsubscribeMember = service.subscribeToLibraryDocuments((documents) =>
+      memberSnapshots.push(documents),
+    );
+
+    const draft = await service.createLibraryDocument({
+      ...libraryDocumentInput,
+      title: "Draft Minutes",
+      status: "draft",
+      visibility: "all_members",
+    });
+    const adminOnly = await service.createLibraryDocument({
+      ...libraryDocumentInput,
+      title: "Admin Finance Notes",
+      status: "published",
+      visibility: "admin_only",
+    });
+    const published = await service.createLibraryDocument({
+      ...libraryDocumentInput,
+      title: "Member Public Report",
+      status: "published",
+      visibility: "all_members",
+    });
+
+    expect(memberSnapshots.at(-1)?.some((item) => item.id === draft.id)).toBe(
+      false,
+    );
+    expect(
+      memberSnapshots.at(-1)?.some((item) => item.id === adminOnly.id),
+    ).toBe(false);
+    expect(
+      memberSnapshots.at(-1)?.some((item) => item.id === published.id),
+    ).toBe(true);
+
+    await service.setLibraryDocumentStatus(published.id, "archived");
+    expect(
+      memberSnapshots.at(-1)?.some((item) => item.id === published.id),
+    ).toBe(false);
+
     unsubscribeMember();
   });
 
@@ -94,7 +163,7 @@ describe("service workflows", () => {
       contactInstruction: "Message the admin to inspect.",
     };
 
-    const unsubscribe = service.subscribeToListings(listings =>
+    const unsubscribe = service.subscribeToListings((listings) =>
       snapshots.push(listings),
     );
 
@@ -103,32 +172,41 @@ describe("service workflows", () => {
       "Marketplace listings are limited to 2 active items.",
     );
 
-    await service.updateListing("listing-1", {status: "sold"});
-    expect(snapshots.at(-1)?.find(item => item.id === "listing-1")?.status).toBe(
-      "sold",
+    await service.updateListing("listing-1", { status: "sold" });
+    expect(
+      snapshots.at(-1)?.find((item) => item.id === "listing-1")?.status,
+    ).toBe("sold");
+
+    await service.archiveListing("listing-2");
+    expect(snapshots.at(-1)?.map((item) => item.id)).toEqual(["listing-1"]);
+
+    await service.createListing(input);
+    expect(snapshots.at(-1)?.length).toBe(2);
+
+    await expect(service.unarchiveListing("listing-2")).rejects.toThrow(
+      "Marketplace listings are limited to 2 active items.",
     );
 
     await service.deleteListing("listing-2");
-    expect(snapshots.at(-1)?.map(item => item.id)).toEqual(["listing-1"]);
-
-    await service.createListing(input);
     expect(
-      snapshots.at(-1)?.find(item => item.title === "Community Laptop")?.imageURL,
+      snapshots.at(-1)?.find((item) => item.title === "Community Laptop")
+        ?.imageURL,
     ).toBe("https://example.com/laptop.jpg");
-    expect(snapshots.at(-1)?.length).toBe(2);
 
     unsubscribe();
   });
 
   it("reviews a join request and creates a member on approval", async () => {
-    const service = loadIsolatedService<MembersService>("../services/membersService");
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
     const requestSnapshots: JoinRequest[][] = [];
     const memberSnapshots: User[][] = [];
 
-    const unsubscribeRequests = service.subscribeToJoinRequests(requests =>
+    const unsubscribeRequests = service.subscribeToJoinRequests((requests) =>
       requestSnapshots.push(requests),
     );
-    const unsubscribeMembers = service.subscribeToMembers(members =>
+    const unsubscribeMembers = service.subscribeToMembers((members) =>
       memberSnapshots.push(members),
     );
 
@@ -136,14 +214,14 @@ describe("service workflows", () => {
 
     const reviewedRequest = requestSnapshots
       .at(-1)
-      ?.find(request => request.id === "join-1");
+      ?.find((request) => request.id === "join-1");
     expect(reviewedRequest?.status).toBe("approved");
     expect(reviewedRequest?.reviewedBy).toBe("admin-1");
     expect(reviewedRequest?.reviewedAt).toBeInstanceOf(Date);
 
     const createdMember = memberSnapshots
       .at(-1)
-      ?.find(member => member.email === "amaka@example.com");
+      ?.find((member) => member.email === "amaka@example.com");
     expect(createdMember?.fullName).toBe("Amaka Eze");
     expect(createdMember?.role).toBe("member");
     expect(createdMember?.status).toBe("active");
@@ -152,8 +230,127 @@ describe("service workflows", () => {
     unsubscribeMembers();
   });
 
+  it("validates member create and edit input", async () => {
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
+
+    await expect(
+      service.createMember({
+        fullName: " ",
+        email: "new@example.com",
+        phone: "08000000000",
+        role: "member",
+        status: "active",
+        financialStatus: "green",
+        outstandingBalance: 0,
+        address: "Lagos",
+      }),
+    ).rejects.toThrow("Member name is required.");
+
+    await expect(
+      service.createMember({
+        fullName: "New Member",
+        email: "not-an-email",
+        phone: "08000000000",
+        role: "member",
+        status: "active",
+        financialStatus: "green",
+        outstandingBalance: 0,
+        address: "Lagos",
+      }),
+    ).rejects.toThrow("A valid email is required.");
+
+    await expect(
+      service.createMember({
+        fullName: "New Member",
+        email: "new@example.com",
+        phone: "08000000000",
+        role: "member",
+        status: "active",
+        financialStatus: "green",
+        outstandingBalance: -1,
+        address: "Lagos",
+      }),
+    ).rejects.toThrow("Outstanding balance must be zero or more.");
+
+    await expect(
+      service.updateMember("member-1", { email: "admin@tiwani.app" }),
+    ).rejects.toThrow("A member with this email already exists.");
+  });
+
+  it("validates join request input and review state", async () => {
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
+
+    await expect(
+      service.createJoinRequest({
+        fullName: "Pending Duplicate",
+        email: "amaka@example.com",
+        phone: "08000000000",
+        message: "Please review.",
+      }),
+    ).rejects.toThrow("A pending join request already exists for this email.");
+
+    await expect(
+      service.createJoinRequest({
+        fullName: "Existing Member",
+        email: "member@tiwani.app",
+        phone: "08000000000",
+        message: "Please review.",
+      }),
+    ).rejects.toThrow("A member with this email already exists.");
+
+    await service.reviewJoinRequest("join-1", "declined", "admin-1");
+    await expect(
+      service.reviewJoinRequest("join-1", "approved", "admin-1"),
+    ).rejects.toThrow("Join request has already been reviewed.");
+  });
+
+  it("normalizes profile edits and ignores non-profile fields", async () => {
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
+
+    await service.updateMemberProfile("member-1", {
+      fullName: "  Ada Member  ",
+      phone: " 08011112222 ",
+      address: "  Lagos Mainland ",
+      photoURL: " https://example.com/avatar.jpg ",
+      role: "admin",
+    } as any);
+
+    const member = await service.getMember("member-1");
+    expect(member).toMatchObject({
+      fullName: "Ada Member",
+      phone: "08011112222",
+      address: "Lagos Mainland",
+      photoURL: "https://example.com/avatar.jpg",
+      role: "member",
+    });
+  });
+
+  it("validates member profile edits", async () => {
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
+
+    await expect(
+      service.updateMemberProfile("member-1", { fullName: " " }),
+    ).rejects.toThrow("Full name is required.");
+    await expect(
+      service.updateMemberProfile("member-1", { phone: " " }),
+    ).rejects.toThrow("Phone number is required.");
+    await expect(
+      service.updateMemberProfile("member-1", { photoURL: "not-a-url" }),
+    ).rejects.toThrow("A valid photo URL is required.");
+  });
+
   it("declines a join request without creating a member", async () => {
-    const service = loadIsolatedService<MembersService>("../services/membersService");
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
     await service.createJoinRequest({
       fullName: "Declined Person",
       email: "declined@example.com",
@@ -163,26 +360,27 @@ describe("service workflows", () => {
 
     const requestSnapshots: JoinRequest[][] = [];
     const memberSnapshots: User[][] = [];
-    const unsubscribeRequests = service.subscribeToJoinRequests(requests =>
+    const unsubscribeRequests = service.subscribeToJoinRequests((requests) =>
       requestSnapshots.push(requests),
     );
-    const unsubscribeMembers = service.subscribeToMembers(members =>
+    const unsubscribeMembers = service.subscribeToMembers((members) =>
       memberSnapshots.push(members),
     );
     const requestId = requestSnapshots
       .at(-1)
-      ?.find(request => request.email === "declined@example.com")?.id;
+      ?.find((request) => request.email === "declined@example.com")?.id;
 
     expect(requestId).toBeTruthy();
     await service.reviewJoinRequest(requestId as string, "declined", "admin-1");
 
     expect(
-      requestSnapshots.at(-1)?.find(request => request.id === requestId)?.status,
+      requestSnapshots.at(-1)?.find((request) => request.id === requestId)
+        ?.status,
     ).toBe("declined");
     expect(
       memberSnapshots
         .at(-1)
-        ?.some(member => member.email === "declined@example.com"),
+        ?.some((member) => member.email === "declined@example.com"),
     ).toBe(false);
 
     unsubscribeRequests();

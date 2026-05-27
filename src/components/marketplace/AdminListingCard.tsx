@@ -5,7 +5,9 @@ import GoldButton from "../common/GoldButton";
 import OutlineButton from "../common/OutlineButton";
 import ListingMedia from "./ListingMedia";
 import {
+  archiveListing,
   deleteListing,
+  unarchiveListing,
   updateListing,
 } from "../../services/marketplaceService";
 import { colors, spacing, typography } from "../../theme";
@@ -27,6 +29,7 @@ interface Props {
 
 const AdminListingCard = ({ listing, onEdit }: Props) => {
   const sold = listing.status === "sold";
+  const archived = listing.status === "archived";
   const [pendingAction, setPendingAction] = useState<"delete" | "status" | null>(null);
 
   const runAction = async (
@@ -73,7 +76,13 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
         </View>
         <Badge
           label={listing.status.toUpperCase()}
-          color={sold ? colors.text.tertiary : colors.status.success}
+          color={
+            archived
+              ? colors.status.purple
+              : sold
+                ? colors.text.tertiary
+                : colors.status.success
+          }
         />
       </View>
       <View style={styles.actions}>
@@ -84,7 +93,20 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
             disabled={Boolean(pendingAction)}
           />
         )}
-        {sold ? (
+        {archived ? (
+          <GoldButton
+            label="Unarchive"
+            loading={pendingAction === "status"}
+            disabled={Boolean(pendingAction)}
+            onPress={() =>
+              runAction(
+                "status",
+                () => unarchiveListing(listing.id),
+                "Listing not updated",
+              )
+            }
+          />
+        ) : sold ? (
           <GoldButton
             label="Mark Available"
             loading={pendingAction === "status"}
@@ -106,6 +128,19 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
                 "status",
                 () => updateListing(listing.id, { status: "sold" }),
                 "Listing not updated",
+              )
+            }
+          />
+        )}
+        {!archived && (
+          <OutlineButton
+            label="Archive"
+            disabled={Boolean(pendingAction)}
+            onPress={() =>
+              runAction(
+                "status",
+                () => archiveListing(listing.id),
+                "Listing not archived",
               )
             }
           />

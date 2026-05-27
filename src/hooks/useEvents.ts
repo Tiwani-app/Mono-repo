@@ -1,25 +1,33 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 import {subscribeToEvents} from '../services/eventsService';
 import {useEventsStore} from '../store/eventsStore';
+import {getFailureSyncState} from '../utils/syncState';
 
 export const useEvents = () => {
-  const {setEvents, setLoading, setError} = useEventsStore();
+  const {events, setEvents, setLastSyncedAt, setLoading, setError, setSyncState} = useEventsStore();
+  const hasCachedDataRef = useRef(false);
+
+  hasCachedDataRef.current = events.length > 0;
 
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setSyncState('syncing');
     try {
-      const unsubscribe = subscribeToEvents(events => {
-        setEvents(events);
+      const unsubscribe = subscribeToEvents(nextEvents => {
+        setEvents(nextEvents);
+        setLastSyncedAt(new Date());
         setError(null);
+        setSyncState('fresh');
         setLoading(false);
       });
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load events.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [setError, setEvents, setLoading]);
+  }, [setError, setEvents, setLastSyncedAt, setLoading, setSyncState]);
 
   return useEventsStore();
 };

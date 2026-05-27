@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import EventCard from "../../components/events/EventCard";
 import WeekStrip from "../../components/events/WeekStrip";
 import { useEvents } from "../../hooks/useEvents";
@@ -21,7 +22,7 @@ import { isAdmin } from "../../utils/roleGuard";
 
 const EventsScreen = ({ navigation }: any) => {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const { error, events, loading } = useEvents();
+  const { error, events, lastSyncedAt, loading, syncState } = useEvents();
   const { user } = useAuthStore();
 
   const visibleEvents = useMemo(() => {
@@ -56,6 +57,7 @@ const EventsScreen = ({ navigation }: any) => {
         }
       />
       <View style={styles.content}>
+        <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
         <View style={styles.monthRow}>
           <Text style={styles.month}>{format(new Date(), "MMMM yyyy")}</Text>
           <TouchableOpacity

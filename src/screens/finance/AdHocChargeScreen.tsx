@@ -111,10 +111,10 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
         note: values.note.trim(),
       });
       safeGoBack(navigation, 'FinanceAdmin');
-    } catch (error) {
+    } catch (submitError) {
       Alert.alert(
         'Charge not created',
-        error instanceof Error ? error.message : 'Please try again.',
+        submitError instanceof Error ? submitError.message : 'Please try again.',
       );
     } finally {
       setSubmitting(false);

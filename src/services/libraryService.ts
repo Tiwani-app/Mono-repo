@@ -78,6 +78,10 @@ export const setLibraryDocumentStatus = async (
   await updateLibraryDocument(documentId, { status });
 };
 
+export const unarchiveLibraryDocument = async (documentId: string): Promise<void> => {
+  await setLibraryDocumentStatus(documentId, "published");
+};
+
 export const deleteLibraryDocument = async (documentId: string): Promise<void> => {
   await delay();
   if (!documents.some((document) => document.id === documentId)) {

@@ -18,6 +18,7 @@ import GoldButton from '../../components/common/GoldButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OutlineButton from '../../components/common/OutlineButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
+import { useMembers } from '../../hooks/useMembers';
 import {
   createElection,
   getElection,
@@ -28,6 +29,7 @@ import { colors, spacing, typography } from '../../theme';
 import { Election } from '../../types/voting';
 import { safeGoBack } from '../../utils/navigation';
 import { isAdmin } from '../../utils/roleGuard';
+import { findFinanciallyBlockedCandidateNames } from '../../utils/votingGuards';
 
 interface FormValues {
   title: string;
@@ -54,6 +56,11 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(Boolean(electionId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
+  const {
+    error: membersError,
+    loading: membersLoading,
+    members,
+  } = useMembers();
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
       title: '',
@@ -108,6 +115,17 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       Alert.alert('Candidates required', 'Add at least two unique candidates.');
       return;
     }
+    const blockedCandidates = findFinanciallyBlockedCandidateNames(
+      candidates.map(candidate => candidate.name),
+      members,
+    );
+    if (blockedCandidates.length > 0) {
+      Alert.alert(
+        'Candidate not eligible',
+        `${blockedCandidates.join(', ')} must be in good financial standing before standing for election.`,
+      );
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -151,18 +169,18 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     );
   }
 
-  if (loading) {
+  if (loading || membersLoading) {
     return <LoadingSpinner />;
   }
 
-  if (loadError) {
+  if (loadError || membersError) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader title="Election" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
         <EmptyState
           icon="!"
           title="Election unavailable"
-          message={loadError}
+          message={loadError ?? membersError ?? 'Please try again.'}
           actionLabel="Back to Voting"
           onAction={() => safeGoBack(navigation, 'VotingHub')}
         />

@@ -83,6 +83,12 @@ export const getDuesPeriods = async (): Promise<DuesPeriod[]> => {
 
 export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => {
   await delay();
+  if (!data.name.trim()) {
+    throw new Error('Dues period name is required.');
+  }
+  if (!Number.isFinite(data.amount) || data.amount <= 0) {
+    throw new Error('Dues amount must be greater than zero.');
+  }
   const id = `dues-${Date.now()}`;
   const activeMembers = mockUsers.filter(user => user.status === 'active');
   if (activeMembers.length === 0) {
@@ -121,6 +127,18 @@ export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => 
 
 export const createAdHocCharge = async (data: ChargeInput): Promise<void> => {
   await delay();
+  if (data.memberIds.length === 0) {
+    throw new Error('Select at least one member for this charge.');
+  }
+  if (!data.label.trim()) {
+    throw new Error('Charge label is required.');
+  }
+  if (data.type === 'payment') {
+    throw new Error('Charges cannot use payment as their type.');
+  }
+  if (!Number.isFinite(data.amount) || data.amount <= 0) {
+    throw new Error('Charge amount must be greater than zero.');
+  }
   const missingMember = data.memberIds.find(
     uid => !mockUsers.some(user => user.uid === uid),
   );
@@ -149,6 +167,12 @@ export const recordPayment = async (data: PaymentInput): Promise<void> => {
   await delay();
   if (!mockUsers.some(user => user.uid === data.uid)) {
     throw new Error('Member not found.');
+  }
+  if (!Number.isFinite(data.amount) || data.amount <= 0) {
+    throw new Error('Payment amount must be greater than zero.');
+  }
+  if (!data.paymentMethod.trim()) {
+    throw new Error('Payment method is required.');
   }
   const paidAt = new Date();
   let remainingAmount = data.amount;

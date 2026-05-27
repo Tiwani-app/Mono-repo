@@ -22,11 +22,11 @@ interface Props {
 const EventCard = ({ event, onPress }: Props) => {
   const categoryColor = CATEGORY_COLORS[event.category];
   const progress =
-    event.capacity > 0 ? event.rsvpList.length / event.capacity : 0;
+    event.capacity > 0 ? event.rsvpCount / event.capacity : 0;
   const capacityLabel =
     event.capacity > 0
-      ? `${event.rsvpList.length}/${event.capacity}`
-      : `${event.rsvpList.length}`;
+      ? `${event.rsvpCount}/${event.capacity}`
+      : `${event.rsvpCount}`;
 
   return (
     <TouchableOpacity

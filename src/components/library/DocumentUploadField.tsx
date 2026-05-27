@@ -12,7 +12,7 @@ const DocumentUploadField = ({ fileName }: Props) => (
     <Icon name="upload" size={20} color={colors.gold.light} />
     <Text style={styles.title}>{fileName ?? "Document upload"}</Text>
     <Text style={styles.subtitle}>
-      Backend storage will provide file selection and upload handling.
+      Add the document details now; file attachment can be completed when the file is ready.
     </Text>
   </View>
 );

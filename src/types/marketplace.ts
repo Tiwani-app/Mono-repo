@@ -1,4 +1,4 @@
-export type ListingStatus = "available" | "sold";
+export type ListingStatus = "available" | "sold" | "archived";
 export type ListingCondition = "new" | "like_new" | "good" | "fair" | "used";
 
 export interface Listing {

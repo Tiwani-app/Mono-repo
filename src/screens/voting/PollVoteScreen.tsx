@@ -8,7 +8,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FinancialGate from '../../components/voting/FinancialGate';
 import PollOption from '../../components/voting/PollOption';
-import {castPollVote, getPoll, hasCastPollVote} from '../../services/votingService';
+import {castPollVote, getPoll, getPollVoterState} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {useVotingStore} from '../../store/votingStore';
 import {colors, spacing, typography} from '../../theme';
@@ -21,6 +21,7 @@ const PollVoteScreen = ({navigation, route}: any) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [localPoll, setLocalPoll] = useState<Poll | null>(null);
+  const [resultsVisible, setResultsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const {user} = useAuthStore();
   const {hasVotedPoll, polls, selectedPollOption, setHasVotedPoll, setSelectedPollOption} =
@@ -34,6 +35,7 @@ const PollVoteScreen = ({navigation, route}: any) => {
       setLoading(true);
       setLoadError(null);
       setGated(false);
+      setResultsVisible(false);
       setSelectedPollOption(null);
       if (!user) {
         setLoading(false);
@@ -50,15 +52,16 @@ const PollVoteScreen = ({navigation, route}: any) => {
         return;
       }
       try {
-        const [nextPoll, voted] = await Promise.all([
+        const [nextPoll, voterState] = await Promise.all([
           storePoll ? Promise.resolve(storePoll) : getPoll(pollId),
-          hasCastPollVote(pollId, user.uid),
+          getPollVoterState(pollId, user.uid),
         ]);
         if (!active) {
           return;
         }
         setLocalPoll(nextPoll);
-        setHasVotedPoll(voted);
+        setHasVotedPoll(voterState.hasVoted);
+        setResultsVisible(voterState.resultsVisible);
       } catch (error) {
         if (active) {
           setLoadError(
@@ -107,16 +110,11 @@ const PollVoteScreen = ({navigation, route}: any) => {
     try {
       setSubmitting(true);
       await castPollVote(poll.id, selectedPollOption, user.uid);
+      const updatedPoll = await getPoll(poll.id);
+      const voterState = await getPollVoterState(poll.id, user.uid);
       setHasVotedPoll(true);
-      setLocalPoll({
-        ...poll,
-        totalVotes: poll.totalVotes + 1,
-        options: poll.options.map(option =>
-          option.id === selectedPollOption
-            ? {...option, voteCount: option.voteCount + 1}
-            : option,
-        ),
-      });
+      setResultsVisible(voterState.resultsVisible);
+      setLocalPoll(updatedPoll);
     } catch (error) {
       Alert.alert(
         'Vote failed',
@@ -135,14 +133,20 @@ const PollVoteScreen = ({navigation, route}: any) => {
           <Badge label={`${poll.totalVotes} VOTES`} color={colors.gold.default} />
           <Text style={styles.question}>{poll.question}</Text>
         </View>
-        <Text style={styles.sectionLabel}>{hasVotedPoll ? 'RESULTS' : 'CHOOSE ONE OPTION'}</Text>
+        <Text style={styles.sectionLabel}>
+          {hasVotedPoll
+            ? resultsVisible
+              ? 'RESULTS'
+              : 'VOTE RECORDED'
+            : 'CHOOSE ONE OPTION'}
+        </Text>
         {poll.options.map(option => (
           <PollOption
             key={option.id}
             option={option}
             totalVotes={poll.totalVotes}
             selected={selectedPollOption === option.id}
-            showResult={hasVotedPoll}
+            showResult={resultsVisible}
             disabled={hasVotedPoll}
             onSelect={() => setSelectedPollOption(option.id)}
           />
@@ -150,6 +154,11 @@ const PollVoteScreen = ({navigation, route}: any) => {
         {hasVotedPoll ? (
           <View style={styles.confirmation}>
             <Text style={styles.confirmationText}>Vote Recorded</Text>
+            {!resultsVisible && (
+              <Text style={styles.confirmationMeta}>
+                Results will be available when this poll closes.
+              </Text>
+            )}
           </View>
         ) : (
           <GoldButton
@@ -173,6 +182,12 @@ const styles = StyleSheet.create({
   sectionLabel: {fontSize: typography.size.xs, color: colors.text.secondary, fontWeight: typography.weight.bold},
   confirmation: {padding: spacing.lg, borderRadius: 8, backgroundColor: `${colors.status.success}18`},
   confirmationText: {color: colors.status.success, fontWeight: typography.weight.bold, textAlign: 'center'},
+  confirmationMeta: {
+    marginTop: spacing.sm,
+    color: colors.text.secondary,
+    fontSize: typography.size.sm,
+    textAlign: 'center',
+  },
 });
 
 export default PollVoteScreen;

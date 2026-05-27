@@ -13,19 +13,25 @@ import EmptyState from "../components/common/EmptyState";
 import GoldButton from "../components/common/GoldButton";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import ScreenHeader from "../components/common/ScreenHeader";
+import SyncStatusBanner from "../components/common/SyncStatusBanner";
 import AdminListingCard from "../components/marketplace/AdminListingCard";
 import ListingCard from "../components/marketplace/ListingCard";
 import { useMarketplace } from "../hooks/useMarketplace";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
-import { canAddMarketplaceListing } from "../utils/marketplaceGuards";
+import {
+  canAddMarketplaceListing,
+  visibleMarketplaceListings,
+} from "../utils/marketplaceGuards";
 import { isAdmin } from "../utils/roleGuard";
 
 const MarketplaceScreen = ({ navigation }: any) => {
   const [tab, setTab] = useState<"browse" | "manage">("browse");
-  const { error, listings, loading } = useMarketplace();
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const { error, lastSyncedAt, listings, loading, syncState } = useMarketplace(admin);
+  const visibleListings = visibleMarketplaceListings(listings);
+  const displayedListings = tab === "manage" && admin ? listings : visibleListings;
   const maxReached = !canAddMarketplaceListing(listings);
 
   const handleAddListing = async () => {
@@ -42,7 +48,7 @@ const MarketplaceScreen = ({ navigation }: any) => {
         rightElement={
           admin ? (
             <Badge
-              label={`${listings.length}/2 MAX`}
+              label={`${visibleListings.length}/2 ACTIVE`}
               color={colors.gold.default}
             />
           ) : null
@@ -66,18 +72,21 @@ const MarketplaceScreen = ({ navigation }: any) => {
         <LoadingSpinner />
       ) : (
         <FlatList
-          data={listings}
+          data={displayedListings}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            <View style={styles.infoBanner}>
-              <Icon name="tag" size={18} color={colors.gold.light} />
-              <Text style={styles.infoText}>
-                {tab === "browse"
-                  ? "Items listed by association members & admin. Enquire directly to arrange."
-                  : "Admins can manage up to 2 marketplace listings at a time."}
-              </Text>
-            </View>
+            <>
+              <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
+              <View style={styles.infoBanner}>
+                <Icon name="tag" size={18} color={colors.gold.light} />
+                <Text style={styles.infoText}>
+                  {tab === "browse"
+                    ? "Items listed by association members & admin. Enquire directly to arrange."
+                    : "Admins can manage active, sold, and archived marketplace listings."}
+                </Text>
+              </View>
+            </>
           }
           renderItem={({ item }) =>
             tab === "manage" ? (
@@ -105,7 +114,12 @@ const MarketplaceScreen = ({ navigation }: any) => {
             <EmptyState
               icon="!"
               title={error ? "Could not load listings" : "Nothing for sale"}
-              message={error ?? "The admin hasn't listed any items yet."}
+              message={
+                error ??
+                (tab === "manage"
+                  ? "Listings will appear here once they are created."
+                  : "The admin hasn't listed any items yet.")
+              }
             />
           }
         />

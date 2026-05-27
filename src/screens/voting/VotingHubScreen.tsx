@@ -7,19 +7,21 @@ import GoldButton from '../../components/common/GoldButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OutlineButton from '../../components/common/OutlineButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
+import SyncStatusBanner from '../../components/common/SyncStatusBanner';
 import FinancialGate from '../../components/voting/FinancialGate';
 import PollCard from '../../components/voting/PollCard';
 import {useVoting} from '../../hooks/useVoting';
 import {closeElection, closePoll} from '../../services/votingService';
 import {useAuthStore} from '../../store/authStore';
 import {colors, spacing, typography} from '../../theme';
-import {isAdmin} from '../../utils/roleGuard';
+import {canViewElectionResults, isAdmin} from '../../utils/roleGuard';
 
 const VotingHubScreen = ({navigation}: any) => {
-  const {elections, error, loading, polls} = useVoting();
+  const {elections, error, lastSyncedAt, loading, polls, syncState} = useVoting();
   const {user} = useAuthStore();
   const empty = elections.length === 0 && polls.length === 0;
   const admin = isAdmin(user);
+  const canSeeResults = canViewElectionResults(user);
 
   const confirmClosePoll = (pollId: string) => {
     Alert.alert('Close Poll', 'Close this poll and remove it from active voting?', [
@@ -82,6 +84,7 @@ const VotingHubScreen = ({navigation}: any) => {
     <SafeAreaView style={styles.safe}>
       <ScreenHeader title="Vote & Polls" />
       <ScrollView contentContainerStyle={styles.content}>
+        <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
         {admin && (
           <View style={styles.adminActions}>
             <GoldButton label="New Poll" onPress={() => navigation.navigate('PollForm')} />
@@ -111,21 +114,25 @@ const VotingHubScreen = ({navigation}: any) => {
                     size="sm"
                   />
                 </TouchableOpacity>
-                {admin && (
+                {(admin || canSeeResults) && (
                   <View style={styles.pollActions}>
-                    <OutlineButton
-                      label="Edit"
-                      onPress={() => navigation.navigate('ElectionForm', {electionId: election.id})}
-                    />
+                    {admin && (
+                      <OutlineButton
+                        label="Edit"
+                        onPress={() => navigation.navigate('ElectionForm', {electionId: election.id})}
+                      />
+                    )}
                     <OutlineButton
                       label="Results"
                       onPress={() => navigation.navigate('ElectionResults', {electionId: election.id})}
                     />
-                    <OutlineButton
-                      label="Close"
-                      color={colors.status.error}
-                      onPress={() => confirmCloseElection(election.id)}
-                    />
+                    {admin && (
+                      <OutlineButton
+                        label="Close"
+                        color={colors.status.error}
+                        onPress={() => confirmCloseElection(election.id)}
+                      />
+                    )}
                   </View>
                 )}
               </View>

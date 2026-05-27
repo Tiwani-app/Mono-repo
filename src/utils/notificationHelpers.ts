@@ -2,6 +2,7 @@ import {
   NotificationTarget,
   TiwaniNotification,
 } from "../types/notification";
+import { getTabRootResetState } from "../navigation/tabRoutes";
 
 export interface NotificationSection {
   title: "New" | "Earlier";
@@ -12,8 +13,11 @@ export const getNotificationSections = (
   notifications: TiwaniNotification[],
   readIds: string[],
 ): NotificationSection[] => {
-  const unread = notifications.filter(item => !readIds.includes(item.id));
-  const read = notifications.filter(item => readIds.includes(item.id));
+  const sortedNotifications = [...notifications].sort(
+    (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
+  );
+  const unread = sortedNotifications.filter(item => !readIds.includes(item.id));
+  const read = sortedNotifications.filter(item => readIds.includes(item.id));
   return [
     ...(unread.length > 0 ? [{title: "New" as const, data: unread}] : []),
     ...(read.length > 0 ? [{title: "Earlier" as const, data: read}] : []),
@@ -27,7 +31,10 @@ export const getAllNotificationIds = (notifications: TiwaniNotification[]) =>
   notifications.map(item => item.id);
 
 export const navigateToNotificationTarget = (
-  navigation: {navigate: (route: string, params?: object) => void},
+  navigation: {
+    dispatch?: (action: object) => void;
+    navigate: (route: string, params?: object) => void;
+  },
   target?: NotificationTarget,
 ) => {
   if (!target) {
@@ -62,7 +69,14 @@ export const navigateToNotificationTarget = (
     return;
   }
   if (target.route === "marketplace") {
-    navigation.navigate("Market");
+    if (navigation.dispatch) {
+      navigation.dispatch({
+        type: "RESET",
+        payload: getTabRootResetState("Market"),
+      });
+      return;
+    }
+    navigation.navigate("Market", {screen: "Marketplace"});
     return;
   }
   if (target.route === "library") {

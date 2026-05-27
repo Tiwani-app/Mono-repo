@@ -1,4 +1,5 @@
 import React from "react";
+import { CommonActions } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "../components/common/FeatherIcon";
 import DashboardStack from "./DashboardStack";
@@ -8,7 +9,7 @@ import MarketStack from "./MarketStack";
 import VotingStack from "./VotingStack";
 import { colors } from "../theme";
 import { AppTabParamList } from "./types";
-import { TAB_ROOT_ROUTES } from "./tabRoutes";
+import { getTabRootResetState } from "./tabRoutes";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
@@ -51,7 +52,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Dashboard", TAB_ROOT_ROUTES.Dashboard);
+          navigation.dispatch(CommonActions.reset(getTabRootResetState("Dashboard")));
         },
       })}
     />
@@ -61,7 +62,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Events", TAB_ROOT_ROUTES.Events);
+          navigation.dispatch(CommonActions.reset(getTabRootResetState("Events")));
         },
       })}
     />
@@ -71,7 +72,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Voting", TAB_ROOT_ROUTES.Voting);
+          navigation.dispatch(CommonActions.reset(getTabRootResetState("Voting")));
         },
       })}
     />
@@ -81,7 +82,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Finance", TAB_ROOT_ROUTES.Finance);
+          navigation.dispatch(CommonActions.reset(getTabRootResetState("Finance")));
         },
       })}
     />
@@ -91,7 +92,7 @@ const AppNavigator = () => (
       listeners={({ navigation }) => ({
         tabPress: (event) => {
           event.preventDefault();
-          navigation.navigate("Market", TAB_ROOT_ROUTES.Market);
+          navigation.dispatch(CommonActions.reset(getTabRootResetState("Market")));
         },
       })}
     />

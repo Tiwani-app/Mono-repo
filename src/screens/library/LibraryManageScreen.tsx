@@ -11,6 +11,7 @@ import { useLibraryDocuments } from "../../hooks/useLibraryDocuments";
 import {
   deleteLibraryDocument,
   setLibraryDocumentStatus,
+  unarchiveLibraryDocument,
 } from "../../services/libraryService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing } from "../../theme";
@@ -109,7 +110,20 @@ const LibraryManageScreen = ({ navigation }: any) => {
                   navigation.navigate("DocumentForm", { documentId: item.id })
                 }
               />
-              {item.status === "published" ? (
+              {item.status === "archived" ? (
+                <GoldButton
+                  label="Unarchive"
+                  loading={pendingActionId === `unarchive-${item.id}`}
+                  disabled={Boolean(pendingActionId)}
+                  onPress={() =>
+                    runDocumentAction(
+                      `unarchive-${item.id}`,
+                      () => unarchiveLibraryDocument(item.id),
+                      "Document not unarchived",
+                    )
+                  }
+                />
+              ) : item.status === "published" ? (
                 <OutlineButton
                   label="Archive"
                   disabled={Boolean(pendingActionId)}

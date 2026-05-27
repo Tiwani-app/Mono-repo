@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import DocumentCard from "../../components/library/DocumentCard";
 import DocumentFilterBar from "../../components/library/DocumentFilterBar";
 import { useLibraryDocuments } from "../../hooks/useLibraryDocuments";
@@ -25,7 +26,7 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
   const [selectedType, setSelectedType] =
     useState<LibraryDocumentType | "all">("all");
   const [selectedYear, setSelectedYear] = useState("all");
-  const { documents, error, loading } = useLibraryDocuments();
+  const { documents, error, lastSyncedAt, loading, syncState } = useLibraryDocuments();
   const category = route.params?.category as LibraryCategory | undefined;
   const validCategory =
     category === "constitutional" || category === "minutes_reports";
@@ -109,6 +110,7 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
+            <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
             <Text style={styles.sectionLabel}>TYPE</Text>
             <DocumentFilterBar
               options={typeOptions}

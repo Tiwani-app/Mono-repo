@@ -64,7 +64,10 @@ const user: User = {
 
 describe("notification helpers", () => {
   it("groups unread notifications before earlier read notifications", () => {
-    const sections = getNotificationSections(notifications, ["notif-2"]);
+    const sections = getNotificationSections(
+      [notifications[2], notifications[1], notifications[0]],
+      ["notif-2"],
+    );
 
     expect(sections.map(section => section.title)).toEqual(["New", "Earlier"]);
     expect(sections[0].data.map(item => item.id)).toEqual(["notif-1", "notif-3"]);
@@ -85,7 +88,7 @@ describe("notification helpers", () => {
   });
 
   it("routes notification targets to the correct stacks", () => {
-    const navigation = {navigate: jest.fn()};
+    const navigation = {dispatch: jest.fn(), navigate: jest.fn()};
 
     navigateToNotificationTarget(navigation, {
       route: "event_detail",
@@ -123,9 +126,22 @@ describe("notification helpers", () => {
       screen: "MyLedger",
       params: {memberId: "member-1"},
     });
-    expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Market");
-    expect(navigation.navigate).toHaveBeenNthCalledWith(6, "Library");
-    expect(navigation.navigate).toHaveBeenCalledTimes(6);
+    expect(navigation.dispatch).toHaveBeenCalledTimes(1);
+    expect(navigation.dispatch.mock.calls[0][0]).toMatchObject({
+      payload: {
+        index: 4,
+        routes: [
+          {name: "Dashboard", state: {routes: [{name: "DashboardHome"}]}},
+          {name: "Events", state: {routes: [{name: "EventsList"}]}},
+          {name: "Voting", state: {routes: [{name: "VotingHub"}]}},
+          {name: "Finance", state: {routes: [{name: "FinanceAdmin"}]}},
+          {name: "Market", state: {routes: [{name: "Marketplace"}]}},
+        ],
+      },
+      type: "RESET",
+    });
+    expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Library");
+    expect(navigation.navigate).toHaveBeenCalledTimes(5);
   });
 });
 

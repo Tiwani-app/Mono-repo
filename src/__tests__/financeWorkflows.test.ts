@@ -155,4 +155,68 @@ describe("finance workflows", () => {
       }),
     ).rejects.toThrow("One or more selected members could not be found.");
   });
+
+  it("rejects invalid finance writes at the service boundary", async () => {
+    const service = loadIsolatedFinanceService();
+
+    await expect(
+      service.createDuesPeriod({
+        name: "",
+        amount: 20000,
+        dueDate: new Date("2026-09-30"),
+        status: "active",
+      }),
+    ).rejects.toThrow("Dues period name is required.");
+
+    await expect(
+      service.createDuesPeriod({
+        name: "Bad Dues",
+        amount: 0,
+        dueDate: new Date("2026-09-30"),
+        status: "active",
+      }),
+    ).rejects.toThrow("Dues amount must be greater than zero.");
+
+    await expect(
+      service.createAdHocCharge({
+        memberIds: [],
+        type: "levy",
+        label: "Empty Charge",
+        amount: 1000,
+        dueDate: null,
+        note: "",
+      }),
+    ).rejects.toThrow("Select at least one member for this charge.");
+
+    await expect(
+      service.createAdHocCharge({
+        memberIds: ["member-1"],
+        type: "payment",
+        label: "Invalid Type",
+        amount: 1000,
+        dueDate: null,
+        note: "",
+      }),
+    ).rejects.toThrow("Charges cannot use payment as their type.");
+
+    await expect(
+      service.recordPayment({
+        uid: "member-1",
+        amount: 0,
+        paymentMethod: "Bank transfer",
+        reference: "PAY-000",
+        note: "",
+      }),
+    ).rejects.toThrow("Payment amount must be greater than zero.");
+
+    await expect(
+      service.recordPayment({
+        uid: "member-1",
+        amount: 1000,
+        paymentMethod: " ",
+        reference: "PAY-000",
+        note: "",
+      }),
+    ).rejects.toThrow("Payment method is required.");
+  });
 });

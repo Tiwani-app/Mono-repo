@@ -101,6 +101,7 @@ export const mockEvents: TiwaniEvent[] = [
     createdBy: "admin-1",
     status: "published",
     rsvpList: ["admin-1", "chair-1", "member-1"],
+    rsvpCount: 3,
     capacity: 30,
     attendees: [],
   },
@@ -115,6 +116,7 @@ export const mockEvents: TiwaniEvent[] = [
     createdBy: "admin-1",
     status: "published",
     rsvpList: ["member-1", "chair-1"],
+    rsvpCount: 2,
     capacity: 50,
     attendees: ["member-1"],
   },
@@ -129,6 +131,7 @@ export const mockEvents: TiwaniEvent[] = [
     createdBy: "admin-1",
     status: "published",
     rsvpList: ["admin-1", "member-1", "chair-1"],
+    rsvpCount: 3,
     capacity: 40,
     attendees: [],
   },
@@ -143,6 +146,7 @@ export const mockEvents: TiwaniEvent[] = [
     createdBy: "admin-1",
     status: "published",
     rsvpList: ["admin-1"],
+    rsvpCount: 1,
     capacity: 8,
     attendees: [],
   },
@@ -155,6 +159,7 @@ export const mockPolls: Poll[] = [
     question: "How should we host next quarter meetings?",
     status: "open",
     totalVotes: 18,
+    resultVisibility: "after_vote",
     options: [
       {
         id: "physical",
@@ -173,6 +178,7 @@ export const mockElections: Election[] = [
     title: "2026 Executive Election",
     ballotType: "secret",
     status: "open",
+    resultVisibility: "after_close",
     races: [
       {
         raceId: "president",
