@@ -13,6 +13,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -234,10 +235,8 @@ const EventFormScreen = ({ navigation, route }: any) => {
             onChange={setCategory}
           />
           <View style={styles.twoColumn}>
-            <Field
+            <Controller
               control={control}
-              error={formState.errors.date?.message}
-              label="DATE"
               name="date"
               rules={{
                 required: "Date is required.",
@@ -246,6 +245,15 @@ const EventFormScreen = ({ navigation, route }: any) => {
                   message: "Use YYYY-MM-DD.",
                 },
               }}
+              render={({ field: { onChange, value } }) => (
+                <CalendarDateField
+                  value={value}
+                  onChange={onChange}
+                  label="DATE"
+                  error={formState.errors.date?.message}
+                  style={styles.field}
+                />
+              )}
             />
             <Field
               control={control}

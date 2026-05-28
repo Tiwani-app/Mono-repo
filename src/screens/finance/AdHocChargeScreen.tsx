@@ -14,6 +14,7 @@ import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -250,11 +251,17 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
               },
             }}
           />
-          <Field
+          <Controller
             control={control}
-            error={formState.errors.dueDate?.message}
-            label="DUE DATE"
             name="dueDate"
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                value={value}
+                onChange={onChange}
+                label="DUE DATE"
+                error={formState.errors.dueDate?.message}
+              />
+            )}
           />
           <Field
             control={control}
