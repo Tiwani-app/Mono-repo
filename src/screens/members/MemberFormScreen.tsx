@@ -10,10 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
+import OutlineButton from "../../components/common/OutlineButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import {
@@ -23,7 +26,13 @@ import {
 } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { FinancialStatus, MemberStatus, Role } from "../../types/user";
+import {
+  Child,
+  FinancialStatus,
+  MemberStatus,
+  Role,
+  User,
+} from "../../types/user";
 import { emailRules } from "../../utils/validators";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
@@ -34,6 +43,10 @@ interface FormValues {
   phone: string;
   address: string;
   outstandingBalance: string;
+  spouseName: string;
+  spouseDateOfBirth: string;
+  weddingAnniversary: string;
+  children: Child[];
 }
 
 const roleOptions: { label: string; value: Role }[] = [
@@ -54,12 +67,21 @@ const financialOptions: { label: string; value: FinancialStatus }[] = [
   { label: "Red", value: "red" },
 ];
 
+const maritalOptions: { label: string; value: User["maritalStatus"] }[] = [
+  { label: "Single", value: "single" },
+  { label: "Married", value: "married" },
+  { label: "Divorced", value: "divorced" },
+  { label: "Widowed", value: "widowed" },
+];
+
 const MemberFormScreen = ({ navigation, route }: any) => {
   const memberId = route.params?.memberId as string | undefined;
   const [role, setRole] = useState<Role>("member");
   const [status, setStatus] = useState<MemberStatus>("active");
   const [financialStatus, setFinancialStatus] =
     useState<FinancialStatus>("green");
+  const [maritalStatus, setMaritalStatus] =
+    useState<User["maritalStatus"]>("single");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(memberId));
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +94,15 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       phone: "",
       address: "",
       outstandingBalance: "0",
+      spouseName: "",
+      spouseDateOfBirth: "",
+      weddingAnniversary: "",
+      children: [],
     },
+  });
+  const { append, fields, remove } = useFieldArray({
+    control,
+    name: "children",
   });
 
   useEffect(() => {
@@ -87,10 +117,15 @@ const MemberFormScreen = ({ navigation, route }: any) => {
           phone: member.phone,
           address: member.address,
           outstandingBalance: String(member.outstandingBalance),
+          spouseName: member.spouseName ?? "",
+          spouseDateOfBirth: member.spouseDateOfBirth ?? "",
+          weddingAnniversary: member.weddingAnniversary ?? "",
+          children: member.children,
         });
         setRole(member.role);
         setStatus(member.status);
         setFinancialStatus(member.financialStatus);
+        setMaritalStatus(member.maritalStatus);
       })
       .catch((error) =>
         setLoadError(
@@ -127,6 +162,16 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         role,
         status,
         financialStatus,
+        maritalStatus,
+        spouseName: values.spouseName.trim() || null,
+        spouseDateOfBirth: values.spouseDateOfBirth.trim() || null,
+        weddingAnniversary: values.weddingAnniversary.trim() || null,
+        children: values.children
+          .map((child) => ({
+            name: child.name.trim(),
+            dateOfBirth: child.dateOfBirth.trim(),
+          }))
+          .filter((child) => child.name || child.dateOfBirth),
       };
       if (memberId) {
         await updateMember(memberId, payload);
@@ -261,6 +306,96 @@ const MemberFormScreen = ({ navigation, route }: any) => {
               },
             }}
           />
+          <Text style={styles.sectionLabel}>FAMILY DETAILS</Text>
+          <ChipRow
+            options={maritalOptions}
+            selectedValue={maritalStatus}
+            onChange={setMaritalStatus}
+          />
+          <Field
+            control={control}
+            error={formState.errors.spouseName?.message}
+            label="SPOUSE NAME"
+            name="spouseName"
+          />
+          <Controller
+            control={control}
+            name="spouseDateOfBirth"
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                allowEmpty
+                value={value}
+                onChange={onChange}
+                label="SPOUSE DATE OF BIRTH"
+                placeholder="Choose spouse birthday"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="weddingAnniversary"
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                allowEmpty
+                value={value}
+                onChange={onChange}
+                label="WEDDING ANNIVERSARY"
+                placeholder="Choose anniversary"
+              />
+            )}
+          />
+          <View style={styles.childrenHeader}>
+            <Text style={styles.sectionLabel}>CHILDREN</Text>
+            <OutlineButton
+              label="Add Child"
+              onPress={() => append({ name: "", dateOfBirth: "" })}
+            />
+          </View>
+          {fields.length === 0 ? (
+            <View style={styles.emptyFamilyCard}>
+              <Text style={styles.emptyFamilyText}>
+                No children added for this member.
+              </Text>
+            </View>
+          ) : (
+            fields.map((field, index) => (
+              <View key={field.id} style={styles.childCard}>
+                <View style={styles.childHeader}>
+                  <Text style={styles.childTitle}>Child {index + 1}</Text>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => remove(index)}
+                    activeOpacity={0.8}
+                  >
+                    <Icon
+                      name="trash-2"
+                      size={18}
+                      color={colors.status.error}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Field
+                  control={control}
+                  error={formState.errors.children?.[index]?.name?.message}
+                  label="CHILD NAME"
+                  name={`children.${index}.name`}
+                />
+                <Controller
+                  control={control}
+                  name={`children.${index}.dateOfBirth`}
+                  render={({ field: { onChange, value } }) => (
+                    <CalendarDateField
+                      allowEmpty
+                      value={value}
+                      onChange={onChange}
+                      label="CHILD DATE OF BIRTH"
+                      placeholder="Choose child birthday"
+                    />
+                  )}
+                />
+              </View>
+            ))
+          )}
           <GoldButton
             label={memberId ? "Save Member" : "Create Member"}
             onPress={handleSubmit(onSubmit)}
@@ -387,6 +522,53 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
+  childrenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  emptyFamilyCard: {
+    minHeight: 56,
+    justifyContent: "center",
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  emptyFamilyText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  childCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  childHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  childTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  removeButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: colors.bg.tertiary,
+  },
 });
 
 export default MemberFormScreen;

@@ -5,6 +5,7 @@ import {
   Role,
   User,
 } from "../types/user";
+import { DEFAULT_CURRENCY_SYMBOL, getLocalTimezone } from "../utils/locale";
 import { delay, mockJoinRequests, mockUsers } from "./mockData";
 
 export interface MemberInput {
@@ -16,6 +17,11 @@ export interface MemberInput {
   financialStatus: FinancialStatus;
   outstandingBalance: number;
   address: string;
+  maritalStatus?: User["maritalStatus"];
+  spouseName?: string | null;
+  spouseDateOfBirth?: string | null;
+  weddingAnniversary?: string | null;
+  children?: User["children"];
 }
 
 export interface JoinRequestInput {
@@ -58,6 +64,16 @@ const normalizeMemberInput = (data: MemberInput): MemberInput => ({
   email: normalizeEmail(data.email),
   phone: data.phone.trim(),
   address: data.address.trim(),
+  maritalStatus: data.maritalStatus ?? "single",
+  spouseName: data.spouseName?.trim() || null,
+  spouseDateOfBirth: data.spouseDateOfBirth?.trim() || null,
+  weddingAnniversary: data.weddingAnniversary?.trim() || null,
+  children: (data.children ?? [])
+    .map((child) => ({
+      name: child.name.trim(),
+      dateOfBirth: child.dateOfBirth.trim(),
+    }))
+    .filter((child) => child.name || child.dateOfBirth),
 });
 
 const normalizeJoinRequestInput = (
@@ -101,6 +117,11 @@ const validateMemberInput = (data: MemberInput, existingUid?: string) => {
     throw new Error("Outstanding balance must be zero or more.");
   }
   assertUniqueMemberEmail(data.email, existingUid);
+  (data.children ?? []).forEach((child) => {
+    if (!child.name) {
+      throw new Error("Child name is required when adding a child.");
+    }
+  });
 };
 
 const validateJoinRequestInput = (data: JoinRequestInput) => {
@@ -171,16 +192,16 @@ const defaultUserFields = (data: MemberInput): User => ({
   financialStatus: data.financialStatus,
   outstandingBalance: data.outstandingBalance,
   address: data.address,
-  maritalStatus: "single",
+  maritalStatus: data.maritalStatus ?? "single",
   dateOfBirth: "",
-  spouseName: null,
-  spouseDateOfBirth: null,
-  weddingAnniversary: null,
-  children: [],
+  spouseName: data.spouseName ?? null,
+  spouseDateOfBirth: data.spouseDateOfBirth ?? null,
+  weddingAnniversary: data.weddingAnniversary ?? null,
+  children: data.children ?? [],
   memberSince: new Date().toISOString().slice(0, 10),
   notificationPreferences: { events: true, finance: true, voting: true },
-  currencySymbol: "₦",
-  timezone: "WAT",
+  currencySymbol: DEFAULT_CURRENCY_SYMBOL,
+  timezone: getLocalTimezone(),
 });
 
 export const subscribeToMembers = (callback: (members: User[]) => void) => {
@@ -239,6 +260,20 @@ export const updateMember = async (
     outstandingBalance:
       data.outstandingBalance ?? existingMember.outstandingBalance,
     address: data.address ?? existingMember.address,
+    maritalStatus: data.maritalStatus ?? existingMember.maritalStatus,
+    spouseName:
+      data.spouseName === undefined
+        ? existingMember.spouseName
+        : data.spouseName,
+    spouseDateOfBirth:
+      data.spouseDateOfBirth === undefined
+        ? existingMember.spouseDateOfBirth
+        : data.spouseDateOfBirth,
+    weddingAnniversary:
+      data.weddingAnniversary === undefined
+        ? existingMember.weddingAnniversary
+        : data.weddingAnniversary,
+    children: data.children ?? existingMember.children,
   });
   validateMemberInput(normalized, uid);
   members = members.map((member) =>
@@ -316,6 +351,11 @@ export const reviewJoinRequest = async (
           financialStatus: "green",
           outstandingBalance: 0,
           address: "",
+          maritalStatus: "single",
+          spouseName: null,
+          spouseDateOfBirth: null,
+          weddingAnniversary: null,
+          children: [],
         }),
         ...members,
       ];

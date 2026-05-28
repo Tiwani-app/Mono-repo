@@ -410,6 +410,54 @@ describe("service workflows", () => {
     ).rejects.toThrow("A member with this email already exists.");
   });
 
+  it("creates and updates member family details with dollar/local defaults", async () => {
+    const service = loadIsolatedService<MembersService>(
+      "../services/membersService",
+    );
+
+    const created = await service.createMember({
+      fullName: "Family Member",
+      email: "family@example.com",
+      phone: "08000000000",
+      role: "member",
+      status: "active",
+      financialStatus: "green",
+      outstandingBalance: 0,
+      address: "12 Main Street",
+      maritalStatus: "married",
+      spouseName: "Jordan Member",
+      spouseDateOfBirth: "1990-01-10",
+      weddingAnniversary: "2018-06-02",
+      children: [{ name: "Avery Member", dateOfBirth: "2020-03-04" }],
+    });
+
+    expect(created).toMatchObject({
+      currencySymbol: "$",
+      maritalStatus: "married",
+      spouseName: "Jordan Member",
+      spouseDateOfBirth: "1990-01-10",
+      weddingAnniversary: "2018-06-02",
+      children: [{ name: "Avery Member", dateOfBirth: "2020-03-04" }],
+    });
+    expect(created.timezone).toBeTruthy();
+
+    await service.updateMember(created.uid, {
+      maritalStatus: "single",
+      spouseName: null,
+      spouseDateOfBirth: null,
+      weddingAnniversary: null,
+      children: [],
+    });
+
+    await expect(service.getMember(created.uid)).resolves.toMatchObject({
+      maritalStatus: "single",
+      spouseName: null,
+      spouseDateOfBirth: null,
+      weddingAnniversary: null,
+      children: [],
+    });
+  });
+
   it("validates join request input and review state", async () => {
     const service = loadIsolatedService<MembersService>(
       "../services/membersService",

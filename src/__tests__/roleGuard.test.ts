@@ -20,8 +20,8 @@ const baseUser: User = {
   children: [],
   memberSince: "2026-01-01",
   notificationPreferences: { events: true, finance: true, voting: true },
-  currencySymbol: "₦",
-  timezone: "WAT",
+  currencySymbol: "$",
+  timezone: "America/New_York",
 };
 
 describe("role guards", () => {

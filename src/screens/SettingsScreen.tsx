@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AttachmentField from "../components/common/AttachmentField";
 import Avatar from "../components/common/Avatar";
 import Badge from "../components/common/Badge";
 import GoldButton from "../components/common/GoldButton";
@@ -27,6 +28,7 @@ import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import { NotificationPreferences } from "../types/user";
 import { getInitials } from "../utils/getInitials";
+import { formatTimezoneLabel } from "../utils/locale";
 import { safeGoBack } from "../utils/navigation";
 import {
   ProfileFormValues,
@@ -196,11 +198,8 @@ const SettingsScreen = ({ navigation }: any) => {
                 multiline
                 name="address"
               />
-              <ProfileField
+              <Controller
                 control={control}
-                error={formState.errors.photoURL?.message}
-                keyboardType="url"
-                label="PHOTO URL"
                 name="photoURL"
                 rules={{
                   validate: (value: string) =>
@@ -208,6 +207,24 @@ const SettingsScreen = ({ navigation }: any) => {
                     /^https?:\/\/\S+$/i.test(value.trim()) ||
                     "Enter a valid photo URL.",
                 }}
+                render={({ field: { onChange, value } }) => (
+                  <AttachmentField
+                    label="PROFILE IMAGE"
+                    mode="image"
+                    fileName={user.fullName}
+                    value={value}
+                    onChangeText={onChange}
+                    error={formState.errors.photoURL?.message}
+                    placeholder="https://example.com/profile-photo.jpg"
+                    helperText="Attach a profile photo or paste an image URL."
+                    onPick={() =>
+                      Alert.alert(
+                        "Image picker",
+                        "Profile photo selection will use the storage-backed picker when backend storage is connected.",
+                      )
+                    }
+                  />
+                )}
               />
               <GoldButton
                 label="Save Profile"
@@ -230,11 +247,8 @@ const SettingsScreen = ({ navigation }: any) => {
           )}
 
           <Text style={styles.sectionLabel}>APP SETTINGS</Text>
-          <Row
-            label="Currency"
-            value={`${user.currencySymbol} Nigerian Naira`}
-          />
-          <Row label="Timezone" value={`${user.timezone} (UTC+1)`} />
+          <Row label="Currency" value={`${user.currencySymbol} US Dollar`} />
+          <Row label="Timezone" value={formatTimezoneLabel(user.timezone)} />
           <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
           <ToggleRow
             label="Events & Meetings"

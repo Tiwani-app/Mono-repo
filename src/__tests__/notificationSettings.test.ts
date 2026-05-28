@@ -58,8 +58,8 @@ const user: User = {
   children: [],
   memberSince: "2026-01-01",
   notificationPreferences: { events: true, finance: true, voting: false },
-  currencySymbol: "₦",
-  timezone: "WAT",
+  currencySymbol: "$",
+  timezone: "America/New_York",
 };
 
 describe("notification helpers", () => {

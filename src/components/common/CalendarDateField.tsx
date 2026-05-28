@@ -26,9 +26,11 @@ import Icon from "./FeatherIcon";
 import { colors, spacing, typography } from "../../theme";
 
 interface Props {
+  allowEmpty?: boolean;
   error?: string;
   label: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   value?: string;
   style?: ViewStyle;
 }
@@ -40,7 +42,16 @@ const parseDateValue = (value?: string) => {
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const CalendarDateField = ({ error, label, onChange, value, style }: Props) => {
+const CalendarDateField = ({
+  allowEmpty,
+  error,
+  label,
+  onChange,
+  placeholder = "Choose date",
+  value,
+  style,
+}: Props) => {
+  const hasValue = Boolean(value?.trim());
   const selectedDate = parseDateValue(value);
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(startOfMonth(selectedDate));
@@ -73,12 +84,21 @@ const CalendarDateField = ({ error, label, onChange, value, style }: Props) => {
       >
         <View style={styles.inputCopy}>
           <Text style={styles.inputValue}>
-            {format(selectedDate, "MMM d, yyyy")}
+            {hasValue ? format(selectedDate, "MMM d, yyyy") : placeholder}
           </Text>
           <Text style={styles.inputMeta}>
-            {format(selectedDate, "yyyy-MM-dd")}
+            {hasValue ? format(selectedDate, "yyyy-MM-dd") : "Optional"}
           </Text>
         </View>
+        {allowEmpty && hasValue ? (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => onChange("")}
+            activeOpacity={0.8}
+          >
+            <Icon name="x" size={16} color={colors.text.secondary} />
+          </TouchableOpacity>
+        ) : null}
         <Icon name="calendar" size={19} color={colors.gold.default} />
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -188,6 +208,14 @@ const styles = StyleSheet.create({
   inputMeta: {
     fontSize: typography.size.xs,
     color: colors.text.tertiary,
+  },
+  clearButton: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: colors.bg.card,
   },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },

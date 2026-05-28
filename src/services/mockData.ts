@@ -5,6 +5,7 @@ import { LibraryDocument } from "../types/library";
 import { TiwaniNotification } from "../types/notification";
 import { Election, Poll } from "../types/voting";
 import { JoinRequest, User } from "../types/user";
+import { DEFAULT_CURRENCY_SYMBOL, getLocalTimezone } from "../utils/locale";
 
 export const mockUsers: User[] = [
   {
@@ -26,8 +27,8 @@ export const mockUsers: User[] = [
     children: [{ name: "Chidera Obi", dateOfBirth: "2016-03-12" }],
     memberSince: "2021-02-01",
     notificationPreferences: { events: true, finance: true, voting: true },
-    currencySymbol: "₦",
-    timezone: "WAT",
+    currencySymbol: DEFAULT_CURRENCY_SYMBOL,
+    timezone: getLocalTimezone(),
   },
   {
     uid: "member-1",
@@ -48,8 +49,8 @@ export const mockUsers: User[] = [
     children: [],
     memberSince: "2023-06-10",
     notificationPreferences: { events: true, finance: true, voting: false },
-    currencySymbol: "₦",
-    timezone: "WAT",
+    currencySymbol: DEFAULT_CURRENCY_SYMBOL,
+    timezone: getLocalTimezone(),
   },
   {
     uid: "chair-1",
@@ -70,8 +71,8 @@ export const mockUsers: User[] = [
     children: [{ name: "Kamsi Okafor", dateOfBirth: "2009-07-09" }],
     memberSince: "2020-01-15",
     notificationPreferences: { events: true, finance: true, voting: true },
-    currencySymbol: "₦",
-    timezone: "WAT",
+    currencySymbol: DEFAULT_CURRENCY_SYMBOL,
+    timezone: getLocalTimezone(),
   },
 ];
 
@@ -331,7 +332,8 @@ export const mockLibraryDocuments: LibraryDocument[] = [
   {
     id: "doc-2",
     title: "Code of Conduct",
-    description: "Member conduct standards for meetings, committees, and events.",
+    description:
+      "Member conduct standards for meetings, committees, and events.",
     category: "constitutional",
     type: "code_of_conduct",
     documentDate: new Date("2026-02-05"),
@@ -348,7 +350,8 @@ export const mockLibraryDocuments: LibraryDocument[] = [
   {
     id: "doc-3",
     title: "April 2026 General Meeting Minutes",
-    description: "Attendance, motions, finance notes, and action items from April.",
+    description:
+      "Attendance, motions, finance notes, and action items from April.",
     category: "minutes_reports",
     type: "meeting_minutes",
     documentDate: new Date("2026-04-27"),
@@ -365,7 +368,8 @@ export const mockLibraryDocuments: LibraryDocument[] = [
   {
     id: "doc-4",
     title: "Q1 2026 Finance Report",
-    description: "Treasurer report covering collections, balances, and expenses.",
+    description:
+      "Treasurer report covering collections, balances, and expenses.",
     category: "minutes_reports",
     type: "financial_report",
     documentDate: new Date("2026-03-31"),

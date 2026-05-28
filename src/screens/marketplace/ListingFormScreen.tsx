@@ -12,11 +12,11 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AttachmentField from "../../components/common/AttachmentField";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import ListingMedia from "../../components/marketplace/ListingMedia";
 import {
   createListing,
   getListing,
@@ -71,7 +71,6 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       },
     });
   const titleValue = watch("title");
-  const imageURLValue = watch("imageURL");
 
   useEffect(() => {
     if (!admin || !listingId) {
@@ -240,11 +239,8 @@ const ListingFormScreen = ({ navigation, route }: any) => {
             name="contactInstruction"
             rules={{ required: "Contact instruction is required." }}
           />
-          <Field
+          <Controller
             control={control}
-            error={formState.errors.imageURL?.message}
-            keyboardType="url"
-            label="IMAGE URL"
             name="imageURL"
             rules={{
               validate: (value: string) =>
@@ -252,25 +248,25 @@ const ListingFormScreen = ({ navigation, route }: any) => {
                 /^https?:\/\/\S+$/i.test(value.trim()) ||
                 "Enter a valid image URL.",
             }}
-          />
-          {Boolean(imageURLValue.trim()) && (
-            <View style={styles.imagePreview}>
-              <ListingMedia
-                listing={{
-                  title: titleValue.trim() || "Marketplace listing",
-                  imageURL: imageURLValue.trim(),
-                  status,
-                }}
-                size={72}
+            render={({ field: { onChange, value } }) => (
+              <AttachmentField
+                label="LISTING IMAGE"
+                mode="image"
+                fileName={titleValue.trim() || "Marketplace listing"}
+                value={value}
+                onChangeText={onChange}
+                error={formState.errors.imageURL?.message}
+                placeholder="https://example.com/listing-image.jpg"
+                helperText="Attach a listing photo or paste an image URL."
+                onPick={() =>
+                  Alert.alert(
+                    "Image picker",
+                    "Marketplace image selection will use the storage-backed picker when backend storage is connected.",
+                  )
+                }
               />
-              <View style={styles.previewCopy}>
-                <Text style={styles.previewTitle}>Image preview</Text>
-                <Text style={styles.previewMeta} numberOfLines={2}>
-                  {imageURLValue.trim()}
-                </Text>
-              </View>
-            </View>
-          )}
+            )}
+          />
           <GoldButton
             label={listingId ? "Save Listing" : "Create Listing"}
             onPress={handleSubmit(onSubmit)}

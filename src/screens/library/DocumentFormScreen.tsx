@@ -11,12 +11,14 @@ import {
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
+import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AttachmentField from "../../components/common/AttachmentField";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import DocumentUploadField from "../../components/library/DocumentUploadField";
 import {
   createLibraryDocument,
   getLibraryDocument,
@@ -39,7 +41,9 @@ import { canManageLibraryDocuments } from "../../utils/libraryGuards";
 interface FormValues {
   title: string;
   description: string;
+  documentDate: string;
   fileName: string;
+  fileURL: string;
 }
 
 const typeOptionsByCategory: Record<LibraryCategory, LibraryDocumentType[]> = {
@@ -72,6 +76,18 @@ const inferFileType = (fileName: string): LibraryFileType | null => {
   return null;
 };
 
+const parseDocumentDate = (value: string) => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+    return undefined;
+  }
+  const parsed = new Date(`${trimmedValue}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
 const DocumentFormScreen = ({ navigation, route }: any) => {
   const documentId = route.params?.documentId as string | undefined;
   const { user } = useAuthStore();
@@ -89,7 +105,9 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
       defaultValues: {
         title: "",
         description: "",
+        documentDate: format(new Date(), "yyyy-MM-dd"),
         fileName: "association-document.pdf",
+        fileURL: "",
       },
     });
 
@@ -102,7 +120,11 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         reset({
           title: document.title,
           description: document.description,
+          documentDate: document.documentDate
+            ? format(document.documentDate, "yyyy-MM-dd")
+            : "",
           fileName: document.fileName,
+          fileURL: document.fileURL ?? "",
         });
         setCategory(document.category);
         setType(document.type);
@@ -135,8 +157,14 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     }
     const title = values.title.trim();
     const description = values.description.trim();
+    const documentDate = parseDocumentDate(values.documentDate);
     const fileName = values.fileName.trim();
+    const fileURL = values.fileURL.trim() || null;
     const fileType = inferFileType(fileName);
+    if (documentDate === undefined) {
+      Alert.alert("Document date invalid", "Choose a valid document date.");
+      return;
+    }
     if (!fileType) {
       Alert.alert(
         "Unsupported file type",
@@ -151,7 +179,9 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         await updateLibraryDocument(documentId, {
           title,
           description,
+          documentDate,
           fileName,
+          fileURL,
           fileType,
           category,
           type,
@@ -167,8 +197,8 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           type,
           status,
           visibility,
-          documentDate: new Date(),
-          fileURL: null,
+          documentDate,
+          fileURL,
           fileType,
           fileSize: null,
         });
@@ -239,7 +269,34 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <DocumentUploadField fileName={watch("fileName")} />
+          <Controller
+            control={control}
+            name="fileURL"
+            rules={{
+              validate: (value: string) =>
+                !value.trim() ||
+                /^https?:\/\/\S+$/i.test(value.trim()) ||
+                "Enter a valid file URL.",
+            }}
+            render={({ field: { onChange, value } }) => (
+              <AttachmentField
+                label="DOCUMENT FILE"
+                mode="document"
+                fileName={watch("fileName")}
+                value={value}
+                onChangeText={onChange}
+                error={formState.errors.fileURL?.message}
+                placeholder="https://example.com/document.pdf"
+                helperText="Attach the Library file or paste the storage URL."
+                onPick={() =>
+                  Alert.alert(
+                    "File picker",
+                    "Document selection will use the storage-backed picker when backend storage is connected.",
+                  )
+                }
+              />
+            )}
+          />
           <Field
             control={control}
             error={formState.errors.title?.message}
@@ -267,6 +324,17 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
                   ? true
                   : "Use PDF, DOC, DOCX, JPG, or PNG.",
             }}
+          />
+          <Controller
+            control={control}
+            name="documentDate"
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                value={value}
+                onChange={onChange}
+                label="DOCUMENT DATE"
+              />
+            )}
           />
           <Text style={styles.sectionLabel}>CATEGORY</Text>
           <ChipRow

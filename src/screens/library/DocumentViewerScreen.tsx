@@ -146,16 +146,18 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         </View>
         <View style={styles.preview}>
           <Text style={styles.previewTitle}>
-            {previewSupported ? "PDF preview ready" : "Preview unavailable"}
+            {previewSupported ? "PDF ready" : "File preview unavailable"}
           </Text>
           <Text style={styles.previewBody}>
             {previewSupported
-              ? "Use the open action to preview this PDF through the available document handler."
-              : "This file is not available for preview yet. Use the open action when a file has been attached."}
+              ? "Open or download this PDF through the available document handler."
+              : "Open or download this file through the available document handler when a file has been attached."}
           </Text>
         </View>
         <GoldButton
-          label={previewSupported ? "Open PDF" : "Open Externally"}
+          label={
+            previewSupported ? "Open / Download PDF" : "Open / Download File"
+          }
           onPress={handleOpen}
           loading={opening}
           disabled={!document.fileURL}
