@@ -34,7 +34,7 @@ import {
 } from "../../types/library";
 import { useAuthStore } from "../../store/authStore";
 import { safeGoBack } from "../../utils/navigation";
-import { isAdmin } from "../../utils/roleGuard";
+import { canManageLibraryDocuments } from "../../utils/libraryGuards";
 
 interface FormValues {
   title: string;
@@ -83,19 +83,21 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(documentId));
   const [submitting, setSubmitting] = useState(false);
-  const { control, handleSubmit, reset, watch, formState } = useForm<FormValues>({
-    defaultValues: {
-      title: "",
-      description: "",
-      fileName: "association-document.pdf",
-    },
-  });
+  const canManage = canManageLibraryDocuments(user);
+  const { control, handleSubmit, reset, watch, formState } =
+    useForm<FormValues>({
+      defaultValues: {
+        title: "",
+        description: "",
+        fileName: "association-document.pdf",
+      },
+    });
 
   useEffect(() => {
-    if (!documentId) {
+    if (!canManage || !documentId) {
       return;
     }
-    getLibraryDocument(documentId)
+    getLibraryDocument(documentId, true)
       .then((document) => {
         reset({
           title: document.title,
@@ -109,13 +111,18 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
       })
       .catch((error) =>
         setLoadError(
-          error instanceof Error ? error.message : "Could not load this document.",
+          error instanceof Error
+            ? error.message
+            : "Could not load this document.",
         ),
       )
       .finally(() => setLoading(false));
-  }, [documentId, reset]);
+  }, [canManage, documentId, reset]);
 
-  const typeOptions = useMemo(() => typeOptionsByCategory[category], [category]);
+  const typeOptions = useMemo(
+    () => typeOptionsByCategory[category],
+    [category],
+  );
 
   const handleCategoryChange = (nextCategory: LibraryCategory) => {
     setCategory(nextCategory);
@@ -177,7 +184,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!canManage) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
@@ -228,7 +235,10 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <DocumentUploadField fileName={watch("fileName")} />
           <Field
             control={control}
@@ -261,8 +271,14 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           <Text style={styles.sectionLabel}>CATEGORY</Text>
           <ChipRow
             options={[
-              { label: LIBRARY_CATEGORY_LABELS.constitutional, value: "constitutional" },
-              { label: LIBRARY_CATEGORY_LABELS.minutes_reports, value: "minutes_reports" },
+              {
+                label: LIBRARY_CATEGORY_LABELS.constitutional,
+                value: "constitutional",
+              },
+              {
+                label: LIBRARY_CATEGORY_LABELS.minutes_reports,
+                value: "minutes_reports",
+              },
             ]}
             selectedValue={category}
             onChange={handleCategoryChange}
@@ -307,14 +323,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   );
 };
 
-const Field = ({
-  control,
-  error,
-  label,
-  multiline,
-  name,
-  rules,
-}: any) => (
+const Field = ({ control, error, label, multiline, name, rules }: any) => (
   <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller

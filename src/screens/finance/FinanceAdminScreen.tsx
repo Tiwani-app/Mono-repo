@@ -1,32 +1,38 @@
-import React, {useEffect} from 'react';
-import {FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import Avatar from '../../components/common/Avatar';
-import Badge from '../../components/common/Badge';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import OutlineButton from '../../components/common/OutlineButton';
-import DuesPeriodCard from '../../components/finance/DuesPeriodCard';
-import ScreenHeader from '../../components/common/ScreenHeader';
-import SyncStatusBanner from '../../components/common/SyncStatusBanner';
-import {useFinance} from '../../hooks/useFinance';
-import {useMembers} from '../../hooks/useMembers';
-import {useAuthStore} from '../../store/authStore';
-import {colors, spacing, typography} from '../../theme';
-import {formatCurrency} from '../../utils/formatCurrency';
-import {getInitials} from '../../utils/getInitials';
-import {isAdmin} from '../../utils/roleGuard';
+import React, { useEffect } from "react";
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Avatar from "../../components/common/Avatar";
+import Badge from "../../components/common/Badge";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import OutlineButton from "../../components/common/OutlineButton";
+import DuesPeriodCard from "../../components/finance/DuesPeriodCard";
+import ScreenHeader from "../../components/common/ScreenHeader";
+import SyncStatusBanner from "../../components/common/SyncStatusBanner";
+import { useFinance } from "../../hooks/useFinance";
+import { useMembers } from "../../hooks/useMembers";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { formatCurrency } from "../../utils/formatCurrency";
+import { getInitials } from "../../utils/getInitials";
+import { isAdmin } from "../../utils/roleGuard";
 
-const SummaryTile = ({label, value}: any) => (
+const SummaryTile = ({ label, value }: any) => (
   <View style={styles.summaryTile}>
     <Text style={styles.summaryValue}>{value}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
 );
 
-const FinanceAdminScreen = ({navigation}: any) => {
-  const {user} = useAuthStore();
+const FinanceAdminScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
   const admin = isAdmin(user);
   const {
     duesPeriods,
@@ -36,11 +42,17 @@ const FinanceAdminScreen = ({navigation}: any) => {
     loading: financeLoading,
     syncState,
   } = useFinance(undefined, admin);
-  const {error: membersError, loading: membersLoading, members} = useMembers();
+  const {
+    error: membersError,
+    loading: membersLoading,
+    members,
+  } = useMembers({
+    enabled: admin,
+  });
 
   useEffect(() => {
     if (user && !admin) {
-      navigation.replace('MyLedger');
+      navigation.replace("MyLedger");
     }
   }, [admin, navigation, user]);
 
@@ -59,17 +71,17 @@ const FinanceAdminScreen = ({navigation}: any) => {
         <EmptyState
           icon="!"
           title="Finance unavailable"
-          message={financeError ?? membersError ?? 'Please try again.'}
+          message={financeError ?? membersError ?? "Please try again."}
         />
       </SafeAreaView>
     );
   }
 
   const totalCharged = ledgerEntries
-    .filter(entry => entry.type !== 'payment')
+    .filter((entry) => entry.type !== "payment")
     .reduce((sum, entry) => sum + entry.amount, 0);
   const totalCollected = ledgerEntries
-    .filter(entry => entry.type !== 'payment' && entry.paid)
+    .filter((entry) => entry.type !== "payment" && entry.paid)
     .reduce((sum, entry) => sum + entry.amount, 0);
   const outstanding = totalCharged - totalCollected;
 
@@ -78,52 +90,76 @@ const FinanceAdminScreen = ({navigation}: any) => {
       <ScreenHeader title="Finance" />
       <FlatList
         data={members}
-        keyExtractor={item => item.uid}
+        keyExtractor={(item) => item.uid}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
             <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
             <View style={styles.summaryRow}>
-              <SummaryTile label="Charged" value={formatCurrency(totalCharged)} />
-              <SummaryTile label="Collected" value={formatCurrency(totalCollected)} />
-              <SummaryTile label="Outstanding" value={formatCurrency(outstanding)} />
+              <SummaryTile
+                label="Charged"
+                value={formatCurrency(totalCharged)}
+              />
+              <SummaryTile
+                label="Collected"
+                value={formatCurrency(totalCollected)}
+              />
+              <SummaryTile
+                label="Outstanding"
+                value={formatCurrency(outstanding)}
+              />
             </View>
             <View style={styles.actionGrid}>
               <GoldButton
                 label="Record Payment"
-                onPress={() => navigation.navigate('RecordPayment')}
+                onPress={() => navigation.navigate("RecordPayment")}
               />
               <OutlineButton
                 label="New Dues"
-                onPress={() => navigation.navigate('DuesPeriodForm')}
+                onPress={() => navigation.navigate("DuesPeriodForm")}
               />
               <OutlineButton
                 label="Ad Hoc Charge"
-                onPress={() => navigation.navigate('AdHocCharge')}
+                onPress={() => navigation.navigate("AdHocCharge")}
               />
             </View>
-            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>DUES PERIODS</Text>
-            {duesPeriods.map(period => (
+            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
+              DUES PERIODS
+            </Text>
+            {duesPeriods.map((period) => (
               <DuesPeriodCard key={period.id} period={period} />
             ))}
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
           </>
         }
-        renderItem={({item}) => (
+        renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.memberRow}
-            onPress={() => navigation.navigate('MyLedger', {memberId: item.uid})}
-            activeOpacity={0.8}>
-            <Avatar initials={getInitials(item.fullName)} photoURL={item.photoURL} statusDot={item.financialStatus} />
+            onPress={() =>
+              navigation.navigate("MyLedger", { memberId: item.uid })
+            }
+            activeOpacity={0.8}
+          >
+            <Avatar
+              initials={getInitials(item.fullName)}
+              photoURL={item.photoURL}
+              statusDot={item.financialStatus}
+            />
             <View style={styles.memberContent}>
               <Text style={styles.memberName}>{item.fullName}</Text>
               <Text style={styles.memberMeta}>
-                {item.financialStatus === 'green' ? 'Good standing' : `Owes ${formatCurrency(item.outstandingBalance)}`}
+                {item.financialStatus === "green"
+                  ? "Good standing"
+                  : `Owes ${formatCurrency(item.outstandingBalance)}`}
               </Text>
             </View>
             <Badge
-              label={item.financialStatus === 'green' ? 'CLEAR' : 'OVERDUE'}
-              color={item.financialStatus === 'green' ? colors.status.success : colors.status.error}
+              label={item.financialStatus === "green" ? "CLEAR" : "OVERDUE"}
+              color={
+                item.financialStatus === "green"
+                  ? colors.status.success
+                  : colors.status.error
+              }
             />
           </TouchableOpacity>
         )}
@@ -133,13 +169,23 @@ const FinanceAdminScreen = ({navigation}: any) => {
 };
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.bg.secondary},
-  content: {padding: spacing.lg, gap: spacing.md},
-  summaryRow: {flexDirection: 'row', gap: spacing.sm},
-  summaryTile: {flex: 1, minHeight: 78, padding: spacing.md, borderRadius: 8, backgroundColor: colors.bg.card},
-  summaryValue: {fontSize: typography.size.md, fontWeight: typography.weight.black, color: colors.text.primary},
-  summaryLabel: {fontSize: typography.size.xs, color: colors.text.secondary},
-  actionGrid: {gap: spacing.sm},
+  safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  content: { padding: spacing.lg, gap: spacing.md },
+  summaryRow: { flexDirection: "row", gap: spacing.sm },
+  summaryTile: {
+    flex: 1,
+    minHeight: 78,
+    padding: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.bg.card,
+  },
+  summaryValue: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.black,
+    color: colors.text.primary,
+  },
+  summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
+  actionGrid: { gap: spacing.sm },
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,
@@ -149,16 +195,20 @@ const styles = StyleSheet.create({
   },
   memberRow: {
     minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
-  memberContent: {flex: 1, gap: spacing.xs},
-  memberName: {fontSize: typography.size.base, fontWeight: typography.weight.bold, color: colors.text.primary},
-  memberMeta: {fontSize: typography.size.sm, color: colors.text.secondary},
+  memberContent: { flex: 1, gap: spacing.xs },
+  memberName: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  memberMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
 });
 
 export default FinanceAdminScreen;

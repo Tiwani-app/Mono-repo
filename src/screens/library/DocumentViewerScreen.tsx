@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
@@ -7,7 +14,11 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import { getLibraryDocumentURL, getLibraryDocument } from "../../services/libraryService";
+import {
+  getLibraryDocumentURL,
+  getLibraryDocument,
+} from "../../services/libraryService";
+import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import {
   LIBRARY_CATEGORY_LABELS,
@@ -16,9 +27,12 @@ import {
 } from "../../types/library";
 import { formatDisplayDate } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
+import { isAdmin } from "../../utils/roleGuard";
 
 const DocumentViewerScreen = ({ navigation, route }: any) => {
   const documentId = route.params?.documentId as string | undefined;
+  const { user } = useAuthStore();
+  const admin = isAdmin(user);
   const [document, setDocument] = useState<LibraryDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +46,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
       setLoading(false);
       return;
     }
-    getLibraryDocument(documentId)
+    getLibraryDocument(documentId, admin)
       .then(setDocument)
       .catch((loadError) =>
         setError(
@@ -42,7 +56,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         ),
       )
       .finally(() => setLoading(false));
-  }, [documentId]);
+  }, [admin, documentId]);
 
   const handleOpen = async () => {
     if (!document) {
@@ -50,9 +64,12 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
     }
     try {
       setOpening(true);
-      const url = await getLibraryDocumentURL(document.id);
+      const url = await getLibraryDocumentURL(document.id, admin);
       if (!url) {
-        Alert.alert("File unavailable", "This document does not have a file URL yet.");
+        Alert.alert(
+          "File unavailable",
+          "This document does not have a file URL yet.",
+        );
         return;
       }
       const supported = await Linking.canOpenURL(url);
@@ -60,7 +77,10 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         await Linking.openURL(url);
         return;
       }
-      Alert.alert("Unsupported file", "This file cannot be opened on this device.");
+      Alert.alert(
+        "Unsupported file",
+        "This file cannot be opened on this device.",
+      );
     } catch (openError) {
       Alert.alert(
         "Document unavailable",
@@ -78,7 +98,11 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
   if (error || !document) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Document" showBack onBack={() => safeGoBack(navigation, "Library")} />
+        <ScreenHeader
+          title="Document"
+          showBack
+          onBack={() => safeGoBack(navigation, "Library")}
+        />
         <EmptyState
           icon="!"
           title="Document unavailable"
@@ -91,15 +115,23 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
   }
 
   const date = document.documentDate ?? document.uploadedAt;
-  const previewSupported = document.fileType === "pdf" && Boolean(document.fileURL);
+  const previewSupported =
+    document.fileType === "pdf" && Boolean(document.fileURL);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Document" showBack onBack={() => safeGoBack(navigation, "Library")} />
+      <ScreenHeader
+        title="Document"
+        showBack
+        onBack={() => safeGoBack(navigation, "Library")}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.badgeRow}>
-            <Badge label={LIBRARY_TYPE_LABELS[document.type]} color={colors.gold.default} />
+            <Badge
+              label={LIBRARY_TYPE_LABELS[document.type]}
+              color={colors.gold.default}
+            />
             <Badge
               label={LIBRARY_CATEGORY_LABELS[document.category]}
               color={colors.text.secondary}

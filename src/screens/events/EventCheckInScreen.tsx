@@ -29,9 +29,18 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  const admin = isAdmin(user);
 
   useEffect(() => {
     let active = true;
+    if (!admin) {
+      setLoading(false);
+      setLoadError(null);
+      return () => {
+        active = false;
+      };
+    }
+
     setLoading(true);
     setLoadError(null);
     if (!eventId) {
@@ -49,10 +58,12 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
         setEvent(nextEvent);
         setAttendees(nextAttendees);
       })
-      .catch(error => {
+      .catch((error) => {
         if (active) {
           setLoadError(
-            error instanceof Error ? error.message : "Could not load attendees.",
+            error instanceof Error
+              ? error.message
+              : "Could not load attendees.",
           );
         }
       })
@@ -64,7 +75,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     return () => {
       active = false;
     };
-  }, [eventId]);
+  }, [admin, eventId]);
 
   const handleCheckIn = async (attendee: EventAttendee) => {
     if (!eventId || attendee.checkedIn) {
@@ -84,7 +95,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
@@ -124,7 +135,9 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     );
   }
 
-  const checkedInCount = attendees.filter(attendee => attendee.checkedIn).length;
+  const checkedInCount = attendees.filter(
+    (attendee) => attendee.checkedIn,
+  ).length;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -135,18 +148,25 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
       />
       <FlatList
         data={attendees}
-        keyExtractor={item => item.uid}
+        keyExtractor={(item) => item.uid}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.summary}>
             <Badge label="ADMIN CHECK-IN" color={colors.gold.default} />
             <Text style={styles.title}>{event.title}</Text>
             <Text style={styles.meta}>
-              {formatEventDate(event.dateTime)} · {formatEventTime(event.dateTime)}
+              {formatEventDate(event.dateTime)} ·{" "}
+              {formatEventTime(event.dateTime)}
             </Text>
             <View style={styles.statRow}>
-              <Badge label={`${attendees.length} RSVP`} color={colors.gold.default} />
-              <Badge label={`${checkedInCount} CHECKED IN`} color={colors.status.success} />
+              <Badge
+                label={`${attendees.length} RSVP`}
+                color={colors.gold.default}
+              />
+              <Badge
+                label={`${checkedInCount} CHECKED IN`}
+                color={colors.status.success}
+              />
             </View>
           </View>
         }
@@ -159,7 +179,9 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
             />
             <View style={styles.attendeeText}>
               <Text style={styles.attendeeName}>{item.fullName}</Text>
-              <Text style={styles.attendeeMeta}>{item.email || "No email"}</Text>
+              <Text style={styles.attendeeMeta}>
+                {item.email || "No email"}
+              </Text>
             </View>
             {item.checkedIn ? (
               <OutlineButton label="Checked In" onPress={() => {}} disabled />

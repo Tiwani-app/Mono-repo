@@ -16,18 +16,25 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing } from "../../theme";
 import { LibraryDocument } from "../../types/library";
-import { isAdmin } from "../../utils/roleGuard";
+import { canManageLibraryDocuments } from "../../utils/libraryGuards";
 import { safeGoBack } from "../../utils/navigation";
 
 const LibraryManageScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const { documents, error, loading } = useLibraryDocuments();
+  const canManage = canManageLibraryDocuments(user);
+  const { documents, error, loading } = useLibraryDocuments({
+    enabled: canManage,
+  });
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
-  if (!isAdmin(user)) {
+  if (!canManage) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Library Manage" showBack onBack={() => safeGoBack(navigation, "Library")} />
+        <ScreenHeader
+          title="Library Manage"
+          showBack
+          onBack={() => safeGoBack(navigation, "Library")}
+        />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -52,7 +59,9 @@ const LibraryManageScreen = ({ navigation }: any) => {
     } catch (actionError) {
       Alert.alert(
         failureTitle,
-        actionError instanceof Error ? actionError.message : "Please try again.",
+        actionError instanceof Error
+          ? actionError.message
+          : "Please try again.",
       );
     } finally {
       setPendingActionId(null);
@@ -164,7 +173,9 @@ const LibraryManageScreen = ({ navigation }: any) => {
             title={error ? "Library management unavailable" : "No documents"}
             message={error ?? "Upload a document to start the Library archive."}
             actionLabel={error ? undefined : "Upload Document"}
-            onAction={error ? undefined : () => navigation.navigate("DocumentForm")}
+            onAction={
+              error ? undefined : () => navigation.navigate("DocumentForm")
+            }
           />
         }
       />

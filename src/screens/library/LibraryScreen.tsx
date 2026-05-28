@@ -24,7 +24,7 @@ import {
   LibraryCategory,
   LibraryDocument,
 } from "../../types/library";
-import { isAdmin } from "../../utils/roleGuard";
+import { canManageLibraryDocuments } from "../../utils/libraryGuards";
 import { safeGoBack } from "../../utils/navigation";
 import { filterLibraryDocumentsBySearch } from "../../utils/libraryFilters";
 
@@ -40,9 +40,16 @@ const categoryIcons: Record<LibraryCategory, string> = {
 
 const LibraryScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const admin = isAdmin(user);
-  const { documents, error, lastSyncedAt, loading, searchQuery, setSearchQuery, syncState } =
-    useLibraryDocuments();
+  const admin = canManageLibraryDocuments(user);
+  const {
+    documents,
+    error,
+    lastSyncedAt,
+    loading,
+    searchQuery,
+    setSearchQuery,
+    syncState,
+  } = useLibraryDocuments();
 
   const filteredDocuments = useMemo(() => {
     return filterLibraryDocumentsBySearch(documents, searchQuery);
@@ -107,7 +114,8 @@ const LibraryScreen = ({ navigation }: any) => {
               <Badge label="OFFICIAL DOCUMENTS" color={colors.gold.default} />
               <Text style={styles.heroTitle}>Association Library</Text>
               <Text style={styles.heroBody}>
-                Browse current governance documents, meeting minutes, and reports.
+                Browse current governance documents, meeting minutes, and
+                reports.
               </Text>
             </View>
             <View style={styles.categoryGrid}>

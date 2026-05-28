@@ -1,6 +1,7 @@
 import { LibraryDocument } from "../types/library";
 import { Listing } from "../types/marketplace";
 import { JoinRequest, User } from "../types/user";
+import type { LibraryDocumentInput } from "../services/libraryService";
 import type { ListingInput } from "../services/marketplaceService";
 
 const loadIsolatedService = <T>(path: string): T => {
@@ -15,10 +16,7 @@ type LibraryService = typeof import("../services/libraryService");
 type MarketplaceService = typeof import("../services/marketplaceService");
 type MembersService = typeof import("../services/membersService");
 
-const libraryDocumentInput: Omit<
-  LibraryDocument,
-  "id" | "uploadedAt" | "uploadedBy" | "uploadedByName"
-> = {
+const libraryDocumentInput: LibraryDocumentInput = {
   title: "Board Resolution",
   description: "Approved board decision for member records.",
   category: "minutes_reports",
@@ -148,6 +146,77 @@ describe("service workflows", () => {
     unsubscribeMember();
   });
 
+  it("blocks direct member access to hidden Library documents", async () => {
+    const service = loadIsolatedService<LibraryService>(
+      "../services/libraryService",
+    );
+
+    const hiddenDocument = await service.createLibraryDocument({
+      ...libraryDocumentInput,
+      status: "draft",
+      visibility: "admin_only",
+      fileURL: "https://example.com/board-resolution.pdf",
+    });
+
+    await expect(service.getLibraryDocument(hiddenDocument.id)).rejects.toThrow(
+      "Document not found.",
+    );
+    await expect(
+      service.getLibraryDocumentURL(hiddenDocument.id),
+    ).rejects.toThrow("Document not found.");
+
+    await expect(
+      service.getLibraryDocument(hiddenDocument.id, true),
+    ).resolves.toMatchObject({ id: hiddenDocument.id });
+    await expect(
+      service.getLibraryDocumentURL(hiddenDocument.id, true),
+    ).resolves.toBe("https://example.com/board-resolution.pdf");
+  });
+
+  it("validates Library document metadata and ignores protected update fields", async () => {
+    const service = loadIsolatedService<LibraryService>(
+      "../services/libraryService",
+    );
+
+    await expect(
+      service.createLibraryDocument({
+        ...libraryDocumentInput,
+        title: " ",
+      }),
+    ).rejects.toThrow("Document title is required.");
+
+    await expect(
+      service.createLibraryDocument({
+        ...libraryDocumentInput,
+        category: "constitutional",
+        type: "meeting_minutes",
+      }),
+    ).rejects.toThrow("Document type is invalid for this category.");
+
+    await expect(
+      service.createLibraryDocument({
+        ...libraryDocumentInput,
+        fileURL: "not-a-url",
+      }),
+    ).rejects.toThrow("A valid document file URL is required.");
+
+    await expect(
+      service.createLibraryDocument({
+        ...libraryDocumentInput,
+        fileSize: -1,
+      }),
+    ).rejects.toThrow("Document file size must be zero or more.");
+
+    await service.updateLibraryDocument("doc-1", {
+      title: "  Updated Constitution ",
+      uploadedByName: "Changed Admin",
+    });
+
+    const document = await service.getLibraryDocument("doc-1");
+    expect(document.title).toBe("Updated Constitution");
+    expect(document.uploadedByName).toBe("Chukwuemeka Obi");
+  });
+
   it("runs the marketplace cap, status, delete, and create flow", async () => {
     const service = loadIsolatedService<MarketplaceService>(
       "../services/marketplaceService",
@@ -194,6 +263,68 @@ describe("service workflows", () => {
     ).toBe("https://example.com/laptop.jpg");
 
     unsubscribe();
+  });
+
+  it("validates marketplace listing input and ignores protected update fields", async () => {
+    const service = loadIsolatedService<MarketplaceService>(
+      "../services/marketplaceService",
+    );
+
+    await expect(
+      service.createListing({
+        title: " ",
+        price: 120000,
+        description: "Clean laptop available for member purchase.",
+        condition: "good",
+        status: "archived",
+        imageURL: "https://example.com/laptop.jpg",
+        contactInstruction: "Message the admin to inspect.",
+      }),
+    ).rejects.toThrow("Listing title is required.");
+
+    await expect(
+      service.createListing({
+        title: "Community Laptop",
+        price: 0,
+        description: "Clean laptop available for member purchase.",
+        condition: "good",
+        status: "archived",
+        imageURL: "https://example.com/laptop.jpg",
+        contactInstruction: "Message the admin to inspect.",
+      }),
+    ).rejects.toThrow("Listing price must be greater than zero.");
+
+    await expect(
+      service.createListing({
+        title: "Community Laptop",
+        price: 120000,
+        description: "Clean laptop available for member purchase.",
+        condition: "excellent",
+        status: "archived",
+        imageURL: "https://example.com/laptop.jpg",
+        contactInstruction: "Message the admin to inspect.",
+      } as any),
+    ).rejects.toThrow("Listing condition is invalid.");
+
+    await expect(
+      service.createListing({
+        title: "Community Laptop",
+        price: 120000,
+        description: "Clean laptop available for member purchase.",
+        condition: "good",
+        status: "archived",
+        imageURL: "not-a-url",
+        contactInstruction: "Message the admin to inspect.",
+      }),
+    ).rejects.toThrow("A valid listing image URL is required.");
+
+    await service.updateListing("listing-1", {
+      title: "  Updated Chair ",
+      postedByName: "Changed Poster",
+    });
+    const listing = await service.getListing("listing-1");
+    expect(listing.title).toBe("Updated Chair");
+    expect(listing.postedByName).toBe("Chukwuemeka Obi");
   });
 
   it("reviews a join request and creates a member on approval", async () => {

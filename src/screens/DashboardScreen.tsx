@@ -28,13 +28,7 @@ import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
 import { getDashboardQuickActions } from "./dashboardQuickActions";
 
-const StatTile = ({
-  accentColor,
-  label,
-  onPress,
-  subLabel,
-  value,
-}: any) => (
+const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
   <TouchableOpacity
     disabled={!onPress}
     onPress={onPress}
@@ -92,12 +86,18 @@ const DashboardScreen = ({ navigation }: any) => {
     ledgerEntries,
     loading: financeLoading,
   } = useFinance(undefined, admin);
-  const { members, error: membersError, loading: membersLoading } = useMembers();
+  const {
+    members,
+    error: membersError,
+    loading: membersLoading,
+  } = useMembers({
+    enabled: admin,
+  });
   const {
     error: requestsError,
     loading: requestsLoading,
     requests,
-  } = useJoinRequests();
+  } = useJoinRequests({ enabled: admin });
   const {
     error: notificationsError,
     loading: notificationsLoading,
@@ -107,13 +107,15 @@ const DashboardScreen = ({ navigation }: any) => {
   const firstName = user?.fullName.split(" ")[0] ?? "there";
   const quickActions = getDashboardQuickActions(admin, navigation);
   const pendingRequests = getPendingJoinRequests(requests);
-  const activeMembers = members.filter(member => member.status === "active");
-  const overdueMembers = members.filter(member => member.outstandingBalance > 0);
+  const activeMembers = members.filter((member) => member.status === "active");
+  const overdueMembers = members.filter(
+    (member) => member.outstandingBalance > 0,
+  );
   const totalCollected = ledgerEntries
-    .filter(entry => entry.type !== "payment" && entry.paid)
+    .filter((entry) => entry.type !== "payment" && entry.paid)
     .reduce((sum, entry) => sum + entry.amount, 0);
   const currentDuesPeriod =
-    duesPeriods.find(period => period.status === "active") ?? duesPeriods[0];
+    duesPeriods.find((period) => period.status === "active") ?? duesPeriods[0];
   const loading =
     eventsLoading ||
     membersLoading ||
@@ -214,7 +216,12 @@ const DashboardScreen = ({ navigation }: any) => {
           <EmptyState
             icon="!"
             title="Admin summary unavailable"
-            message={membersError ?? requestsError ?? financeError ?? "Please try again."}
+            message={
+              membersError ??
+              requestsError ??
+              financeError ??
+              "Please try again."
+            }
           />
         )}
 

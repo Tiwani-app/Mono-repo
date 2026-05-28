@@ -5,7 +5,13 @@ import { useLibraryStore } from "../store/libraryStore";
 import { isAdmin } from "../utils/roleGuard";
 import { getFailureSyncState } from "../utils/syncState";
 
-export const useLibraryDocuments = () => {
+interface UseLibraryDocumentsOptions {
+  enabled?: boolean;
+}
+
+export const useLibraryDocuments = ({
+  enabled = true,
+}: UseLibraryDocumentsOptions = {}) => {
   const { user } = useAuthStore();
   const {
     documents,
@@ -21,6 +27,13 @@ export const useLibraryDocuments = () => {
   hasCachedDataRef.current = documents.length > 0;
 
   useEffect(() => {
+    if (!enabled) {
+      setError(null);
+      setLoading(false);
+      setSyncState("idle");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSyncState("syncing");
@@ -35,12 +48,22 @@ export const useLibraryDocuments = () => {
       return () => unsubscribe();
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Could not load library documents.",
+        error instanceof Error
+          ? error.message
+          : "Could not load library documents.",
       );
       setSyncState(getFailureSyncState(hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [includeAdmin, setDocuments, setError, setLastSyncedAt, setLoading, setSyncState]);
+  }, [
+    enabled,
+    includeAdmin,
+    setDocuments,
+    setError,
+    setLastSyncedAt,
+    setLoading,
+    setSyncState,
+  ]);
 
   return useLibraryStore();
 };

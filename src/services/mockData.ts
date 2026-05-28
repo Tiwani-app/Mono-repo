@@ -96,7 +96,7 @@ export const mockEvents: TiwaniEvent[] = [
     description:
       "Monthly meeting to review dues, upcoming activities, committee reports, and member welfare updates.",
     category: "meeting",
-    dateTime: new Date("2026-05-16T10:00:00+01:00"),
+    dateTime: new Date("2026-05-29T10:00:00+01:00"),
     location: "Eko Hotel, Lagos",
     createdBy: "admin-1",
     status: "published",
@@ -111,7 +111,7 @@ export const mockEvents: TiwaniEvent[] = [
     description:
       "Volunteer walk and supplies handoff for the local family support programme.",
     category: "volunteer",
-    dateTime: new Date("2026-05-23T09:30:00+01:00"),
+    dateTime: new Date("2026-05-31T09:30:00+01:00"),
     location: "National Stadium, Surulere",
     createdBy: "admin-1",
     status: "published",
@@ -141,7 +141,7 @@ export const mockEvents: TiwaniEvent[] = [
     description:
       "Committee review for dues collections, budgets, and pending member ledger updates.",
     category: "committee",
-    dateTime: new Date("2026-05-20T18:00:00+01:00"),
+    dateTime: new Date("2026-06-02T18:00:00+01:00"),
     location: "Zoom (Virtual)",
     createdBy: "admin-1",
     status: "published",

@@ -1,5 +1,5 @@
 import React from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
 import GoldButton from "../common/GoldButton";
 import ListingMedia from "./ListingMedia";
@@ -22,17 +22,26 @@ interface Props {
 const ListingCard = ({ listing }: Props) => {
   const sold = listing.status === "sold";
 
-  const handleEnquire = () => {
+  const handleEnquire = async () => {
     const phone = "2348034567890";
     const message = encodeURIComponent(
       `Hi, I'm interested in "${listing.title}" listed on Tiwani for ${formatCurrency(listing.price)}. Is it still available?`,
     );
     const whatsappUrl = `whatsapp://send?phone=${phone}&text=${message}`;
-    Linking.canOpenURL(whatsappUrl).then((supported) => {
-      Linking.openURL(
-        supported ? whatsappUrl : `sms:+${phone}?body=${message}`,
-      );
-    });
+    const smsUrl = `sms:+${phone}?body=${message}`;
+    try {
+      const canOpenWhatsapp = await Linking.canOpenURL(whatsappUrl);
+      const url = canOpenWhatsapp ? whatsappUrl : smsUrl;
+      const canOpenContact =
+        canOpenWhatsapp || (await Linking.canOpenURL(smsUrl));
+      if (!canOpenContact) {
+        Alert.alert("Contact unavailable", listing.contactInstruction);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Contact unavailable", listing.contactInstruction);
+    }
   };
 
   return (

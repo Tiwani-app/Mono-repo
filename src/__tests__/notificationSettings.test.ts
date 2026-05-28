@@ -19,7 +19,7 @@ const notifications: TiwaniNotification[] = [
     title: "Event",
     body: "Event body",
     sentAt: new Date("2026-05-12"),
-    target: {route: "event_detail", eventId: "event-1"},
+    target: { route: "event_detail", eventId: "event-1" },
   },
   {
     id: "notif-2",
@@ -27,7 +27,7 @@ const notifications: TiwaniNotification[] = [
     title: "Vote",
     body: "Vote body",
     sentAt: new Date("2026-05-11"),
-    target: {route: "poll_vote", pollId: "poll-1"},
+    target: { route: "poll_vote", pollId: "poll-1" },
   },
   {
     id: "notif-3",
@@ -35,7 +35,7 @@ const notifications: TiwaniNotification[] = [
     title: "Finance",
     body: "Finance body",
     sentAt: new Date("2026-05-10"),
-    target: {route: "my_ledger", memberId: "member-1"},
+    target: { route: "my_ledger", memberId: "member-1" },
   },
 ];
 
@@ -57,7 +57,7 @@ const user: User = {
   weddingAnniversary: null,
   children: [],
   memberSince: "2026-01-01",
-  notificationPreferences: {events: true, finance: true, voting: false},
+  notificationPreferences: { events: true, finance: true, voting: false },
   currencySymbol: "₦",
   timezone: "WAT",
 };
@@ -69,9 +69,15 @@ describe("notification helpers", () => {
       ["notif-2"],
     );
 
-    expect(sections.map(section => section.title)).toEqual(["New", "Earlier"]);
-    expect(sections[0].data.map(item => item.id)).toEqual(["notif-1", "notif-3"]);
-    expect(sections[1].data.map(item => item.id)).toEqual(["notif-2"]);
+    expect(sections.map((section) => section.title)).toEqual([
+      "New",
+      "Earlier",
+    ]);
+    expect(sections[0].data.map((item) => item.id)).toEqual([
+      "notif-1",
+      "notif-3",
+    ]);
+    expect(sections[1].data.map((item) => item.id)).toEqual(["notif-2"]);
   });
 
   it("builds read ids without duplicates and marks all notifications read", () => {
@@ -88,7 +94,12 @@ describe("notification helpers", () => {
   });
 
   it("routes notification targets to the correct stacks", () => {
-    const navigation = {dispatch: jest.fn(), navigate: jest.fn()};
+    const parentNavigation = { dispatch: jest.fn() };
+    const navigation = {
+      dispatch: jest.fn(),
+      getParent: jest.fn(() => parentNavigation),
+      navigate: jest.fn(),
+    };
 
     navigateToNotificationTarget(navigation, {
       route: "event_detail",
@@ -106,42 +117,53 @@ describe("notification helpers", () => {
       route: "my_ledger",
       memberId: "member-1",
     });
-    navigateToNotificationTarget(navigation, {route: "marketplace"});
-    navigateToNotificationTarget(navigation, {route: "library"});
+    navigateToNotificationTarget(navigation, { route: "marketplace" });
+    navigateToNotificationTarget(navigation, { route: "library" });
     navigateToNotificationTarget(navigation);
 
     expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Events", {
       screen: "EventDetail",
-      params: {eventId: "event-1"},
+      params: { eventId: "event-1" },
     });
     expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Voting", {
       screen: "PollVote",
-      params: {pollId: "poll-1"},
+      params: { pollId: "poll-1" },
     });
     expect(navigation.navigate).toHaveBeenNthCalledWith(3, "Voting", {
       screen: "ElectionBallot",
-      params: {electionId: "election-1"},
+      params: { electionId: "election-1" },
     });
     expect(navigation.navigate).toHaveBeenNthCalledWith(4, "Finance", {
       screen: "MyLedger",
-      params: {memberId: "member-1"},
+      params: { memberId: "member-1" },
     });
-    expect(navigation.dispatch).toHaveBeenCalledTimes(1);
-    expect(navigation.dispatch.mock.calls[0][0]).toMatchObject({
+    expect(navigation.dispatch).not.toHaveBeenCalled();
+    expect(parentNavigation.dispatch).toHaveBeenCalledTimes(1);
+    expect(parentNavigation.dispatch.mock.calls[0][0]).toMatchObject({
       payload: {
         index: 4,
         routes: [
-          {name: "Dashboard", state: {routes: [{name: "DashboardHome"}]}},
-          {name: "Events", state: {routes: [{name: "EventsList"}]}},
-          {name: "Voting", state: {routes: [{name: "VotingHub"}]}},
-          {name: "Finance", state: {routes: [{name: "FinanceAdmin"}]}},
-          {name: "Market", state: {routes: [{name: "Marketplace"}]}},
+          { name: "Dashboard", state: { routes: [{ name: "DashboardHome" }] } },
+          { name: "Events", state: { routes: [{ name: "EventsList" }] } },
+          { name: "Voting", state: { routes: [{ name: "VotingHub" }] } },
+          { name: "Finance", state: { routes: [{ name: "FinanceAdmin" }] } },
+          { name: "Market", state: { routes: [{ name: "Marketplace" }] } },
         ],
       },
       type: "RESET",
     });
     expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Library");
     expect(navigation.navigate).toHaveBeenCalledTimes(5);
+  });
+
+  it("falls back to nested Marketplace navigation without a parent navigator", () => {
+    const navigation = { navigate: jest.fn() };
+
+    navigateToNotificationTarget(navigation, { route: "marketplace" });
+
+    expect(navigation.navigate).toHaveBeenCalledWith("Market", {
+      screen: "Marketplace",
+    });
   });
 });
 
@@ -170,7 +192,11 @@ describe("settings helpers", () => {
       photoURL: user.photoURL,
     });
     expect(
-      buildNotificationPreferences(user.notificationPreferences, "voting", true),
+      buildNotificationPreferences(
+        user.notificationPreferences,
+        "voting",
+        true,
+      ),
     ).toEqual({
       events: true,
       finance: true,

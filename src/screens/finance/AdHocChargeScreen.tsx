@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,23 +9,23 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { format } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Avatar from '../../components/common/Avatar';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
-import { useMembers } from '../../hooks/useMembers';
-import { createAdHocCharge } from '../../services/financeService';
-import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, typography } from '../../theme';
-import { LedgerType } from '../../types/finance';
-import { getInitials } from '../../utils/getInitials';
-import { safeGoBack } from '../../utils/navigation';
-import { isAdmin } from '../../utils/roleGuard';
+} from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { format } from "date-fns";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Avatar from "../../components/common/Avatar";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
+import { useMembers } from "../../hooks/useMembers";
+import { createAdHocCharge } from "../../services/financeService";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { LedgerType } from "../../types/finance";
+import { getInitials } from "../../utils/getInitials";
+import { safeGoBack } from "../../utils/navigation";
+import { isAdmin } from "../../utils/roleGuard";
 
 interface FormValues {
   label: string;
@@ -34,10 +34,10 @@ interface FormValues {
   note: string;
 }
 
-const chargeTypes: {label: string; value: LedgerType}[] = [
-  {label: 'Levy', value: 'levy'},
-  {label: 'Fine', value: 'fine'},
-  {label: 'Pledge', value: 'pledge'},
+const chargeTypes: { label: string; value: LedgerType }[] = [
+  { label: "Levy", value: "levy" },
+  { label: "Fine", value: "fine" },
+  { label: "Pledge", value: "pledge" },
 ];
 
 const parseDate = (value: string) => {
@@ -54,23 +54,24 @@ const parseDate = (value: string) => {
 const AdHocChargeScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
-  const { members, error, loading } = useMembers();
-  const [type, setType] = useState<LedgerType>('levy');
-  const [targetMode, setTargetMode] = useState<'all' | 'single'>(
-    routeMemberId ? 'single' : 'all',
+  const admin = isAdmin(user);
+  const { members, error, loading } = useMembers({ enabled: admin });
+  const [type, setType] = useState<LedgerType>("levy");
+  const [targetMode, setTargetMode] = useState<"all" | "single">(
+    routeMemberId ? "single" : "all",
   );
-  const [selectedUid, setSelectedUid] = useState(routeMemberId ?? '');
+  const [selectedUid, setSelectedUid] = useState(routeMemberId ?? "");
   const [submitting, setSubmitting] = useState(false);
   const activeMembers = useMemo(
-    () => members.filter(member => member.status === 'active'),
+    () => members.filter((member) => member.status === "active"),
     [members],
   );
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
-      label: '',
-      amount: '',
-      dueDate: format(new Date(), 'yyyy-MM-dd'),
-      note: '',
+      label: "",
+      amount: "",
+      dueDate: format(new Date(), "yyyy-MM-dd"),
+      note: "",
     },
   });
 
@@ -78,25 +79,28 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
     if (submitting) {
       return;
     }
-    const amount = Number(values.amount.replace(/,/g, ''));
+    const amount = Number(values.amount.replace(/,/g, ""));
     const dueDate = parseDate(values.dueDate);
     const memberIds =
-      targetMode === 'all'
-        ? activeMembers.map(member => member.uid)
+      targetMode === "all"
+        ? activeMembers.map((member) => member.uid)
         : selectedUid
           ? [selectedUid]
           : [];
 
     if (dueDate === undefined) {
-      Alert.alert('Due date invalid', 'Use date format YYYY-MM-DD or leave it blank.');
+      Alert.alert(
+        "Due date invalid",
+        "Use date format YYYY-MM-DD or leave it blank.",
+      );
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Amount required', 'Enter an amount greater than zero.');
+      Alert.alert("Amount required", "Enter an amount greater than zero.");
       return;
     }
     if (memberIds.length === 0) {
-      Alert.alert('Member required', 'Choose who should receive this charge.');
+      Alert.alert("Member required", "Choose who should receive this charge.");
       return;
     }
 
@@ -110,21 +114,27 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
         dueDate,
         note: values.note.trim(),
       });
-      safeGoBack(navigation, 'FinanceAdmin');
+      safeGoBack(navigation, "FinanceAdmin");
     } catch (submitError) {
       Alert.alert(
-        'Charge not created',
-        submitError instanceof Error ? submitError.message : 'Please try again.',
+        "Charge not created",
+        submitError instanceof Error
+          ? submitError.message
+          : "Please try again.",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
+        <ScreenHeader
+          title="Ad Hoc Charge"
+          showBack
+          onBack={() => safeGoBack(navigation, "FinanceAdmin")}
+        />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -141,13 +151,20 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   if (error || activeMembers.length === 0) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
+        <ScreenHeader
+          title="Ad Hoc Charge"
+          showBack
+          onBack={() => safeGoBack(navigation, "FinanceAdmin")}
+        />
         <EmptyState
           icon="!"
-          title={error ? 'Members unavailable' : 'No active members'}
-          message={error ?? 'Active members are required before creating an ad hoc charge.'}
+          title={error ? "Members unavailable" : "No active members"}
+          message={
+            error ??
+            "Active members are required before creating an ad hoc charge."
+          }
           actionLabel="Back to Finance"
-          onAction={() => safeGoBack(navigation, 'FinanceAdmin')}
+          onAction={() => safeGoBack(navigation, "FinanceAdmin")}
         />
       </SafeAreaView>
     );
@@ -155,32 +172,48 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Ad Hoc Charge" showBack onBack={() => safeGoBack(navigation, 'FinanceAdmin')} />
+      <ScreenHeader
+        title="Ad Hoc Charge"
+        showBack
+        onBack={() => safeGoBack(navigation, "FinanceAdmin")}
+      />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.sectionLabel}>CHARGE TYPE</Text>
-          <ChipRow options={chargeTypes} selectedValue={type} onChange={setType} />
+          <ChipRow
+            options={chargeTypes}
+            selectedValue={type}
+            onChange={setType}
+          />
           <Text style={styles.sectionLabel}>TARGET</Text>
           <ChipRow
             options={[
-              {label: 'All Active', value: 'all'},
-              {label: 'One Member', value: 'single'},
+              { label: "All Active", value: "all" },
+              { label: "One Member", value: "single" },
             ]}
             selectedValue={targetMode}
             onChange={setTargetMode}
           />
-          {targetMode === 'single' && (
+          {targetMode === "single" && (
             <View style={styles.memberList}>
-              {activeMembers.map(member => {
+              {activeMembers.map((member) => {
                 const selected = selectedUid === member.uid;
                 return (
                   <TouchableOpacity
                     key={member.uid}
-                    style={[styles.memberRow, selected && styles.selectedMember]}
+                    style={[
+                      styles.memberRow,
+                      selected && styles.selectedMember,
+                    ]}
                     onPress={() => setSelectedUid(member.uid)}
-                    activeOpacity={0.8}>
+                    activeOpacity={0.8}
+                  >
                     <Avatar
                       initials={getInitials(member.fullName)}
                       photoURL={member.photoURL}
@@ -188,7 +221,9 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
                       statusDot={member.financialStatus}
                     />
                     <Text style={styles.memberName}>{member.fullName}</Text>
-                    <View style={[styles.radio, selected && styles.radioSelected]} />
+                    <View
+                      style={[styles.radio, selected && styles.radioSelected]}
+                    />
                   </TouchableOpacity>
                 );
               })}
@@ -199,7 +234,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
             error={formState.errors.label?.message}
             label="LABEL"
             name="label"
-            rules={{ required: 'Label is required.' }}
+            rules={{ required: "Label is required." }}
           />
           <Field
             control={control}
@@ -208,10 +243,10 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
             label="AMOUNT"
             name="amount"
             rules={{
-              required: 'Amount is required.',
+              required: "Amount is required.",
               pattern: {
                 value: /^[0-9,]+$/,
-                message: 'Use numbers only.',
+                message: "Use numbers only.",
               },
             }}
           />
@@ -255,7 +290,7 @@ const Field = ({
       control={control}
       name={name}
       rules={rules}
-      render={({field: {onBlur, onChange, value}}) => (
+      render={({ field: { onBlur, onChange, value } }) => (
         <TextInput
           value={value}
           onBlur={onBlur}
@@ -280,19 +315,20 @@ const ChipRow = <T extends string>({
   options,
   selectedValue,
 }: {
-  options: {label: string; value: T}[];
+  options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
 }) => (
   <View style={styles.chipRow}>
-    {options.map(option => {
+    {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
         <TouchableOpacity
           key={option.value}
           style={[styles.chip, selected && styles.selectedChip]}
           onPress={() => onChange(option.value)}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+        >
           <Text style={[styles.chipText, selected && styles.selectedChipText]}>
             {option.label}
           </Text>
@@ -313,12 +349,12 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     minHeight: 40,
     paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border.subtle,
@@ -337,8 +373,8 @@ const styles = StyleSheet.create({
   memberList: { gap: spacing.sm },
   memberRow: {
     minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: 8,
@@ -382,7 +418,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.tertiary,
     color: colors.text.primary,
   },
-  textArea: { minHeight: 92, textAlignVertical: 'top' },
+  textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
 });

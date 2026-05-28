@@ -1,7 +1,22 @@
-import { getTabRootResetState, TAB_ROOT_ROUTES } from "../navigation/tabRoutes";
+import {
+  getTabRootResetState,
+  TAB_ORDER,
+  TAB_ROOT_ROUTES,
+} from "../navigation/tabRoutes";
 import { safeGoBack } from "../utils/navigation";
 
 describe("navigation behavior", () => {
+  it("keeps the approved five bottom tabs without a Library tab", () => {
+    expect(TAB_ORDER).toEqual([
+      "Dashboard",
+      "Events",
+      "Voting",
+      "Finance",
+      "Market",
+    ]);
+    expect(TAB_ORDER).not.toContain("Library");
+  });
+
   it("maps every bottom tab to its root screen", () => {
     expect(TAB_ROOT_ROUTES).toEqual({
       Dashboard: { screen: "DashboardHome" },

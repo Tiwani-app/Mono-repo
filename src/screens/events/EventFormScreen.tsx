@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,24 +9,24 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { format } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
+} from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { format } from "date-fns";
+import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
 import {
   createEvent,
   getEvent,
   updateEvent,
-} from '../../services/eventsService';
-import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, typography } from '../../theme';
-import { EventCategory, EventStatus } from '../../types/event';
-import { safeGoBack } from '../../utils/navigation';
-import { isAdmin } from '../../utils/roleGuard';
+} from "../../services/eventsService";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { EventCategory, EventStatus } from "../../types/event";
+import { safeGoBack } from "../../utils/navigation";
+import { isAdmin } from "../../utils/roleGuard";
 
 interface FormValues {
   title: string;
@@ -37,24 +37,27 @@ interface FormValues {
   capacity: string;
 }
 
-const categoryOptions: {label: string; value: EventCategory}[] = [
-  {label: 'Meeting', value: 'meeting'},
-  {label: 'Social', value: 'social'},
-  {label: 'Volunteer', value: 'volunteer'},
-  {label: 'Committee', value: 'committee'},
+const categoryOptions: { label: string; value: EventCategory }[] = [
+  { label: "Meeting", value: "meeting" },
+  { label: "Social", value: "social" },
+  { label: "Volunteer", value: "volunteer" },
+  { label: "Committee", value: "committee" },
 ];
 
-const statusOptions: {label: string; value: EventStatus}[] = [
-  {label: 'Draft', value: 'draft'},
-  {label: 'Published', value: 'published'},
-  {label: 'Cancelled', value: 'cancelled'},
-  {label: 'Completed', value: 'completed'},
+const statusOptions: { label: string; value: EventStatus }[] = [
+  { label: "Draft", value: "draft" },
+  { label: "Published", value: "published" },
+  { label: "Cancelled", value: "cancelled" },
+  { label: "Completed", value: "completed" },
 ];
 
 const parseDateTime = (dateValue: string, timeValue: string) => {
   const trimmedDate = dateValue.trim();
   const trimmedTime = timeValue.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate) || !/^\d{2}:\d{2}$/.test(trimmedTime)) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate) ||
+    !/^\d{2}:\d{2}$/.test(trimmedTime)
+  ) {
     return null;
   }
   const parsed = new Date(`${trimmedDate}T${trimmedTime}:00`);
@@ -63,47 +66,48 @@ const parseDateTime = (dateValue: string, timeValue: string) => {
 
 const EventFormScreen = ({ navigation, route }: any) => {
   const eventId = route.params?.eventId as string | undefined;
-  const [category, setCategory] = useState<EventCategory>('meeting');
-  const [status, setStatus] = useState<EventStatus>('published');
+  const [category, setCategory] = useState<EventCategory>("meeting");
+  const [status, setStatus] = useState<EventStatus>("published");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
+  const admin = isAdmin(user);
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
-      title: '',
-      description: '',
-      date: format(new Date(), 'yyyy-MM-dd'),
-      time: '10:00',
-      location: '',
-      capacity: '0',
+      title: "",
+      description: "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: "10:00",
+      location: "",
+      capacity: "0",
     },
   });
 
   useEffect(() => {
-    if (!eventId) {
+    if (!admin || !eventId) {
       return;
     }
     getEvent(eventId)
-      .then(event => {
+      .then((event) => {
         reset({
           title: event.title,
           description: event.description,
-          date: format(event.dateTime, 'yyyy-MM-dd'),
-          time: format(event.dateTime, 'HH:mm'),
+          date: format(event.dateTime, "yyyy-MM-dd"),
+          time: format(event.dateTime, "HH:mm"),
           location: event.location,
           capacity: String(event.capacity),
         });
         setCategory(event.category);
         setStatus(event.status);
       })
-      .catch(error =>
+      .catch((error) =>
         setLoadError(
-          error instanceof Error ? error.message : 'Could not load this event.',
+          error instanceof Error ? error.message : "Could not load this event.",
         ),
       )
       .finally(() => setLoading(false));
-  }, [eventId, reset]);
+  }, [admin, eventId, reset]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
@@ -111,12 +115,18 @@ const EventFormScreen = ({ navigation, route }: any) => {
     }
     const dateTime = parseDateTime(values.date, values.time);
     if (!dateTime) {
-      Alert.alert('Date required', 'Use date format YYYY-MM-DD and time format HH:mm.');
+      Alert.alert(
+        "Date required",
+        "Use date format YYYY-MM-DD and time format HH:mm.",
+      );
       return;
     }
     const capacity = Number(values.capacity);
     if (!Number.isInteger(capacity) || capacity < 0) {
-      Alert.alert('Capacity required', 'Capacity must be zero or a positive whole number.');
+      Alert.alert(
+        "Capacity required",
+        "Capacity must be zero or a positive whole number.",
+      );
       return;
     }
 
@@ -136,21 +146,25 @@ const EventFormScreen = ({ navigation, route }: any) => {
       } else {
         await createEvent(payload);
       }
-      safeGoBack(navigation, 'EventsList');
+      safeGoBack(navigation, "EventsList");
     } catch (error) {
       Alert.alert(
-        'Event not saved',
-        error instanceof Error ? error.message : 'Please try again.',
+        "Event not saved",
+        error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Event" showBack onBack={() => safeGoBack(navigation, 'EventsList')} />
+        <ScreenHeader
+          title="Event"
+          showBack
+          onBack={() => safeGoBack(navigation, "EventsList")}
+        />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -167,13 +181,17 @@ const EventFormScreen = ({ navigation, route }: any) => {
   if (loadError) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Event" showBack onBack={() => safeGoBack(navigation, 'EventsList')} />
+        <ScreenHeader
+          title="Event"
+          showBack
+          onBack={() => safeGoBack(navigation, "EventsList")}
+        />
         <EmptyState
           icon="!"
           title="Event unavailable"
           message={loadError}
           actionLabel="Back to Events"
-          onAction={() => safeGoBack(navigation, 'EventsList')}
+          onAction={() => safeGoBack(navigation, "EventsList")}
         />
       </SafeAreaView>
     );
@@ -182,20 +200,24 @@ const EventFormScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
-        title={eventId ? 'Edit Event' : 'New Event'}
+        title={eventId ? "Edit Event" : "New Event"}
         showBack
-        onBack={() => safeGoBack(navigation, 'EventsList')}
+        onBack={() => safeGoBack(navigation, "EventsList")}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <Field
             control={control}
             error={formState.errors.title?.message}
             label="TITLE"
             name="title"
-            rules={{required: 'Title is required.'}}
+            rules={{ required: "Title is required." }}
           />
           <Field
             control={control}
@@ -203,7 +225,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             label="DESCRIPTION"
             multiline
             name="description"
-            rules={{required: 'Description is required.'}}
+            rules={{ required: "Description is required." }}
           />
           <Text style={styles.sectionLabel}>CATEGORY</Text>
           <ChipRow
@@ -218,10 +240,10 @@ const EventFormScreen = ({ navigation, route }: any) => {
               label="DATE"
               name="date"
               rules={{
-                required: 'Date is required.',
+                required: "Date is required.",
                 pattern: {
                   value: /^\d{4}-\d{2}-\d{2}$/,
-                  message: 'Use YYYY-MM-DD.',
+                  message: "Use YYYY-MM-DD.",
                 },
               }}
             />
@@ -231,10 +253,10 @@ const EventFormScreen = ({ navigation, route }: any) => {
               label="TIME"
               name="time"
               rules={{
-                required: 'Time is required.',
+                required: "Time is required.",
                 pattern: {
                   value: /^\d{2}:\d{2}$/,
-                  message: 'Use HH:mm.',
+                  message: "Use HH:mm.",
                 },
               }}
             />
@@ -244,7 +266,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             error={formState.errors.location?.message}
             label="LOCATION"
             name="location"
-            rules={{required: 'Location is required.'}}
+            rules={{ required: "Location is required." }}
           />
           <Field
             control={control}
@@ -253,10 +275,10 @@ const EventFormScreen = ({ navigation, route }: any) => {
             label="CAPACITY"
             name="capacity"
             rules={{
-              required: 'Capacity is required.',
+              required: "Capacity is required.",
               pattern: {
                 value: /^\d+$/,
-                message: 'Use whole numbers only.',
+                message: "Use whole numbers only.",
               },
             }}
           />
@@ -268,7 +290,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             onChange={setStatus}
           />
           <GoldButton
-            label={eventId ? 'Save Event' : 'Create Event'}
+            label={eventId ? "Save Event" : "Create Event"}
             onPress={handleSubmit(onSubmit)}
             loading={submitting}
             fullWidth
@@ -294,7 +316,7 @@ const Field = ({
       control={control}
       name={name}
       rules={rules}
-      render={({field: {onBlur, onChange, value}}) => (
+      render={({ field: { onBlur, onChange, value } }) => (
         <TextInput
           value={value}
           onBlur={onBlur}
@@ -319,19 +341,20 @@ const ChipRow = <T extends string>({
   options,
   selectedValue,
 }: {
-  options: {label: string; value: T}[];
+  options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
 }) => (
   <View style={styles.chipRow}>
-    {options.map(option => {
+    {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
         <TouchableOpacity
           key={option.value}
           style={[styles.chip, selected && styles.selectedChip]}
           onPress={() => onChange(option.value)}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+        >
           <Text style={[styles.chipText, selected && styles.selectedChipText]}>
             {option.label}
           </Text>
@@ -342,10 +365,10 @@ const ChipRow = <T extends string>({
 );
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.bg.secondary},
-  flex: {flex: 1},
-  content: {padding: spacing.lg, gap: spacing.md},
-  field: {flex: 1, gap: spacing.xs},
+  safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  flex: { flex: 1 },
+  content: { padding: spacing.lg, gap: spacing.md },
+  field: { flex: 1, gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,
     color: colors.text.secondary,
@@ -360,9 +383,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.tertiary,
     color: colors.text.primary,
   },
-  textArea: {minHeight: 92, textAlignVertical: 'top'},
-  inputError: {borderColor: colors.status.error},
-  errorText: {fontSize: typography.size.xs, color: colors.status.error},
+  textArea: { minHeight: 92, textAlignVertical: "top" },
+  inputError: { borderColor: colors.status.error },
+  errorText: { fontSize: typography.size.xs, color: colors.status.error },
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,
@@ -370,12 +393,12 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     minHeight: 40,
     paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border.subtle,
@@ -390,9 +413,9 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.semibold,
     color: colors.text.secondary,
   },
-  selectedChipText: {color: colors.gold.light},
-  twoColumn: {flexDirection: 'row', gap: spacing.md},
-  helpText: {fontSize: typography.size.xs, color: colors.text.tertiary},
+  selectedChipText: { color: colors.gold.light },
+  twoColumn: { flexDirection: "row", gap: spacing.md },
+  helpText: { fontSize: typography.size.xs, color: colors.text.tertiary },
 });
 
 export default EventFormScreen;

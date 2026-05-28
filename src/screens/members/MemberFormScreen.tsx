@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,24 +9,24 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
+} from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
 import {
   createMember,
   getMember,
   updateMember,
-} from '../../services/membersService';
-import { useAuthStore } from '../../store/authStore';
-import { colors, spacing, typography } from '../../theme';
-import { FinancialStatus, MemberStatus, Role } from '../../types/user';
-import { emailRules } from '../../utils/validators';
-import { safeGoBack } from '../../utils/navigation';
-import { isAdmin } from '../../utils/roleGuard';
+} from "../../services/membersService";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { FinancialStatus, MemberStatus, Role } from "../../types/user";
+import { emailRules } from "../../utils/validators";
+import { safeGoBack } from "../../utils/navigation";
+import { isAdmin } from "../../utils/roleGuard";
 
 interface FormValues {
   fullName: string;
@@ -36,49 +36,51 @@ interface FormValues {
   outstandingBalance: string;
 }
 
-const roleOptions: {label: string; value: Role}[] = [
-  {label: 'Member', value: 'member'},
-  {label: 'Admin', value: 'admin'},
-  {label: 'Electoral Chair', value: 'electoral_chairman'},
+const roleOptions: { label: string; value: Role }[] = [
+  { label: "Member", value: "member" },
+  { label: "Admin", value: "admin" },
+  { label: "Electoral Chair", value: "electoral_chairman" },
 ];
 
-const statusOptions: {label: string; value: MemberStatus}[] = [
-  {label: 'Active', value: 'active'},
-  {label: 'Pending', value: 'pending'},
-  {label: 'Inactive', value: 'inactive'},
-  {label: 'Suspended', value: 'suspended'},
+const statusOptions: { label: string; value: MemberStatus }[] = [
+  { label: "Active", value: "active" },
+  { label: "Pending", value: "pending" },
+  { label: "Inactive", value: "inactive" },
+  { label: "Suspended", value: "suspended" },
 ];
 
-const financialOptions: {label: string; value: FinancialStatus}[] = [
-  {label: 'Green', value: 'green'},
-  {label: 'Red', value: 'red'},
+const financialOptions: { label: string; value: FinancialStatus }[] = [
+  { label: "Green", value: "green" },
+  { label: "Red", value: "red" },
 ];
 
 const MemberFormScreen = ({ navigation, route }: any) => {
   const memberId = route.params?.memberId as string | undefined;
-  const [role, setRole] = useState<Role>('member');
-  const [status, setStatus] = useState<MemberStatus>('active');
-  const [financialStatus, setFinancialStatus] = useState<FinancialStatus>('green');
+  const [role, setRole] = useState<Role>("member");
+  const [status, setStatus] = useState<MemberStatus>("active");
+  const [financialStatus, setFinancialStatus] =
+    useState<FinancialStatus>("green");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(memberId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
+  const admin = isAdmin(user);
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
-      fullName: '',
-      email: '',
-      phone: '',
-      address: '',
-      outstandingBalance: '0',
+      fullName: "",
+      email: "",
+      phone: "",
+      address: "",
+      outstandingBalance: "0",
     },
   });
 
   useEffect(() => {
-    if (!memberId) {
+    if (!admin || !memberId) {
       return;
     }
     getMember(memberId)
-      .then(member => {
+      .then((member) => {
         reset({
           fullName: member.fullName,
           email: member.email,
@@ -90,21 +92,28 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         setStatus(member.status);
         setFinancialStatus(member.financialStatus);
       })
-      .catch(error =>
+      .catch((error) =>
         setLoadError(
-          error instanceof Error ? error.message : 'Could not load this member.',
+          error instanceof Error
+            ? error.message
+            : "Could not load this member.",
         ),
       )
       .finally(() => setLoading(false));
-  }, [memberId, reset]);
+  }, [admin, memberId, reset]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
     }
-    const outstandingBalance = Number(values.outstandingBalance.replace(/,/g, ''));
+    const outstandingBalance = Number(
+      values.outstandingBalance.replace(/,/g, ""),
+    );
     if (!Number.isFinite(outstandingBalance) || outstandingBalance < 0) {
-      Alert.alert('Balance invalid', 'Outstanding balance must be zero or more.');
+      Alert.alert(
+        "Balance invalid",
+        "Outstanding balance must be zero or more.",
+      );
       return;
     }
     try {
@@ -124,21 +133,25 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       } else {
         await createMember(payload);
       }
-      safeGoBack(navigation, 'MembersList');
+      safeGoBack(navigation, "MembersList");
     } catch (error) {
       Alert.alert(
-        'Member not saved',
-        error instanceof Error ? error.message : 'Please try again.',
+        "Member not saved",
+        error instanceof Error ? error.message : "Please try again.",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Member" showBack onBack={() => safeGoBack(navigation, 'DashboardHome')} />
+        <ScreenHeader
+          title="Member"
+          showBack
+          onBack={() => safeGoBack(navigation, "DashboardHome")}
+        />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -155,13 +168,17 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   if (loadError) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Member" showBack onBack={() => safeGoBack(navigation, 'MembersList')} />
+        <ScreenHeader
+          title="Member"
+          showBack
+          onBack={() => safeGoBack(navigation, "MembersList")}
+        />
         <EmptyState
           icon="!"
           title="Member unavailable"
           message={loadError}
           actionLabel="Back to Members"
-          onAction={() => safeGoBack(navigation, 'MembersList')}
+          onAction={() => safeGoBack(navigation, "MembersList")}
         />
       </SafeAreaView>
     );
@@ -170,20 +187,24 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
-        title={memberId ? 'Edit Member' : 'Add Member'}
+        title={memberId ? "Edit Member" : "Add Member"}
         showBack
-        onBack={() => safeGoBack(navigation, 'DashboardHome')}
+        onBack={() => safeGoBack(navigation, "DashboardHome")}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <Field
             control={control}
             error={formState.errors.fullName?.message}
             label="FULL NAME"
             name="fullName"
-            rules={{required: 'Full name is required.'}}
+            rules={{ required: "Full name is required." }}
           />
           <Field
             control={control}
@@ -199,7 +220,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
             keyboardType="phone-pad"
             label="PHONE"
             name="phone"
-            rules={{required: 'Phone number is required.'}}
+            rules={{ required: "Phone number is required." }}
           />
           <Field
             control={control}
@@ -209,9 +230,17 @@ const MemberFormScreen = ({ navigation, route }: any) => {
             name="address"
           />
           <Text style={styles.sectionLabel}>ROLE</Text>
-          <ChipRow options={roleOptions} selectedValue={role} onChange={setRole} />
+          <ChipRow
+            options={roleOptions}
+            selectedValue={role}
+            onChange={setRole}
+          />
           <Text style={styles.sectionLabel}>MEMBER STATUS</Text>
-          <ChipRow options={statusOptions} selectedValue={status} onChange={setStatus} />
+          <ChipRow
+            options={statusOptions}
+            selectedValue={status}
+            onChange={setStatus}
+          />
           <Text style={styles.sectionLabel}>FINANCIAL STATUS</Text>
           <ChipRow
             options={financialOptions}
@@ -225,15 +254,15 @@ const MemberFormScreen = ({ navigation, route }: any) => {
             label="OUTSTANDING BALANCE"
             name="outstandingBalance"
             rules={{
-              required: 'Outstanding balance is required.',
+              required: "Outstanding balance is required.",
               pattern: {
                 value: /^[0-9,]+$/,
-                message: 'Use numbers only.',
+                message: "Use numbers only.",
               },
             }}
           />
           <GoldButton
-            label={memberId ? 'Save Member' : 'Create Member'}
+            label={memberId ? "Save Member" : "Create Member"}
             onPress={handleSubmit(onSubmit)}
             loading={submitting}
             fullWidth
@@ -259,14 +288,14 @@ const Field = ({
       control={control}
       name={name}
       rules={rules}
-      render={({field: {onBlur, onChange, value}}) => (
+      render={({ field: { onBlur, onChange, value } }) => (
         <TextInput
           value={value}
           onBlur={onBlur}
           onChangeText={onChange}
           keyboardType={keyboardType}
           multiline={multiline}
-          autoCapitalize={keyboardType === 'email-address' ? 'none' : undefined}
+          autoCapitalize={keyboardType === "email-address" ? "none" : undefined}
           placeholderTextColor={colors.text.tertiary}
           style={[
             styles.input,
@@ -285,19 +314,20 @@ const ChipRow = <T extends string>({
   options,
   selectedValue,
 }: {
-  options: {label: string; value: T}[];
+  options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
 }) => (
   <View style={styles.chipRow}>
-    {options.map(option => {
+    {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
         <TouchableOpacity
           key={option.value}
           style={[styles.chip, selected && styles.selectedChip]}
           onPress={() => onChange(option.value)}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+        >
           <Text style={[styles.chipText, selected && styles.selectedChipText]}>
             {option.label}
           </Text>
@@ -326,7 +356,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.tertiary,
     color: colors.text.primary,
   },
-  textArea: { minHeight: 92, textAlignVertical: 'top' },
+  textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
   sectionLabel: {
@@ -336,12 +366,12 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     minHeight: 40,
     paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border.subtle,

@@ -1,27 +1,42 @@
-import {useEffect, useState} from 'react';
-import {subscribeToJoinRequests} from '../services/membersService';
-import {JoinRequest} from '../types/user';
+import { useEffect, useState } from "react";
+import { subscribeToJoinRequests } from "../services/membersService";
+import { JoinRequest } from "../types/user";
 
-export const useJoinRequests = () => {
+interface UseJoinRequestsOptions {
+  enabled?: boolean;
+}
+
+export const useJoinRequests = ({
+  enabled = true,
+}: UseJoinRequestsOptions = {}) => {
   const [requests, setRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setRequests([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const unsubscribe = subscribeToJoinRequests(items => {
+      const unsubscribe = subscribeToJoinRequests((items) => {
         setRequests(items);
         setError(null);
         setLoading(false);
       });
       return () => unsubscribe();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load join requests.');
+      setError(
+        err instanceof Error ? err.message : "Could not load join requests.",
+      );
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
-  return {requests, loading, error};
+  return { requests, loading, error };
 };

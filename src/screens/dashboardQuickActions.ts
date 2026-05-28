@@ -1,3 +1,6 @@
+import { getTabRootResetState, TAB_ROOT_ROUTES } from "../navigation/tabRoutes";
+import { AppTabParamList } from "../navigation/types";
+
 export interface DashboardQuickAction {
   icon: string;
   label: string;
@@ -5,8 +8,25 @@ export interface DashboardQuickAction {
 }
 
 interface DashboardNavigation {
+  getParent?: () => { dispatch?: (action: object) => void } | undefined;
   navigate: (route: string, params?: object) => void;
 }
+
+const openTabRoot = (
+  navigation: DashboardNavigation,
+  tabName: keyof AppTabParamList,
+) => {
+  const parentNavigation = navigation.getParent?.();
+  if (parentNavigation?.dispatch) {
+    parentNavigation.dispatch({
+      type: "RESET",
+      payload: getTabRootResetState(tabName),
+    });
+    return;
+  }
+
+  navigation.navigate(tabName, TAB_ROOT_ROUTES[tabName]);
+};
 
 export const getDashboardQuickActions = (
   admin: boolean,
@@ -50,12 +70,12 @@ export const getDashboardQuickActions = (
         {
           icon: "calendar",
           label: "Events",
-          onPress: () => navigation.navigate("Events"),
+          onPress: () => openTabRoot(navigation, "Events"),
         },
         {
           icon: "check-circle",
           label: "Vote",
-          onPress: () => navigation.navigate("Voting"),
+          onPress: () => openTabRoot(navigation, "Voting"),
         },
         {
           icon: "credit-card",
@@ -65,7 +85,7 @@ export const getDashboardQuickActions = (
         {
           icon: "shopping-bag",
           label: "Marketplace",
-          onPress: () => navigation.navigate("Market"),
+          onPress: () => openTabRoot(navigation, "Market"),
         },
         {
           icon: "book-open",

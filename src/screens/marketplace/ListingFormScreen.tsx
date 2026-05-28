@@ -24,10 +24,7 @@ import {
 } from "../../services/marketplaceService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import {
-  ListingCondition,
-  ListingStatus,
-} from "../../types/marketplace";
+import { ListingCondition, ListingStatus } from "../../types/marketplace";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -61,20 +58,23 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(Boolean(listingId));
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
-  const { control, handleSubmit, reset, formState, watch } = useForm<FormValues>({
-    defaultValues: {
-      title: "",
-      price: "",
-      description: "",
-      contactInstruction: "WhatsApp the seller to arrange inspection and pickup.",
-      imageURL: "",
-    },
-  });
+  const admin = isAdmin(user);
+  const { control, handleSubmit, reset, formState, watch } =
+    useForm<FormValues>({
+      defaultValues: {
+        title: "",
+        price: "",
+        description: "",
+        contactInstruction:
+          "WhatsApp the seller to arrange inspection and pickup.",
+        imageURL: "",
+      },
+    });
   const titleValue = watch("title");
   const imageURLValue = watch("imageURL");
 
   useEffect(() => {
-    if (!listingId) {
+    if (!admin || !listingId) {
       return;
     }
     getListing(listingId)
@@ -91,11 +91,13 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       })
       .catch((error) =>
         setLoadError(
-          error instanceof Error ? error.message : "Could not load this listing.",
+          error instanceof Error
+            ? error.message
+            : "Could not load this listing.",
         ),
       )
       .finally(() => setLoading(false));
-  }, [listingId, reset]);
+  }, [admin, listingId, reset]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
@@ -134,10 +136,14 @@ const ListingFormScreen = ({ navigation, route }: any) => {
     }
   };
 
-  if (!isAdmin(user)) {
+  if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Listing" showBack onBack={() => safeGoBack(navigation, "Marketplace")} />
+        <ScreenHeader
+          title="Listing"
+          showBack
+          onBack={() => safeGoBack(navigation, "Marketplace")}
+        />
         <EmptyState
           icon="!"
           title="Admin only"
@@ -154,7 +160,11 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   if (loadError) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Listing" showBack onBack={() => safeGoBack(navigation, "Marketplace")} />
+        <ScreenHeader
+          title="Listing"
+          showBack
+          onBack={() => safeGoBack(navigation, "Marketplace")}
+        />
         <EmptyState
           icon="!"
           title="Listing unavailable"
@@ -177,7 +187,10 @@ const ListingFormScreen = ({ navigation, route }: any) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <Field
             control={control}
             error={formState.errors.title?.message}
@@ -230,8 +243,15 @@ const ListingFormScreen = ({ navigation, route }: any) => {
           <Field
             control={control}
             error={formState.errors.imageURL?.message}
+            keyboardType="url"
             label="IMAGE URL"
             name="imageURL"
+            rules={{
+              validate: (value: string) =>
+                !value.trim() ||
+                /^https?:\/\/\S+$/i.test(value.trim()) ||
+                "Enter a valid image URL.",
+            }}
           />
           {Boolean(imageURLValue.trim()) && (
             <View style={styles.imagePreview}>
@@ -284,6 +304,11 @@ const Field = ({
           onBlur={onBlur}
           onChangeText={onChange}
           keyboardType={keyboardType}
+          autoCapitalize={
+            keyboardType === "email-address" || keyboardType === "url"
+              ? "none"
+              : undefined
+          }
           multiline={multiline}
           placeholderTextColor={colors.text.tertiary}
           style={[

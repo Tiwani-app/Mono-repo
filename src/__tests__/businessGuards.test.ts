@@ -9,7 +9,17 @@ import {
   sortLibraryDocuments,
 } from "../utils/libraryFilters";
 import {
+  canManageLibraryDocuments,
+  canViewLibraryManagement,
+  isLibraryDocumentTypeAllowed,
+  isPublishedMemberLibraryDocument,
+  visibleLibraryDocuments,
+} from "../utils/libraryGuards";
+import {
+  canManageMarketplaceListings,
   canAddMarketplaceListing,
+  marketplaceListingSlotsRemaining,
+  marketplaceListingSlotsUsed,
   visibleMarketplaceListings,
 } from "../utils/marketplaceGuards";
 import {
@@ -108,7 +118,9 @@ const user = (uid: string, role: User["role"]): User => ({
 describe("business guardrails", () => {
   it("requires one election choice per race", () => {
     expect(isElectionBallotComplete(election, {})).toBe(false);
-    expect(isElectionBallotComplete(election, { president: "Ada" })).toBe(false);
+    expect(isElectionBallotComplete(election, { president: "Ada" })).toBe(
+      false,
+    );
     expect(
       isElectionBallotComplete(election, {
         president: "Ada",
@@ -119,7 +131,9 @@ describe("business guardrails", () => {
 
   it("allows admins and electoral chairmen to view election results", () => {
     expect(canViewElectionResults(user("admin-1", "admin"))).toBe(true);
-    expect(canViewElectionResults(user("chair-1", "electoral_chairman"))).toBe(true);
+    expect(canViewElectionResults(user("chair-1", "electoral_chairman"))).toBe(
+      true,
+    );
     expect(canViewElectionResults(user("member-1", "member"))).toBe(false);
   });
 
@@ -146,22 +160,28 @@ describe("business guardrails", () => {
   });
 
   it("enforces the marketplace visible listing cap", () => {
-    const archivedListing = {...listing("archived"), status: "archived" as const};
-    const listings = [
-      listing("1"),
-      archivedListing,
-      listing("2"),
-      listing("3"),
-    ];
+    const archivedListing = {
+      ...listing("archived"),
+      status: "archived" as const,
+    };
+    const soldListing = { ...listing("sold"), status: "sold" as const };
+    const listings = [listing("1"), archivedListing, soldListing, listing("3")];
 
-    expect(visibleMarketplaceListings(listings).map(item => item.id)).toEqual([
-      "1",
-      "2",
-    ]);
+    expect(visibleMarketplaceListings(listings).map((item) => item.id)).toEqual(
+      ["1", "sold"],
+    );
+    expect(marketplaceListingSlotsUsed(listings)).toBe(2);
+    expect(marketplaceListingSlotsRemaining(listings)).toBe(0);
     expect(canAddMarketplaceListing([])).toBe(true);
     expect(canAddMarketplaceListing([listing("1")])).toBe(true);
     expect(canAddMarketplaceListing([listing("1"), listing("2")])).toBe(false);
-    expect(canAddMarketplaceListing([listing("1"), archivedListing])).toBe(true);
+    expect(canAddMarketplaceListing([listing("1"), archivedListing])).toBe(
+      true,
+    );
+    expect(canManageMarketplaceListings(user("admin-1", "admin"))).toBe(true);
+    expect(canManageMarketplaceListings(user("member-1", "member"))).toBe(
+      false,
+    );
   });
 
   it("sorts and filters library documents", () => {
@@ -185,7 +205,7 @@ describe("business guardrails", () => {
       }),
     ];
 
-    expect(sortLibraryDocuments(docs).map(item => item.id)).toEqual([
+    expect(sortLibraryDocuments(docs).map((item) => item.id)).toEqual([
       "new",
       "uploaded",
       "old",
@@ -202,26 +222,66 @@ describe("business guardrails", () => {
     ).toEqual([docs[2]]);
   });
 
+  it("guards Library visibility and management by role", () => {
+    const draft = document("draft", { status: "draft" });
+    const adminOnly = document("admin", { visibility: "admin_only" });
+    const archived = document("archived", { status: "archived" });
+    const published = document("published", {
+      documentDate: new Date("2026-05-01"),
+    });
+    const docs = [draft, adminOnly, archived, published];
+
+    expect(canManageLibraryDocuments(user("admin-1", "admin"))).toBe(true);
+    expect(canViewLibraryManagement(user("member-1", "member"))).toBe(false);
+    expect(
+      canViewLibraryManagement(user("chair-1", "electoral_chairman")),
+    ).toBe(false);
+    expect(isPublishedMemberLibraryDocument(published)).toBe(true);
+    expect(isPublishedMemberLibraryDocument(adminOnly)).toBe(false);
+    expect(visibleLibraryDocuments(docs).map((item) => item.id)).toEqual([
+      "published",
+    ]);
+    expect(visibleLibraryDocuments(docs, true).map((item) => item.id)).toEqual([
+      "published",
+      "draft",
+      "admin",
+      "archived",
+    ]);
+  });
+
+  it("guards Library document types by category", () => {
+    expect(isLibraryDocumentTypeAllowed("constitutional", "constitution")).toBe(
+      true,
+    );
+    expect(
+      isLibraryDocumentTypeAllowed("constitutional", "meeting_minutes"),
+    ).toBe(false);
+    expect(
+      isLibraryDocumentTypeAllowed("minutes_reports", "financial_report"),
+    ).toBe(true);
+    expect(isLibraryDocumentTypeAllowed("minutes_reports", "by_laws")).toBe(
+      false,
+    );
+  });
+
   it("hides private member tabs from ordinary members viewing others", () => {
     const member = user("member-1", "member");
 
     expect(canViewMemberPrivateDetails(user("admin-1", "admin"), member)).toBe(
       true,
     );
-    expect(canViewMemberPrivateDetails(user("member-1", "member"), member)).toBe(
-      true,
-    );
-    expect(canViewMemberPrivateDetails(user("member-2", "member"), member)).toBe(
-      false,
-    );
-    expect(getVisibleMemberProfileTabs(user("member-2", "member"), member)).toEqual([
-      "info",
-    ]);
-    expect(getVisibleMemberProfileTabs(user("admin-1", "admin"), member)).toEqual([
-      "info",
-      "family",
-      "finance",
-    ]);
+    expect(
+      canViewMemberPrivateDetails(user("member-1", "member"), member),
+    ).toBe(true);
+    expect(
+      canViewMemberPrivateDetails(user("member-2", "member"), member),
+    ).toBe(false);
+    expect(
+      getVisibleMemberProfileTabs(user("member-2", "member"), member),
+    ).toEqual(["info"]);
+    expect(
+      getVisibleMemberProfileTabs(user("admin-1", "admin"), member),
+    ).toEqual(["info", "family", "finance"]);
   });
 
   it("sanitizes partial member profile fields for defensive rendering", () => {
@@ -229,7 +289,7 @@ describe("business guardrails", () => {
       uid: "member-1",
       fullName: "",
       memberSince: "not-a-date",
-      children: [{name: "", dateOfBirth: ""}],
+      children: [{ name: "", dateOfBirth: "" }],
     });
 
     expect(profile).toMatchObject({
@@ -240,7 +300,7 @@ describe("business guardrails", () => {
       maritalStatus: "Not provided",
       memberSince: null,
       spouseName: null,
-      children: [{name: "Child 1", dateOfBirth: "Not provided"}],
+      children: [{ name: "Child 1", dateOfBirth: "Not provided" }],
     });
   });
 

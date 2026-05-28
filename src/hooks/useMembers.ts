@@ -1,33 +1,60 @@
-import {useEffect, useRef} from 'react';
-import {subscribeToMembers} from '../services/membersService';
-import {useMembersStore} from '../store/membersStore';
-import {getFailureSyncState} from '../utils/syncState';
+import { useEffect, useRef } from "react";
+import { subscribeToMembers } from "../services/membersService";
+import { useMembersStore } from "../store/membersStore";
+import { getFailureSyncState } from "../utils/syncState";
 
-export const useMembers = () => {
-  const {members, setError, setLastSyncedAt, setLoading, setMembers, setSyncState} = useMembersStore();
+interface UseMembersOptions {
+  enabled?: boolean;
+}
+
+export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
+  const {
+    members,
+    setError,
+    setLastSyncedAt,
+    setLoading,
+    setMembers,
+    setSyncState,
+  } = useMembersStore();
   const hasCachedDataRef = useRef(false);
 
   hasCachedDataRef.current = members.length > 0;
 
   useEffect(() => {
+    if (!enabled) {
+      setError(null);
+      setLoading(false);
+      setSyncState("idle");
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setSyncState('syncing');
+    setSyncState("syncing");
     try {
-      const unsubscribe = subscribeToMembers(nextMembers => {
+      const unsubscribe = subscribeToMembers((nextMembers) => {
         setMembers(nextMembers);
         setLastSyncedAt(new Date());
         setError(null);
-        setSyncState('fresh');
+        setSyncState("fresh");
         setLoading(false);
       });
       return () => unsubscribe();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not load members.');
+      setError(
+        error instanceof Error ? error.message : "Could not load members.",
+      );
       setSyncState(getFailureSyncState(hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [setError, setLastSyncedAt, setLoading, setMembers, setSyncState]);
+  }, [
+    enabled,
+    setError,
+    setLastSyncedAt,
+    setLoading,
+    setMembers,
+    setSyncState,
+  ]);
 
   return useMembersStore();
 };

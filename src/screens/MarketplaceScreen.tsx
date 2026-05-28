@@ -20,19 +20,23 @@ import { useMarketplace } from "../hooks/useMarketplace";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import {
+  canManageMarketplaceListings,
   canAddMarketplaceListing,
+  marketplaceListingSlotsUsed,
   visibleMarketplaceListings,
 } from "../utils/marketplaceGuards";
-import { isAdmin } from "../utils/roleGuard";
 
 const MarketplaceScreen = ({ navigation }: any) => {
   const [tab, setTab] = useState<"browse" | "manage">("browse");
   const { user } = useAuthStore();
-  const admin = isAdmin(user);
-  const { error, lastSyncedAt, listings, loading, syncState } = useMarketplace(admin);
+  const admin = canManageMarketplaceListings(user);
+  const { error, lastSyncedAt, listings, loading, syncState } =
+    useMarketplace(admin);
   const visibleListings = visibleMarketplaceListings(listings);
-  const displayedListings = tab === "manage" && admin ? listings : visibleListings;
+  const displayedListings =
+    tab === "manage" && admin ? listings : visibleListings;
   const maxReached = !canAddMarketplaceListing(listings);
+  const listingSlotsUsed = marketplaceListingSlotsUsed(listings);
 
   const handleAddListing = async () => {
     if (maxReached) {
@@ -48,7 +52,7 @@ const MarketplaceScreen = ({ navigation }: any) => {
         rightElement={
           admin ? (
             <Badge
-              label={`${visibleListings.length}/2 ACTIVE`}
+              label={`${listingSlotsUsed}/2 ACTIVE`}
               color={colors.gold.default}
             />
           ) : null
@@ -103,7 +107,9 @@ const MarketplaceScreen = ({ navigation }: any) => {
           ListFooterComponent={
             admin && tab === "manage" ? (
               <GoldButton
-                label={maxReached ? "Max 2 listings reached" : "Add New Listing"}
+                label={
+                  maxReached ? "Max 2 listings reached" : "Add New Listing"
+                }
                 onPress={handleAddListing}
                 disabled={maxReached}
                 fullWidth

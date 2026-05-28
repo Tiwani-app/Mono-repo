@@ -2,7 +2,7 @@ import { getDashboardQuickActions } from "../screens/dashboardQuickActions";
 
 const labelsFor = (admin: boolean) =>
   getDashboardQuickActions(admin, { navigate: jest.fn() }).map(
-    action => action.label,
+    (action) => action.label,
   );
 
 describe("dashboard quick actions", () => {
@@ -31,7 +31,7 @@ describe("dashboard quick actions", () => {
     const navigation = { navigate: jest.fn() };
     const actions = getDashboardQuickActions(true, navigation);
 
-    actions.forEach(action => action.onPress());
+    actions.forEach((action) => action.onPress());
 
     expect(navigation.navigate).toHaveBeenNthCalledWith(1, "MemberForm");
     expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Events", {
@@ -48,17 +48,51 @@ describe("dashboard quick actions", () => {
   });
 
   it("routes member quick actions to their destination pages", () => {
+    const parentNavigation = { dispatch: jest.fn() };
+    const navigation = {
+      getParent: jest.fn(() => parentNavigation),
+      navigate: jest.fn(),
+    };
+    const actions = getDashboardQuickActions(false, navigation);
+
+    actions.forEach((action) => action.onPress());
+
+    expect(parentNavigation.dispatch).toHaveBeenCalledTimes(3);
+    expect(parentNavigation.dispatch.mock.calls[0][0]).toMatchObject({
+      payload: { index: 1 },
+      type: "RESET",
+    });
+    expect(parentNavigation.dispatch.mock.calls[1][0]).toMatchObject({
+      payload: { index: 2 },
+      type: "RESET",
+    });
+    expect(parentNavigation.dispatch.mock.calls[2][0]).toMatchObject({
+      payload: { index: 4 },
+      type: "RESET",
+    });
+    expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Finance", {
+      screen: "MyLedger",
+    });
+    expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Library");
+    expect(navigation.navigate).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to nested tab root navigation without a parent navigator", () => {
     const navigation = { navigate: jest.fn() };
     const actions = getDashboardQuickActions(false, navigation);
 
-    actions.forEach(action => action.onPress());
+    actions[0].onPress();
+    actions[1].onPress();
+    actions[3].onPress();
 
-    expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Events");
-    expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Voting");
-    expect(navigation.navigate).toHaveBeenNthCalledWith(3, "Finance", {
-      screen: "MyLedger",
+    expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Events", {
+      screen: "EventsList",
     });
-    expect(navigation.navigate).toHaveBeenNthCalledWith(4, "Market");
-    expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Library");
+    expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Voting", {
+      screen: "VotingHub",
+    });
+    expect(navigation.navigate).toHaveBeenNthCalledWith(3, "Market", {
+      screen: "Marketplace",
+    });
   });
 });
