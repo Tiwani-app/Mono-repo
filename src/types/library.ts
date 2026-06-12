@@ -28,6 +28,7 @@ export interface LibraryDocument {
   visibility: LibraryDocumentVisibility;
   fileName: string;
   fileURL: string | null;
+  storagePath: string | null;
   fileType: LibraryFileType;
   fileSize: number | null;
 }

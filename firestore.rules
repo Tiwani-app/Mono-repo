@@ -1,0 +1,225 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function profile() {
+      return get(userPath(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return hasProfile() && profile().status == "active";
+    }
+
+    function role() {
+      return profile().role;
+    }
+
+    function isAdmin() {
+      return isActive() && role() == "admin";
+    }
+
+    function isElectionAdmin() {
+      return isActive() && (role() == "admin" || role() == "electoral_chairman");
+    }
+
+    function userOrgId() {
+      return profile().orgId;
+    }
+
+    function sameOrgId(orgId) {
+      return isActive() && orgId == userOrgId();
+    }
+
+    function sameOrgRecord(data) {
+      return sameOrgId(data.orgId);
+    }
+
+    function sameOrgExisting() {
+      return sameOrgRecord(resource.data);
+    }
+
+    function sameOrgIncoming() {
+      return sameOrgRecord(request.resource.data);
+    }
+
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function ownUserDoc(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /organisations/{orgId} {
+      allow read: if sameOrgId(orgId);
+      allow create, update: if isAdmin() && sameOrgId(orgId);
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if ownUserDoc(userId) || sameOrgExisting();
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if (
+        isAdmin() && sameOrgExisting() && sameOrgIncoming()
+      ) || (
+        ownUserDoc(userId) &&
+        sameOrgExisting() &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.financialStatus == resource.data.financialStatus &&
+        request.resource.data.outstandingBalance == resource.data.outstandingBalance &&
+        onlyChanged(["fullName", "phone", "address", "photoURL", "notificationPreferences"])
+      );
+      allow delete: if false;
+
+      match /attendance/{eventId} {
+        allow read: if sameOrgRecord(get(userPath(userId)).data);
+        allow create: if isAdmin() && sameOrgRecord(get(userPath(userId)).data);
+        allow update, delete: if false;
+      }
+    }
+
+    match /member_directory/{userId} {
+      allow read: if isActive() && exists(userPath(userId)) && sameOrgRecord(get(userPath(userId)).data);
+      allow write: if false;
+    }
+
+    match /join_requests/{requestId} {
+      allow create: if request.resource.data.status == "pending" &&
+        request.resource.data.orgId is string &&
+        request.resource.data.fullName is string &&
+        request.resource.data.email is string &&
+        request.resource.data.phone is string;
+      allow read: if isAdmin() && sameOrgExisting();
+      allow update: if isAdmin() &&
+        sameOrgExisting() &&
+        sameOrgIncoming() &&
+        request.resource.data.status == "declined" &&
+        onlyChanged(["status", "reviewedAt", "reviewedBy"]);
+      allow delete: if false;
+    }
+
+    match /account_deletion_requests/{userId} {
+      allow read: if sameOrgExisting() && (isAdmin() || request.auth.uid == userId);
+      allow create: if isActive() &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == userId &&
+        request.resource.data.requestId == userId &&
+        request.resource.data.status == "requested" &&
+        request.resource.data.reason is string &&
+        sameOrgIncoming();
+      allow update: if isAdmin() &&
+        sameOrgExisting() &&
+        sameOrgIncoming() &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.requestId == resource.data.requestId;
+      allow delete: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if sameOrgExisting() && (resource.data.status == "published" || isAdmin());
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if (
+        isAdmin() && sameOrgExisting() && sameOrgIncoming()
+      ) || (
+        sameOrgExisting() &&
+        sameOrgIncoming() &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        onlyChanged(["rsvpList"])
+      );
+      allow delete: if false;
+    }
+
+    match /finance_periods/{periodId} {
+      allow read: if sameOrgExisting();
+      allow create, update: if isAdmin() && sameOrgIncoming();
+      allow delete: if false;
+    }
+
+    match /finance/{entryId} {
+      allow read: if sameOrgExisting() && (isAdmin() || resource.data.memberId == request.auth.uid);
+      allow create, update: if isAdmin() && sameOrgIncoming();
+      allow delete: if false;
+    }
+
+    match /library_documents/{documentId} {
+      allow read: if sameOrgExisting() && (
+        isAdmin() ||
+        (resource.data.status == "published" && resource.data.visibility == "all_members")
+      );
+      allow create, update: if isAdmin() && sameOrgIncoming();
+      allow delete: if false;
+    }
+
+    match /marketplace/{listingId} {
+      allow read: if sameOrgExisting() && (
+        resource.data.status == "available" ||
+        resource.data.postedBy == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isActive() &&
+        sameOrgIncoming() &&
+        request.resource.data.postedBy == request.auth.uid;
+      allow update: if sameOrgExisting() &&
+        sameOrgIncoming() &&
+        (isAdmin() || resource.data.postedBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if sameOrgExisting() && (
+        resource.data.targetAudience == "all" ||
+        resource.data.targetAudience == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAdmin() && sameOrgIncoming();
+      allow update: if sameOrgExisting() &&
+        onlyChanged(["readBy"]) &&
+        request.auth.uid in request.resource.data.readBy;
+      allow delete: if false;
+    }
+
+    match /device_tokens/{tokenId} {
+      allow read, write: if false;
+    }
+
+    match /polls/{pollId} {
+      allow read: if sameOrgExisting() && (resource.data.status != "draft" || isElectionAdmin());
+      allow create, update: if isElectionAdmin() && sameOrgIncoming();
+      allow delete: if false;
+
+      match /votes/{userId} {
+        allow read: if ownUserDoc(userId) || isElectionAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /elections/{electionId} {
+      allow read: if sameOrgExisting() && (resource.data.status != "draft" || isElectionAdmin());
+      allow create, update: if isElectionAdmin() && sameOrgIncoming();
+      allow delete: if false;
+
+      match /voterRegistry/{userId} {
+        allow read: if ownUserDoc(userId) || isElectionAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

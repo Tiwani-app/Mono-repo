@@ -34,7 +34,6 @@ interface FormValues {
 const statusOptions: { label: string; value: Poll["status"] }[] = [
   { label: "Draft", value: "draft" },
   { label: "Open", value: "open" },
-  { label: "Closed", value: "closed" },
 ];
 
 const PollFormScreen = ({ navigation, route }: any) => {

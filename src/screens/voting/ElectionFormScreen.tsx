@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -26,7 +26,12 @@ import {
 } from "../../services/votingService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import { User } from "../../types/user";
 import { Election } from "../../types/voting";
+import {
+  getFinanceStanding,
+  getFinanceStandingBannerLabel,
+} from "../../utils/financeStanding";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 import { findFinanciallyBlockedCandidateNames } from "../../utils/votingGuards";
@@ -45,7 +50,6 @@ const ballotOptions: { label: string; value: Election["ballotType"] }[] = [
 const statusOptions: { label: string; value: Election["status"] }[] = [
   { label: "Draft", value: "draft" },
   { label: "Open", value: "open" },
-  { label: "Closed", value: "closed" },
 ];
 
 const ElectionFormScreen = ({ navigation, route }: any) => {
@@ -63,7 +67,14 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     loading: membersLoading,
     members,
   } = useMembers({ enabled: admin });
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
+  const activeMembers = useMemo(
+    () =>
+      members
+        .filter((member) => member.status === "active")
+        .sort((left, right) => left.fullName.localeCompare(right.fullName)),
+    [members],
+  );
+  const { control, handleSubmit, reset, formState, watch } = useForm<FormValues>({
     defaultValues: {
       title: "",
       office: "President",
@@ -77,6 +88,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     control,
     name: "candidates",
   });
+  const selectedCandidates = watch("candidates");
 
   useEffect(() => {
     if (!admin || !electionId) {
@@ -205,6 +217,25 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     );
   }
 
+  if (activeMembers.length < 2) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Election"
+          showBack
+          onBack={() => safeGoBack(navigation, "VotingHub")}
+        />
+        <EmptyState
+          icon="!"
+          title="Not enough active members"
+          message="At least two active member profiles are required before an election can be created."
+          actionLabel="Back to Voting"
+          onAction={() => safeGoBack(navigation, "VotingHub")}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -268,9 +299,35 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
               <Field
                 control={control}
                 error={formState.errors.candidates?.[index]?.name?.message}
-                label="NAME"
+                label="ACTIVE MEMBER"
                 name={`candidates.${index}.name`}
                 rules={{ required: index < 2 ? "Name is required." : false }}
+                renderInput={({
+                  onChange,
+                  value,
+                }: {
+                  onChange: (value: string) => void;
+                  value: string;
+                }) => {
+                  const selectedElsewhere = new Set(
+                    selectedCandidates
+                      .map((candidate, candidateIndex) =>
+                        candidateIndex === index ? "" : candidate.name,
+                      )
+                      .filter(Boolean),
+                  );
+                  return (
+                    <CandidateDropdown
+                      members={activeMembers.filter(
+                        (member) =>
+                          member.fullName === value ||
+                          !selectedElsewhere.has(member.fullName),
+                      )}
+                      value={value}
+                      onChange={onChange}
+                    />
+                  );
+                }}
               />
               <Field
                 control={control}
@@ -300,31 +357,126 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   );
 };
 
-const Field = ({ control, error, label, multiline, name, rules }: any) => (
+const Field = ({
+  control,
+  error,
+  label,
+  multiline,
+  name,
+  renderInput,
+  rules,
+}: any) => (
   <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
       name={name}
       rules={rules}
-      render={({ field: { onBlur, onChange, value } }) => (
-        <TextInput
-          value={value}
-          onBlur={onBlur}
-          onChangeText={onChange}
-          multiline={multiline}
-          placeholderTextColor={colors.text.tertiary}
-          style={[
-            styles.input,
-            multiline && styles.textArea,
-            error && styles.inputError,
-          ]}
-        />
-      )}
+      render={({ field: { onBlur, onChange, value } }) =>
+        renderInput ? (
+          renderInput({ onChange, value })
+        ) : (
+          <TextInput
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            multiline={multiline}
+            placeholderTextColor={colors.text.tertiary}
+            style={[
+              styles.input,
+              multiline && styles.textArea,
+              error && styles.inputError,
+            ]}
+          />
+        )
+      }
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
 );
+
+const CandidateDropdown = ({
+  members,
+  onChange,
+  value,
+}: {
+  members: User[];
+  value: string;
+  onChange: (value: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selectedMember = members.find((member) => member.fullName === value);
+
+  return (
+    <View style={styles.memberSelect}>
+      <TouchableOpacity
+        style={[styles.memberSelectButton, open && styles.memberSelectButtonOpen]}
+        onPress={() => setOpen((current) => !current)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.memberSelectCopy}>
+          <Text
+            style={[
+              styles.memberSelectValue,
+              !selectedMember && styles.memberSelectPlaceholder,
+            ]}
+          >
+            {selectedMember?.fullName ?? "Select an active member"}
+          </Text>
+          {selectedMember && (
+            <Text style={styles.memberSelectMeta}>
+              {getFinanceStandingBannerLabel(
+                getFinanceStanding(
+                  selectedMember.financialStatus,
+                  selectedMember.outstandingBalance,
+                ),
+              )}
+            </Text>
+          )}
+        </View>
+        <Text style={styles.memberSelectChevron}>{open ? "^" : "v"}</Text>
+      </TouchableOpacity>
+      {open && (
+        <View style={styles.memberSelectMenu}>
+          {members.map((member) => {
+            const selected = member.fullName === value;
+            return (
+              <TouchableOpacity
+                key={member.uid}
+                style={[
+                  styles.memberSelectOption,
+                  selected && styles.memberSelectOptionSelected,
+                ]}
+                onPress={() => {
+                  onChange(member.fullName);
+                  setOpen(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.memberSelectName,
+                    selected && styles.memberSelectNameSelected,
+                  ]}
+                >
+                  {member.fullName}
+                </Text>
+                <Text style={styles.memberSelectStatus}>
+                  {getFinanceStandingBannerLabel(
+                    getFinanceStanding(
+                      member.financialStatus,
+                      member.outstandingBalance,
+                    ),
+                  )}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+};
 
 const ChipRow = <T extends string>({
   onChange,
@@ -404,6 +556,59 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
+  memberSelect: { gap: spacing.xs },
+  memberSelectButton: {
+    minHeight: 54,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  memberSelectButtonOpen: { borderColor: colors.gold.default },
+  memberSelectCopy: { flex: 1, gap: spacing.xs },
+  memberSelectValue: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  memberSelectPlaceholder: { color: colors.text.tertiary },
+  memberSelectMeta: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+  },
+  memberSelectChevron: {
+    fontSize: typography.size.xs,
+    color: colors.gold.light,
+  },
+  memberSelectMenu: {
+    padding: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    gap: spacing.xs,
+  },
+  memberSelectOption: {
+    padding: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.bg.card,
+    gap: spacing.xs,
+  },
+  memberSelectOptionSelected: { backgroundColor: `${colors.gold.default}22` },
+  memberSelectName: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  memberSelectNameSelected: { color: colors.gold.light },
+  memberSelectStatus: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+  },
   candidateCard: {
     gap: spacing.md,
     padding: spacing.lg,

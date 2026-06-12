@@ -22,6 +22,11 @@ export const useVoting = () => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
+    const handleError = (error: Error) => {
+      setError(error.message || 'Could not load voting data.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribePolls = subscribeToPolls(nextPolls => {
         setPolls(nextPolls);
@@ -29,14 +34,14 @@ export const useVoting = () => {
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      });
+      }, handleError);
       const unsubscribeElections = subscribeToElections(nextElections => {
         setElections(nextElections);
         setLastSyncedAt(new Date());
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      });
+      }, handleError);
       return () => {
         unsubscribePolls();
         unsubscribeElections();

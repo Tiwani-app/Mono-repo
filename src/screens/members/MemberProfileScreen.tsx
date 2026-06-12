@@ -17,6 +17,11 @@ import BalanceBanner from "../../components/finance/BalanceBanner";
 import { getMember } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import {
+  getFinanceStanding,
+  getFinanceStandingBannerLabel,
+  getFinanceStandingColor,
+} from "../../utils/financeStanding";
 import { User } from "../../types/user";
 import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
@@ -78,6 +83,11 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
   }
 
   const canViewPrivate = canViewMemberPrivateDetails(user, member);
+  const financeStanding = getFinanceStanding(
+    member.financialStatus,
+    member.outstandingBalance,
+  );
+  const financeStandingColor = getFinanceStandingColor(financeStanding);
   const canEditMember = isAdmin(user);
   const profile = sanitizeMemberProfile(member);
   const tabs = getVisibleMemberProfileTabs(user, member);
@@ -129,24 +139,17 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             style={[
               styles.statusBanner,
               {
-                backgroundColor: `${member.financialStatus === "green" ? colors.status.success : colors.status.error}18`,
+                backgroundColor: `${financeStandingColor}18`,
               },
             ]}
           >
             <Text
               style={[
                 styles.statusText,
-                {
-                  color:
-                    member.financialStatus === "green"
-                      ? colors.status.success
-                      : colors.status.error,
-                },
+                { color: financeStandingColor },
               ]}
             >
-              {member.financialStatus === "green"
-                ? "IN GOOD STANDING"
-                : "DUES OVERDUE"}
+              {getFinanceStandingBannerLabel(financeStanding)}
             </Text>
           </View>
         </View>
@@ -206,7 +209,10 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
         )}
         {activeTab === "finance" &&
           (canViewPrivate ? (
-            <BalanceBanner outstanding={member.outstandingBalance} />
+            <BalanceBanner
+              outstanding={member.outstandingBalance}
+              financialStatus={member.financialStatus}
+            />
           ) : (
             <Text style={styles.restricted}>
               You do not have permission to view this information.

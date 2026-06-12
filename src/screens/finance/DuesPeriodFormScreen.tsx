@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
@@ -20,7 +19,6 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { createDuesPeriod } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { DuesPeriod } from "../../types/finance";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -29,12 +27,6 @@ interface FormValues {
   amount: string;
   dueDate: string;
 }
-
-const statusOptions: { label: string; value: DuesPeriod["status"] }[] = [
-  { label: "Active", value: "active" },
-  { label: "Settled", value: "settled" },
-  { label: "Overdue", value: "overdue" },
-];
 
 const parseDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
@@ -46,7 +38,6 @@ const parseDate = (value: string) => {
 
 const DuesPeriodFormScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const [status, setStatus] = useState<DuesPeriod["status"]>("active");
   const [submitting, setSubmitting] = useState(false);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
@@ -77,7 +68,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
         name: values.name.trim(),
         amount,
         dueDate,
-        status,
+        status: "active",
       });
       safeGoBack(navigation, "FinanceAdmin");
     } catch (error) {
@@ -162,12 +153,6 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
               />
             )}
           />
-          <Text style={styles.sectionLabel}>STATUS</Text>
-          <ChipRow
-            options={statusOptions}
-            selectedValue={status}
-            onChange={setStatus}
-          />
           <View style={styles.noteCard}>
             <Text style={styles.noteTitle}>Ledger impact</Text>
             <Text style={styles.noteText}>
@@ -209,34 +194,6 @@ const Field = ({ control, error, keyboardType, label, name, rules }: any) => (
   </View>
 );
 
-const ChipRow = <T extends string>({
-  onChange,
-  options,
-  selectedValue,
-}: {
-  options: { label: string; value: T }[];
-  selectedValue: T;
-  onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
-    {options.map((option) => {
-      const selected = selectedValue === option.value;
-      return (
-        <TouchableOpacity
-          key={option.value}
-          style={[styles.chip, selected && styles.selectedChip]}
-          onPress={() => onChange(option.value)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.chipText, selected && styles.selectedChipText]}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-);
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
@@ -265,27 +222,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: {
-    minHeight: 40,
-    paddingHorizontal: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.bg.card,
-  },
-  selectedChip: {
-    borderColor: colors.gold.default,
-    backgroundColor: `${colors.gold.default}18`,
-  },
-  chipText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.secondary,
-  },
-  selectedChipText: { color: colors.gold.light },
   noteCard: {
     gap: spacing.sm,
     padding: spacing.lg,

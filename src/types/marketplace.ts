@@ -11,6 +11,8 @@ export interface Listing {
   imageURL: string | null;
   postedBy: string;
   postedByName: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
   contactInstruction: string;
   createdAt: Date;
   updatedAt: Date;

@@ -1,36 +1,41 @@
-import {EventCategory, EventStatus, TiwaniEvent} from '../../types/event';
+import { EventCategory, EventStatus, TiwaniEvent } from "../../types/event";
 import {
-  DocumentSnapshotLike,
   RawRecord,
-  asDate,
   asNumber,
-  asString,
   asStringArray,
-  enumValue,
-  snapshotToRecord,
-} from './shared';
+  requiredDate,
+  requiredEnum,
+  requiredNumber,
+  requiredString,
+} from "./shared";
 
-const categories: EventCategory[] = ['meeting', 'social', 'volunteer', 'committee'];
-const statuses: EventStatus[] = ['draft', 'published', 'cancelled', 'completed'];
+const categories: EventCategory[] = [
+  "meeting",
+  "social",
+  "volunteer",
+  "committee",
+];
+const statuses: EventStatus[] = [
+  "draft",
+  "published",
+  "cancelled",
+  "completed",
+];
 
 export const eventFromRecord = (record: RawRecord): TiwaniEvent => {
   const rsvpList = asStringArray(record.rsvpList);
   return {
-    id: asString(record.id),
-    title: asString(record.title),
-    description: asString(record.description),
-    category: enumValue(record.category, categories, 'meeting'),
-    dateTime: asDate(record.dateTime),
-    location: asString(record.location),
-    createdBy: asString(record.createdBy),
-    status: enumValue(record.status, statuses, 'draft'),
+    id: requiredString(record, "id"),
+    title: requiredString(record, "title"),
+    description: requiredString(record, "description"),
+    category: requiredEnum(record.category, categories, "category"),
+    dateTime: requiredDate({ dateTime: record.startTime }, "dateTime"),
+    location: requiredString(record, "location"),
+    createdBy: requiredString(record, "createdBy"),
+    status: requiredEnum(record.status, statuses, "status"),
     rsvpList,
     rsvpCount: asNumber(record.rsvpCount, rsvpList.length),
-    capacity: asNumber(record.capacity),
-    attendees: asStringArray(record.attendees),
+    capacity: requiredNumber(record, "capacity"),
+    attendees: asStringArray(record.attendeeList),
   };
 };
-
-export const eventFromSnapshot = (snapshot: DocumentSnapshotLike): TiwaniEvent =>
-  eventFromRecord(snapshotToRecord(snapshot));
-

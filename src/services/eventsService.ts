@@ -4,7 +4,8 @@ import {
   EventStatus,
   TiwaniEvent,
 } from "../types/event";
-import { delay, mockEvents, mockUsers } from "./mockData";
+import { eventFromRecord } from "./converters/eventConverter";
+import { currentUid, firestore, getCurrentOrgId, startOrgSubscription } from "./firebaseHelpers";
 
 export interface EventInput {
   title: string;
@@ -16,148 +17,86 @@ export interface EventInput {
   status: EventStatus;
 }
 
-let events = mockEvents.slice();
-const subscribers = new Set<(events: TiwaniEvent[]) => void>();
-const eventCategories: EventCategory[] = [
-  "meeting",
-  "social",
-  "volunteer",
-  "committee",
-];
-const eventStatuses: EventStatus[] = [
-  "draft",
-  "published",
-  "cancelled",
-  "completed",
-];
-
-const sortEvents = (items: TiwaniEvent[]) =>
-  [...items].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-
-const withRsvpCount = (event: TiwaniEvent): TiwaniEvent => ({
-  ...event,
-  rsvpCount: event.rsvpList.length,
+const eventData = (data: Partial<EventInput>) => ({
+  ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+  ...(data.description !== undefined
+    ? { description: data.description.trim() }
+    : {}),
+  ...(data.category !== undefined ? { category: data.category } : {}),
+  ...(data.dateTime !== undefined ? { startTime: data.dateTime } : {}),
+  ...(data.location !== undefined ? { location: data.location.trim() } : {}),
+  ...(data.capacity !== undefined ? { capacity: data.capacity } : {}),
+  ...(data.status !== undefined ? { status: data.status } : {}),
 });
-
-const eventsSnapshot = (items: TiwaniEvent[]) =>
-  sortEvents(items).map(withRsvpCount);
-
-const emitEvents = () => {
-  const snapshot = eventsSnapshot(events);
-  subscribers.forEach((callback) => callback(snapshot));
-};
 
 export const subscribeToEvents = (
   callback: (events: TiwaniEvent[]) => void,
-) => {
-  subscribers.add(callback);
-  callback(eventsSnapshot(events));
-  return () => {
-    subscribers.delete(callback);
-  };
-};
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "events",
+    eventFromRecord,
+    (events) =>
+      callback(
+        events.sort((left, right) => left.dateTime.getTime() - right.dateTime.getTime()),
+      ),
+    undefined,
+    onError,
+  );
 
 export const getEvent = async (eventId: string): Promise<TiwaniEvent> => {
-  await delay();
-  const event = events.find((item) => item.id === eventId);
-  if (!event) {
+  const snapshot = await firestore().collection("events").doc(eventId).get();
+  if (!snapshot.exists()) {
     throw new Error("Event not found.");
   }
-  return withRsvpCount(event);
-};
-
-const attendeeFromUid = (event: TiwaniEvent, uid: string): EventAttendee => {
-  const member = mockUsers.find((user) => user.uid === uid);
-  return {
-    uid,
-    fullName: member?.fullName ?? "Unknown member",
-    email: member?.email ?? "",
-    photoURL: member?.photoURL ?? null,
-    checkedIn: event.attendees.includes(uid),
-  };
-};
-
-const normalizeEventInput = (data: EventInput): EventInput => ({
-  ...data,
-  title: data.title.trim(),
-  description: data.description.trim(),
-  location: data.location.trim(),
-});
-
-const validateEventInput = (data: EventInput) => {
-  if (!data.title) {
-    throw new Error("Event title is required.");
-  }
-  if (!data.description) {
-    throw new Error("Event description is required.");
-  }
-  if (!eventCategories.includes(data.category)) {
-    throw new Error("Event category is invalid.");
-  }
-  if (
-    !(data.dateTime instanceof Date) ||
-    Number.isNaN(data.dateTime.getTime())
-  ) {
-    throw new Error("Event date and time are required.");
-  }
-  if (!data.location) {
-    throw new Error("Event location is required.");
-  }
-  if (!Number.isInteger(data.capacity) || data.capacity < 0) {
-    throw new Error("Event capacity must be zero or a positive whole number.");
-  }
-  if (!eventStatuses.includes(data.status)) {
-    throw new Error("Event status is invalid.");
-  }
+  return eventFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
 };
 
 export const getEventAttendees = async (
   eventId: string,
 ): Promise<EventAttendee[]> => {
   const event = await getEvent(eventId);
-  return event.rsvpList.map((uid) => attendeeFromUid(event, uid));
+  return Promise.all(
+    event.rsvpList.map(async (uid) => {
+      const snapshot = await firestore()
+        .collection("member_directory")
+        .doc(uid)
+        .get();
+      const fallbackSnapshot = snapshot.exists()
+        ? null
+        : await firestore().collection("users").doc(uid).get();
+      const member = snapshot.data() ?? fallbackSnapshot?.data();
+      return {
+        uid,
+        fullName:
+          typeof member?.fullName === "string" ? member.fullName : "Unknown member",
+        email: "",
+        photoURL: typeof member?.photoURL === "string" ? member.photoURL : null,
+        checkedIn: event.attendees.includes(uid),
+      };
+    }),
+  );
 };
 
 export const createEvent = async (data: EventInput): Promise<TiwaniEvent> => {
-  await delay();
-  const normalized = normalizeEventInput(data);
-  validateEventInput(normalized);
-  const event: TiwaniEvent = {
-    ...normalized,
-    id: `event-${Date.now()}`,
-    createdBy: "admin-1",
+  const ref = firestore().collection("events").doc();
+  await ref.set({
+    eventId: ref.id,
+    orgId: await getCurrentOrgId(),
+    createdBy: currentUid(),
+    ...eventData(data),
     rsvpList: [],
-    rsvpCount: 0,
-    attendees: [],
-  };
-  events = [...events, event];
-  emitEvents();
-  return event;
+    attendeeList: [],
+  });
+  return getEvent(ref.id);
 };
 
 export const updateEvent = async (
   eventId: string,
   data: Partial<EventInput>,
-): Promise<void> => {
-  await delay();
-  const existingEvent = events.find((event) => event.id === eventId);
-  if (!existingEvent) {
-    throw new Error("Event not found.");
-  }
-  const normalized = normalizeEventInput({
-    title: data.title ?? existingEvent.title,
-    description: data.description ?? existingEvent.description,
-    category: data.category ?? existingEvent.category,
-    dateTime: data.dateTime ?? existingEvent.dateTime,
-    location: data.location ?? existingEvent.location,
-    capacity: data.capacity ?? existingEvent.capacity,
-    status: data.status ?? existingEvent.status,
-  });
-  validateEventInput(normalized);
-  events = events.map((event) =>
-    event.id === eventId ? { ...event, ...normalized } : event,
-  );
-  emitEvents();
+): Promise<TiwaniEvent> => {
+  await firestore().collection("events").doc(eventId).update(eventData(data));
+  return getEvent(eventId);
 };
 
 export const cancelEvent = async (eventId: string): Promise<void> => {
@@ -168,55 +107,76 @@ export const toggleRsvp = async (
   eventId: string,
   userId: string,
 ): Promise<void> => {
-  await delay();
-  if (!events.some((event) => event.id === eventId)) {
-    throw new Error("Event not found.");
+  if (userId !== currentUid()) {
+    throw new Error("You can only update your own RSVP.");
   }
-  events = events.map((event) => {
-    if (event.id !== eventId) {
-      return event;
+  const eventRef = firestore().collection("events").doc(eventId);
+  await firestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(eventRef);
+    if (!snapshot.exists()) {
+      throw new Error("Event not found.");
     }
-    const removingRsvp = event.rsvpList.includes(userId);
-    if (!removingRsvp && event.status !== "published") {
+    const event = snapshot.data() ?? {};
+    const rsvpList = Array.isArray(event.rsvpList)
+      ? event.rsvpList.filter((uid): uid is string => typeof uid === "string")
+      : [];
+    const removing = rsvpList.includes(userId);
+    if (!removing && event.status !== "published") {
       throw new Error("RSVP is not available for this event.");
     }
     if (
-      !removingRsvp &&
+      !removing &&
+      typeof event.capacity === "number" &&
       event.capacity > 0 &&
-      event.rsvpList.length >= event.capacity
+      rsvpList.length >= event.capacity
     ) {
       throw new Error("This event is full.");
     }
-    const rsvpList = removingRsvp
-      ? event.rsvpList.filter((uid) => uid !== userId)
-      : [...event.rsvpList, userId];
-    const attendees = removingRsvp
-      ? event.attendees.filter((uid) => uid !== userId)
-      : event.attendees;
-    return { ...event, attendees, rsvpList, rsvpCount: rsvpList.length };
+    transaction.update(eventRef, {
+      rsvpList: removing
+        ? rsvpList.filter((uid) => uid !== userId)
+        : [...rsvpList, userId],
+    });
   });
-  emitEvents();
 };
 
 export const checkInAttendee = async (
   eventId: string,
   userId: string,
 ): Promise<void> => {
-  await delay();
-  const event = events.find((item) => item.id === eventId);
-  if (!event) {
-    throw new Error("Event not found.");
-  }
-  if (!event.rsvpList.includes(userId)) {
-    throw new Error("Only RSVP attendees can be checked in.");
-  }
-  if (event.attendees.includes(userId)) {
-    return;
-  }
-  events = events.map((item) =>
-    item.id === eventId
-      ? { ...item, attendees: [...item.attendees, userId] }
-      : item,
-  );
-  emitEvents();
+  const database = firestore();
+  const eventRef = database.collection("events").doc(eventId);
+  const attendanceRef = database
+    .collection("users")
+    .doc(userId)
+    .collection("attendance")
+    .doc(eventId);
+  await database.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(eventRef);
+    if (!snapshot.exists()) {
+      throw new Error("Event not found.");
+    }
+    const event = snapshot.data() ?? {};
+    const rsvpList = Array.isArray(event.rsvpList) ? event.rsvpList : [];
+    const attendeeList = Array.isArray(event.attendeeList) ? event.attendeeList : [];
+    if (!rsvpList.includes(userId)) {
+      throw new Error("Only members who RSVP'd can be checked in.");
+    }
+    if (attendeeList.includes(userId)) {
+      throw new Error("This member has already checked in.");
+    }
+    if (
+      typeof event.capacity === "number" &&
+      event.capacity > 0 &&
+      attendeeList.length >= event.capacity
+    ) {
+      throw new Error("This event has reached maximum capacity.");
+    }
+    transaction.update(eventRef, { attendeeList: [...attendeeList, userId] });
+    transaction.set(attendanceRef, {
+      eventId,
+      method: "admin_tap",
+      checkedInAt: new Date(),
+    });
+  });
 };

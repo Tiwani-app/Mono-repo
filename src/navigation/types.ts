@@ -33,7 +33,9 @@ export type FinanceStackParamList = {
 export type DashboardStackParamList = {
   DashboardHome: undefined;
   Notifications: undefined;
+  AnnouncementForm: undefined;
   Settings: undefined;
+  AccountDeletion: undefined;
   MembersList: undefined;
   MemberProfile: { memberId: string };
   MemberForm: { memberId?: string } | undefined;

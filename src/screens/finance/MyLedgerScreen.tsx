@@ -11,16 +11,21 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
+import { env } from "../../config/env";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import {
+  getFinanceStanding,
+  getFinanceStandingBadgeLabel,
+  getFinanceStandingColor,
+} from "../../utils/financeStanding";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { canViewLedgerForMember } from "../../utils/financeGuards";
 import { getInitials } from "../../utils/getInitials";
+import { getFinanceTotals } from "../../utils/financeTotals";
 import { isAdmin } from "../../utils/roleGuard";
-
-const TREASURER_EMAIL = "treasurer@tiwani.app";
 
 const MyLedgerScreen = ({ navigation, route }: any) => {
   const { user } = useAuthStore();
@@ -38,15 +43,8 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
     enabled: adminViewingMember,
   });
   const selectedMember = members.find((member) => member.uid === targetUid);
-  const outstanding = ledgerEntries
-    .filter((entry) => entry.type !== "payment" && !entry.paid)
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const totalCharged = ledgerEntries
-    .filter((entry) => entry.type !== "payment")
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const totalPaid = ledgerEntries
-    .filter((entry) => entry.type !== "payment" && entry.paid)
-    .reduce((sum, entry) => sum + entry.amount, 0);
+  const { outstanding, totalCharged, totalPaid } =
+    getFinanceTotals(ledgerEntries);
   const handleBack = () => {
     if (navigation.canGoBack?.()) {
       navigation.goBack();
@@ -58,21 +56,32 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
       ?.navigate("Dashboard", { screen: "DashboardHome" });
   };
   const handleContactTreasurer = async () => {
+    const financeContactEmail = env.financeContactEmail.trim();
+    if (!financeContactEmail) {
+      Alert.alert(
+        "Finance contact unavailable",
+        "Please contact an admin to review this balance.",
+      );
+      return;
+    }
     const subject = encodeURIComponent("Ledger balance question");
     const body = encodeURIComponent(
       `Hello Treasurer,\n\nI have a question about my outstanding balance of ${formatCurrency(outstanding)}.\n\nName: ${user?.fullName ?? ""}\nMember ID: ${targetUid ?? ""}`,
     );
-    const url = `mailto:${TREASURER_EMAIL}?subject=${subject}&body=${body}`;
+    const url = `mailto:${financeContactEmail}?subject=${subject}&body=${body}`;
 
     try {
       const supported = await Linking.canOpenURL(url);
       if (!supported) {
-        Alert.alert("Email unavailable", `Please contact ${TREASURER_EMAIL}.`);
+        Alert.alert(
+          "Email unavailable",
+          `Please contact ${financeContactEmail}.`,
+        );
         return;
       }
       await Linking.openURL(url);
     } catch {
-      Alert.alert("Email unavailable", `Please contact ${TREASURER_EMAIL}.`);
+      Alert.alert("Email unavailable", `Please contact ${financeContactEmail}.`);
     }
   };
 
@@ -114,6 +123,18 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
     );
   }
 
+  const balanceFinancialStatus = adminViewingMember
+    ? selectedMember?.financialStatus
+    : user?.financialStatus;
+  const balanceStanding = getFinanceStanding(
+    balanceFinancialStatus,
+    outstanding,
+  );
+  const balanceColor = getFinanceStandingColor(balanceStanding);
+  const selectedMemberStanding = selectedMember
+    ? getFinanceStanding(selectedMember.financialStatus, outstanding)
+    : "clear";
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -146,16 +167,8 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                     </Text>
                     <View style={styles.badgeRow}>
                       <Badge
-                        label={
-                          selectedMember.financialStatus === "green"
-                            ? "CLEAR"
-                            : "OVERDUE"
-                        }
-                        color={
-                          selectedMember.financialStatus === "green"
-                            ? colors.status.success
-                            : colors.status.error
-                        }
+                        label={getFinanceStandingBadgeLabel(selectedMemberStanding)}
+                        color={getFinanceStandingColor(selectedMemberStanding)}
                       />
                       <Badge
                         label={selectedMember.status.toUpperCase()}
@@ -173,11 +186,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                   <SummaryStat
                     label="Outstanding"
                     value={formatCurrency(outstanding)}
-                    tone={
-                      outstanding > 0
-                        ? colors.status.error
-                        : colors.status.success
-                    }
+                    tone={balanceColor}
                   />
                 </View>
                 <View style={styles.adminActions}>
@@ -202,7 +211,10 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                 </View>
               </View>
             )}
-            <BalanceBanner outstanding={outstanding} />
+            <BalanceBanner
+              outstanding={outstanding}
+              financialStatus={balanceFinancialStatus}
+            />
             {outstanding > 0 && !adminViewingMember && (
               <View style={styles.contactCard}>
                 <View style={styles.contactCopy}>

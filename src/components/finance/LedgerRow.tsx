@@ -22,6 +22,17 @@ interface Props {
 const LedgerRow = ({entry}: Props) => {
   const isPayment = entry.type === 'payment';
   const date = entry.paidAt ?? entry.dueDate;
+  const badgeLabel =
+    entry.paidStatus === 'partial'
+      ? 'PARTIAL'
+      : entry.paid
+        ? 'PAID'
+        : 'UNPAID';
+  const badgeColor = entry.paid
+    ? colors.status.success
+    : entry.paidStatus === 'partial'
+      ? colors.gold.default
+      : colors.status.error;
 
   return (
     <View style={styles.row}>
@@ -42,8 +53,8 @@ const LedgerRow = ({entry}: Props) => {
           {formatCurrency(entry.amount)}
         </Text>
         <Badge
-          label={entry.paid ? 'PAID' : 'UNPAID'}
-          color={entry.paid ? colors.status.success : colors.status.error}
+          label={badgeLabel}
+          color={badgeColor}
         />
       </View>
     </View>

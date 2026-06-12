@@ -1,159 +1,161 @@
-import { Listing, ListingCondition, ListingStatus } from "../types/marketplace";
+import { Listing } from "../types/marketplace";
+import { visibleMarketplaceListings } from "../utils/marketplaceGuards";
+import { listingFromRecord } from "./converters/marketplaceConverter";
 import {
-  canAddMarketplaceListing,
-  visibleMarketplaceListings,
-} from "../utils/marketplaceGuards";
-import { delay, mockListings } from "./mockData";
-
-let listings = mockListings.slice(0, 2);
-const subscribers = new Set<{
-  callback: (listings: Listing[]) => void;
-  includeArchived: boolean;
-}>();
+  currentUid,
+  firestore,
+  getCurrentOrgId,
+  getCurrentUserRecord,
+  serverTimestamp,
+  startOrgSubscription,
+} from "./firebaseHelpers";
 
 export type ListingInput = Omit<
   Listing,
-  "id" | "postedBy" | "postedByName" | "createdAt" | "updatedAt"
+  | "id"
+  | "postedBy"
+  | "postedByName"
+  | "contactPhone"
+  | "contactEmail"
+  | "createdAt"
+  | "updatedAt"
 >;
 
-const listingConditions: ListingCondition[] = [
-  "new",
-  "like_new",
-  "good",
-  "fair",
-  "used",
-];
-const listingStatuses: ListingStatus[] = ["available", "sold", "archived"];
-const urlPattern = /^https?:\/\/\S+$/i;
+const contactFromProfile = (profile: Record<string, unknown>) => ({
+  contactPhone:
+    typeof profile.phone === "string" && profile.phone.trim()
+      ? profile.phone.trim()
+      : null,
+  contactEmail:
+    typeof profile.email === "string" && profile.email.trim()
+      ? profile.email.trim()
+      : null,
+});
 
-const emitListings = () => {
-  subscribers.forEach((subscriber) => {
-    subscriber.callback(
-      subscriber.includeArchived
-        ? listings
-        : visibleMarketplaceListings(listings),
-    );
-  });
-};
-
-export const subscribeToListings = (
-  callback: (listings: Listing[]) => void,
-  includeArchived = false,
-) => {
-  const subscriber = { callback, includeArchived };
-  subscribers.add(subscriber);
-  callback(includeArchived ? listings : visibleMarketplaceListings(listings));
-  return () => {
-    subscribers.delete(subscriber);
-  };
-};
-
-export const getListing = async (id: string): Promise<Listing> => {
-  await delay();
-  const listing = listings.find((item) => item.id === id);
-  if (!listing) {
-    throw new Error("Listing not found.");
-  }
-  return listing;
-};
-
-const normalizeListingInput = (data: ListingInput): ListingInput => {
-  const imageURL = data.imageURL?.trim() ?? "";
-  return {
-    ...data,
-    title: data.title.trim(),
-    description: data.description.trim(),
-    contactInstruction: data.contactInstruction.trim(),
-    imageURL: imageURL || null,
-  };
-};
-
-const validateListingInput = (data: ListingInput) => {
-  if (!data.title) {
+const validateListing = (data: ListingInput) => {
+  if (!data.title.trim()) {
     throw new Error("Listing title is required.");
   }
   if (!Number.isFinite(data.price) || data.price <= 0) {
     throw new Error("Listing price must be greater than zero.");
   }
-  if (!data.description) {
+  if (!data.description.trim()) {
     throw new Error("Listing description is required.");
   }
-  if (!listingConditions.includes(data.condition)) {
-    throw new Error("Listing condition is invalid.");
+  if (data.description.trim().length > 120) {
+    throw new Error("Description must be 120 characters or less.");
   }
-  if (!listingStatuses.includes(data.status)) {
-    throw new Error("Listing status is invalid.");
-  }
-  if (data.imageURL && !urlPattern.test(data.imageURL)) {
-    throw new Error("A valid listing image URL is required.");
-  }
-  if (!data.contactInstruction) {
-    throw new Error("Listing contact instruction is required.");
+  if (!data.contactInstruction.trim()) {
+    throw new Error("Contact instruction is required.");
   }
 };
 
-const listingInputFromUpdate = (
-  listing: Listing,
-  data: Partial<Listing>,
-): ListingInput => ({
-  title: data.title ?? listing.title,
-  price: data.price ?? listing.price,
-  description: data.description ?? listing.description,
-  condition: data.condition ?? listing.condition,
-  status: data.status ?? listing.status,
-  imageURL: data.imageURL ?? listing.imageURL,
-  contactInstruction: data.contactInstruction ?? listing.contactInstruction,
-});
+export const subscribeToListings = (
+  callback: (listings: Listing[]) => void,
+  includeArchived = false,
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "marketplace",
+    listingFromRecord,
+    (listings) =>
+      callback(
+        includeArchived ? listings : visibleMarketplaceListings(listings),
+      ),
+    undefined,
+    onError,
+  );
+
+export const getListing = async (id: string): Promise<Listing> => {
+  const snapshot = await firestore().collection("marketplace").doc(id).get();
+  if (!snapshot.exists()) {
+    throw new Error("Listing not found.");
+  }
+  return listingFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
+};
 
 export const createListing = async (data: ListingInput): Promise<void> => {
-  await delay();
-  const normalized = normalizeListingInput(data);
-  validateListingInput(normalized);
-  if (normalized.status !== "archived" && !canAddMarketplaceListing(listings)) {
-    throw new Error("Marketplace listings are limited to 2 active items.");
+  validateListing(data);
+  const database = firestore();
+  const [orgId, profile] = await Promise.all([
+    getCurrentOrgId(),
+    getCurrentUserRecord(),
+  ]);
+  const listingRef = database.collection("marketplace").doc();
+  const activeListings =
+    data.status === "available"
+      ? await database
+          .collection("marketplace")
+          .where("orgId", "==", orgId)
+          .where("status", "==", "available")
+          .get()
+      : null;
+  if (activeListings && activeListings.size >= 2) {
+    throw new Error("Maximum of 2 active listings allowed at a time.");
   }
-  const now = new Date();
-  listings = [
-    ...listings,
-    {
-      ...normalized,
-      id: `listing-${Date.now()}`,
-      postedBy: "admin-1",
-      postedByName: "Chukwuemeka Obi",
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
-  emitListings();
+  await database.runTransaction(async (transaction) => {
+    transaction.set(listingRef, {
+      listingId: listingRef.id,
+      orgId,
+      ...data,
+      title: data.title.trim(),
+      description: data.description.trim(),
+      imageURL: data.imageURL?.trim() || null,
+      contactInstruction: data.contactInstruction.trim(),
+      postedBy: currentUid(),
+      postedByName:
+        typeof profile.fullName === "string" ? profile.fullName.trim() : "",
+      ...contactFromProfile(profile),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  });
 };
 
 export const updateListing = async (
   id: string,
   data: Partial<Listing>,
 ): Promise<void> => {
-  await delay();
-  const currentListing = listings.find((listing) => listing.id === id);
-  if (!currentListing) {
-    throw new Error("Listing not found.");
-  }
-  const normalized = normalizeListingInput(
-    listingInputFromUpdate(currentListing, data),
-  );
-  validateListingInput(normalized);
-  const nextStatus = normalized.status;
-  if (
-    currentListing.status === "archived" &&
-    nextStatus !== "archived" &&
-    !canAddMarketplaceListing(listings.filter((listing) => listing.id !== id))
-  ) {
-    throw new Error("Marketplace listings are limited to 2 active items.");
-  }
-  listings = listings.map((listing) =>
-    listing.id === id
-      ? { ...listing, ...normalized, updatedAt: new Date() }
-      : listing,
-  );
-  emitListings();
+  const database = firestore();
+  const ref = database.collection("marketplace").doc(id);
+  const [orgId, profile] = await Promise.all([
+    getCurrentOrgId(),
+    getCurrentUserRecord(),
+  ]);
+  const activeListings = await database
+    .collection("marketplace")
+    .where("orgId", "==", orgId)
+    .where("status", "==", "available")
+    .get();
+  await database.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists()) {
+      throw new Error("Listing not found.");
+    }
+    const current = snapshot.data() as ListingInput;
+    const next = { ...current, ...data };
+    validateListing(next);
+    if (data.status === "available" && current.status !== "available") {
+      if (activeListings.size >= 2) {
+        throw new Error("Maximum of 2 active listings allowed at a time.");
+      }
+    }
+    transaction.update(ref, {
+      ...data,
+      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+      ...(data.description !== undefined
+        ? { description: data.description.trim() }
+        : {}),
+      ...(data.imageURL !== undefined
+        ? { imageURL: data.imageURL?.trim() || null }
+        : {}),
+      ...(data.contactInstruction !== undefined
+        ? { contactInstruction: data.contactInstruction.trim() }
+        : {}),
+      ...contactFromProfile(profile),
+      updatedAt: serverTimestamp(),
+    });
+  });
 };
 
 export const archiveListing = async (id: string): Promise<void> => {
@@ -165,10 +167,5 @@ export const unarchiveListing = async (id: string): Promise<void> => {
 };
 
 export const deleteListing = async (id: string): Promise<void> => {
-  await delay();
-  if (!listings.some((listing) => listing.id === id)) {
-    throw new Error("Listing not found.");
-  }
-  listings = listings.filter((listing) => listing.id !== id);
-  emitListings();
+  await firestore().collection("marketplace").doc(id).delete();
 };

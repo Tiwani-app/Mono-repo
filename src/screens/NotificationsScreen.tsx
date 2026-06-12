@@ -6,6 +6,7 @@ import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAuthStore } from '../store/authStore';
 import { colors, spacing, typography } from '../theme';
 import {
   NotificationType,
@@ -13,6 +14,7 @@ import {
 } from '../types/notification';
 import { formatRelativeTime } from '../utils/formatDate';
 import { safeGoBack } from '../utils/navigation';
+import { isAdmin } from '../utils/roleGuard';
 import {
   getNotificationSections,
   navigateToNotificationTarget,
@@ -36,6 +38,7 @@ const TYPE_ICONS: Record<NotificationType, string> = {
 
 const NotificationsScreen = ({navigation}: any) => {
   const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
+  const {user} = useAuthStore();
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const sections = useMemo(
@@ -73,14 +76,23 @@ const NotificationsScreen = ({navigation}: any) => {
         showBack
         onBack={() => safeGoBack(navigation, 'DashboardHome')}
         rightElement={
-          <TouchableOpacity
-            style={styles.markButton}
-            onPress={handleMarkAllRead}
-            disabled={markingAllRead || notifications.length === 0}>
-            <Text style={[styles.markText, (markingAllRead || notifications.length === 0) && styles.disabledText]}>
-              {markingAllRead ? 'Saving' : 'Read'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {isAdmin(user) && (
+              <TouchableOpacity
+                style={styles.markButton}
+                onPress={() => navigation.navigate('AnnouncementForm')}>
+                <Text style={styles.markText}>Send</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.markButton}
+              onPress={handleMarkAllRead}
+              disabled={markingAllRead || notifications.length === 0}>
+              <Text style={[styles.markText, (markingAllRead || notifications.length === 0) && styles.disabledText]}>
+                {markingAllRead ? 'Saving' : 'Read'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         }
       />
       <SectionList
@@ -130,6 +142,7 @@ const NotificationsScreen = ({navigation}: any) => {
 const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.secondary},
   content: {padding: spacing.lg, gap: spacing.md},
+  headerActions: {flexDirection: 'row', gap: spacing.md},
   markButton: {minHeight: 48, justifyContent: 'center'},
   markText: {color: colors.gold.default, fontWeight: typography.weight.bold},
   disabledText: {opacity: 0.5},

@@ -1,8 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { addDays, format, isSameDay, startOfWeek } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { colors, spacing, typography } from "../../theme";
 import { TiwaniEvent } from "../../types/event";
+import { getCenteredDateWindow } from "../../utils/eventGuards";
 
 interface Props {
   events: TiwaniEvent[];
@@ -11,20 +12,23 @@ interface Props {
 }
 
 const WeekStrip = ({ events, selectedDay, onDayPress }: Props) => {
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }, (_, index) =>
-    addDays(weekStart, index),
-  );
+  const today = new Date();
+  const days = getCenteredDateWindow(today);
 
   return (
     <View style={styles.container}>
       {days.map((day) => {
         const selected = selectedDay ? isSameDay(day, selectedDay) : false;
+        const isToday = isSameDay(day, today);
         const hasEvent = events.some((event) => isSameDay(event.dateTime, day));
         return (
           <TouchableOpacity
             key={day.toISOString()}
-            style={[styles.day, selected && styles.selectedDay]}
+            style={[
+              styles.day,
+              isToday && !selected && styles.today,
+              selected && styles.selectedDay,
+            ]}
             onPress={() => onDayPress(day)}
             activeOpacity={0.8}
           >
@@ -63,6 +67,9 @@ const styles = StyleSheet.create({
   },
   selectedDay: {
     backgroundColor: colors.gold.default,
+    borderColor: colors.gold.default,
+  },
+  today: {
     borderColor: colors.gold.default,
   },
   letter: { fontSize: typography.size.xs, color: colors.text.secondary },

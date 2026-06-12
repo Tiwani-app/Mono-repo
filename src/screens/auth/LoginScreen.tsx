@@ -13,6 +13,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import GoldButton from "../../components/common/GoldButton";
+import { env } from "../../config/env";
 import { sendPasswordReset, signIn } from "../../services/authService";
 import { colors, spacing, typography } from "../../theme";
 import { emailRules, passwordRules } from "../../utils/validators";
@@ -28,7 +29,10 @@ const LoginScreen = ({ navigation }: any) => {
   const [submitting, setSubmitting] = useState(false);
   const { control, getValues, handleSubmit, formState, trigger } =
     useForm<FormValues>({
-      defaultValues: { email: "admin@tiwani.app", password: "password" },
+      defaultValues: {
+        email: env.devLoginEmail,
+        password: env.devLoginPassword,
+      },
     });
 
   const getAuthErrorMessage = (err: unknown) => {
@@ -47,7 +51,13 @@ const LoginScreen = ({ navigation }: any) => {
       "auth/account-suspended":
         "This account is suspended. Please contact an admin.",
     };
-    return errorMap[code] ?? "Something went wrong. Please try again.";
+    if (errorMap[code]) {
+      return errorMap[code];
+    }
+    if (err instanceof Error && err.message.trim()) {
+      return err.message;
+    }
+    return "Something went wrong. Please try again.";
   };
 
   const onSubmit = async ({ email, password }: FormValues) => {

@@ -1,6 +1,9 @@
 import {useEffect, useRef} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {subscribeToNotifications} from '../services/notificationsService';
+import {
+  markNotificationRead,
+  subscribeToNotifications,
+} from '../services/notificationsService';
 import {useNotificationsStore} from '../store/notificationsStore';
 import {
   getAllNotificationIds,
@@ -38,6 +41,11 @@ export const useNotifications = () => {
           error instanceof Error ? error.message : 'Could not load read state.',
         );
       });
+    const handleError = (error: Error) => {
+      setError(error.message || 'Could not load notifications.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToNotifications(items => {
         setNotifications(items);
@@ -45,7 +53,7 @@ export const useNotifications = () => {
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      });
+      }, handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load notifications.');
@@ -64,10 +72,12 @@ export const useNotifications = () => {
   };
 
   const markRead = async (id: string) => {
+    await markNotificationRead(id);
     await persistReadIds(getNextReadIds(readIds, id));
   };
 
   const markAllRead = async () => {
+    await Promise.all(notifications.map(item => markNotificationRead(item.id)));
     await persistReadIds(getAllNotificationIds(notifications));
   };
 

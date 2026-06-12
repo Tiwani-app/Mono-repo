@@ -1,86 +1,82 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import Badge from '../../components/common/Badge';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
-import FinancialGate from '../../components/voting/FinancialGate';
-import PollOption from '../../components/voting/PollOption';
-import {castPollVote, getPoll, getPollVoterState} from '../../services/votingService';
-import {useAuthStore} from '../../store/authStore';
-import {useVotingStore} from '../../store/votingStore';
-import {colors, spacing, typography} from '../../theme';
-import {Poll} from '../../types/voting';
-import {safeGoBack} from '../../utils/navigation';
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
+import PollOption from "../../components/voting/PollOption";
+import FinancialGate from "../../components/voting/FinancialGate";
+import {
+  castPollVote,
+  getPoll,
+  getPollVoterState,
+} from "../../services/votingService";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { Poll, PollVoterState } from "../../types/voting";
+import { safeGoBack } from "../../utils/navigation";
 
-const PollVoteScreen = ({navigation, route}: any) => {
+const PollVoteScreen = ({ navigation, route }: any) => {
   const pollId = route.params?.pollId as string | undefined;
-  const [gated, setGated] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const [poll, setPoll] = useState<Poll | null>(null);
+  const [voterState, setVoterState] = useState<PollVoterState | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [localPoll, setLocalPoll] = useState<Poll | null>(null);
-  const [resultsVisible, setResultsVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const {user} = useAuthStore();
-  const {hasVotedPoll, polls, selectedPollOption, setHasVotedPoll, setSelectedPollOption} =
-    useVotingStore();
-  const storePoll = useMemo(() => polls.find(item => item.id === pollId), [polls, pollId]);
-  const poll = storePoll ?? localPoll;
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-    const init = async () => {
-      setLoading(true);
-      setLoadError(null);
-      setGated(false);
-      setResultsVisible(false);
-      setSelectedPollOption(null);
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      if (!pollId) {
-        setLoadError('This poll could not be found.');
-        setLoading(false);
-        return;
-      }
-      if (user.financialStatus === 'red') {
-        setGated(true);
-        setLoading(false);
-        return;
-      }
-      try {
-        const [nextPoll, voterState] = await Promise.all([
-          storePoll ? Promise.resolve(storePoll) : getPoll(pollId),
-          getPollVoterState(pollId, user.uid),
-        ]);
-        if (!active) {
-          return;
-        }
-        setLocalPoll(nextPoll);
-        setHasVotedPoll(voterState.hasVoted);
-        setResultsVisible(voterState.resultsVisible);
-      } catch (error) {
-        if (active) {
-          setLoadError(
-            error instanceof Error ? error.message : 'Could not load this poll.',
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-    init();
-    return () => {
-      active = false;
-    };
-  }, [pollId, setHasVotedPoll, setSelectedPollOption, storePoll, user]);
+    if (!pollId || !user?.uid) {
+      setError("Poll not found.");
+      setLoading(false);
+      return;
+    }
+    Promise.all([getPoll(pollId), getPollVoterState(pollId, user.uid)])
+      .then(([nextPoll, nextVoterState]) => {
+        setPoll(nextPoll);
+        setVoterState(nextVoterState);
+      })
+      .catch((loadError) =>
+        setError(
+          loadError instanceof Error ? loadError.message : "Could not load this poll.",
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, [pollId, user?.uid]);
 
-  if (gated) {
+  const selectedOption = useMemo(
+    () => poll?.options.find((option) => option.id === selectedOptionId),
+    [poll?.options, selectedOptionId],
+  );
+
+  const handleVote = async () => {
+    if (!pollId || !user?.uid || !selectedOption) {
+      Alert.alert("Option required", "Choose an option before submitting.");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await castPollVote(pollId, selectedOption.id, user.uid);
+      const [nextPoll, nextVoterState] = await Promise.all([
+        getPoll(pollId),
+        getPollVoterState(pollId, user.uid),
+      ]);
+      setPoll(nextPoll);
+      setVoterState(nextVoterState);
+      Alert.alert("Vote recorded", "Your poll vote has been saved.");
+    } catch (voteError) {
+      Alert.alert(
+        "Vote not recorded",
+        voteError instanceof Error ? voteError.message : "Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (user?.financialStatus === "red") {
     return <FinancialGate showBack />;
   }
 
@@ -88,85 +84,71 @@ const PollVoteScreen = ({navigation, route}: any) => {
     return <LoadingSpinner />;
   }
 
-  if (loadError || !poll) {
+  if (error || !poll || !voterState) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Poll" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+        <ScreenHeader
+          title="Poll"
+          showBack
+          onBack={() => safeGoBack(navigation, "VotingHub")}
+        />
         <EmptyState
           icon="!"
           title="Poll unavailable"
-          message={loadError ?? 'This poll could not be found.'}
+          message={error ?? "Could not load this poll."}
           actionLabel="Back to Voting"
-          onAction={() => safeGoBack(navigation, 'VotingHub')}
+          onAction={() => safeGoBack(navigation, "VotingHub")}
         />
       </SafeAreaView>
     );
   }
 
-  const handleSubmit = async () => {
-    if (!selectedPollOption || !user) {
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await castPollVote(poll.id, selectedPollOption, user.uid);
-      const updatedPoll = await getPoll(poll.id);
-      const voterState = await getPollVoterState(poll.id, user.uid);
-      setHasVotedPoll(true);
-      setResultsVisible(voterState.resultsVisible);
-      setLocalPoll(updatedPoll);
-    } catch (error) {
-      Alert.alert(
-        'Vote failed',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const closed = poll.status === "closed";
+  const voted = voterState.hasVoted;
+  const canVote = poll.status === "open" && !voted;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Cast Your Vote" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+      <ScreenHeader
+        title="Poll"
+        showBack
+        onBack={() => safeGoBack(navigation, "VotingHub")}
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.contextCard}>
-          <Badge label={`${poll.totalVotes} VOTES`} color={colors.gold.default} />
+        <View style={styles.headerCard}>
+          <Text style={styles.title}>{poll.title}</Text>
           <Text style={styles.question}>{poll.question}</Text>
+          <Text style={styles.meta}>
+            {closed ? "Closed" : voted ? "Vote recorded" : "Open for voting"}
+          </Text>
         </View>
-        <Text style={styles.sectionLabel}>
-          {hasVotedPoll
-            ? resultsVisible
-              ? 'RESULTS'
-              : 'VOTE RECORDED'
-            : 'CHOOSE ONE OPTION'}
-        </Text>
-        {poll.options.map(option => (
+        {poll.options.map((option) => (
           <PollOption
             key={option.id}
             option={option}
             totalVotes={poll.totalVotes}
-            selected={selectedPollOption === option.id}
-            showResult={resultsVisible}
-            disabled={hasVotedPoll}
-            onSelect={() => setSelectedPollOption(option.id)}
+            selected={selectedOptionId === option.id}
+            showResult={voterState.resultsVisible}
+            disabled={!canVote || submitting}
+            onSelect={() => setSelectedOptionId(option.id)}
           />
         ))}
-        {hasVotedPoll ? (
-          <View style={styles.confirmation}>
-            <Text style={styles.confirmationText}>Vote Recorded</Text>
-            {!resultsVisible && (
-              <Text style={styles.confirmationMeta}>
-                Results will be available when this poll closes.
-              </Text>
-            )}
-          </View>
-        ) : (
+        {canVote ? (
           <GoldButton
             label="Submit Vote"
-            onPress={handleSubmit}
-            disabled={!selectedPollOption}
+            onPress={handleVote}
             loading={submitting}
             fullWidth
+          />
+        ) : (
+          <EmptyState
+            icon="✓"
+            title={voted ? "Already voted" : "Voting closed"}
+            message={
+              voted
+                ? "Your vote has already been recorded."
+                : "This poll is not accepting votes."
+            }
           />
         )}
       </ScrollView>
@@ -175,18 +157,30 @@ const PollVoteScreen = ({navigation, route}: any) => {
 };
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.bg.secondary},
-  content: {padding: spacing.lg, gap: spacing.md},
-  contextCard: {gap: spacing.md, padding: spacing.lg, borderRadius: 8, backgroundColor: colors.bg.card},
-  question: {fontSize: typography.size.lg, color: colors.text.primary, fontWeight: typography.weight.bold},
-  sectionLabel: {fontSize: typography.size.xs, color: colors.text.secondary, fontWeight: typography.weight.bold},
-  confirmation: {padding: spacing.lg, borderRadius: 8, backgroundColor: `${colors.status.success}18`},
-  confirmationText: {color: colors.status.success, fontWeight: typography.weight.bold, textAlign: 'center'},
-  confirmationMeta: {
-    marginTop: spacing.sm,
+  safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  content: { padding: spacing.lg, gap: spacing.md },
+  headerCard: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  title: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  question: {
+    fontSize: typography.size.base,
+    lineHeight: 22,
     color: colors.text.secondary,
+  },
+  meta: {
     fontSize: typography.size.sm,
-    textAlign: 'center',
+    color: colors.gold.light,
+    fontWeight: typography.weight.semibold,
   },
 });
 

@@ -1,52 +1,55 @@
-import {DuesPeriod, LedgerEntry, LedgerType} from '../../types/finance';
 import {
-  DocumentSnapshotLike,
+  DuesPeriod,
+  LedgerEntry,
+  LedgerPaidStatus,
+  LedgerType,
+} from "../../types/finance";
+import {
   RawRecord,
-  asBoolean,
-  asDate,
   asNullableDate,
   asNullableString,
-  asNumber,
-  asString,
-  enumValue,
-  snapshotToRecord,
-} from './shared';
+  requiredDate,
+  requiredEnum,
+  requiredNumber,
+  requiredString,
+} from "./shared";
 
-const ledgerTypes: LedgerType[] = ['dues', 'levy', 'fine', 'pledge', 'payment'];
-const duesStatuses: DuesPeriod['status'][] = ['active', 'settled', 'overdue'];
+const ledgerTypes: LedgerType[] = ["dues", "levy", "fine", "pledge", "payment"];
+const ledgerPaidStatuses: LedgerPaidStatus[] = ["unpaid", "partial", "paid"];
+const duesStatuses: DuesPeriod["status"][] = ["active", "settled", "overdue"];
 
 export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
   const paymentMethod = asNullableString(record.paymentMethod);
   const reference = asNullableString(record.reference);
+  const paidStatus = requiredEnum(
+    record.paidStatus,
+    ledgerPaidStatuses,
+    "paidStatus",
+  );
   return {
-    id: asString(record.id),
-    uid: asString(record.uid),
-    type: enumValue(record.type, ledgerTypes, 'dues'),
-    label: asString(record.label),
-    amount: asNumber(record.amount),
-    dueDate: asNullableDate(record.dueDate),
-    paid: asBoolean(record.paid),
-    paidAt: asNullableDate(record.paidAt),
-    ...(paymentMethod ? {paymentMethod} : {}),
-    ...(reference ? {reference} : {}),
-    note: asString(record.note),
+    id: requiredString(record, "id"),
+    uid: requiredString({ uid: record.memberId }, "uid"),
+    type: requiredEnum(record.type, ledgerTypes, "type"),
+    label: requiredString(record, "label"),
+    amount: requiredNumber(record, "amount"),
+    amountPaid: requiredNumber(record, "amountPaid"),
+    dueDate: asNullableDate(record.dueDate, "dueDate"),
+    paid: paidStatus === "paid",
+    paidStatus,
+    paidAt: asNullableDate(record.paidAt, "paidAt"),
+    ...(paymentMethod ? { paymentMethod } : {}),
+    ...(reference ? { reference } : {}),
+    note: typeof record.note === "string" ? record.note : "",
     duesPeriodId: asNullableString(record.duesPeriodId) ?? undefined,
   };
 };
 
-export const ledgerEntryFromSnapshot = (snapshot: DocumentSnapshotLike): LedgerEntry =>
-  ledgerEntryFromRecord(snapshotToRecord(snapshot));
-
 export const duesPeriodFromRecord = (record: RawRecord): DuesPeriod => ({
-  id: asString(record.id),
-  name: asString(record.name),
-  amount: asNumber(record.amount),
-  dueDate: asDate(record.dueDate),
-  status: enumValue(record.status, duesStatuses, 'active'),
-  totalMembers: asNumber(record.totalMembers),
-  paidCount: asNumber(record.paidCount),
+  id: requiredString(record, "id"),
+  name: requiredString({ name: record.label }, "name"),
+  amount: requiredNumber(record, "amount"),
+  dueDate: requiredDate(record, "dueDate"),
+  status: requiredEnum(record.status, duesStatuses, "status"),
+  totalMembers: requiredNumber(record, "totalMembers"),
+  paidCount: requiredNumber(record, "paidCount"),
 });
-
-export const duesPeriodFromSnapshot = (snapshot: DocumentSnapshotLike): DuesPeriod =>
-  duesPeriodFromRecord(snapshotToRecord(snapshot));
-

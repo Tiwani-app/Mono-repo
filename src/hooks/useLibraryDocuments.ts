@@ -37,6 +37,11 @@ export const useLibraryDocuments = ({
     setLoading(true);
     setError(null);
     setSyncState("syncing");
+    const handleError = (error: Error) => {
+      setError(error.message || "Could not load library documents.");
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToLibraryDocuments((nextDocuments) => {
         setDocuments(nextDocuments);
@@ -44,7 +49,7 @@ export const useLibraryDocuments = ({
         setError(null);
         setSyncState("fresh");
         setLoading(false);
-      }, includeAdmin);
+      }, includeAdmin, handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(

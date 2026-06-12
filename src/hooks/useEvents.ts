@@ -13,6 +13,11 @@ export const useEvents = () => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
+    const handleError = (error: Error) => {
+      setError(error.message || 'Could not load events.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToEvents(nextEvents => {
         setEvents(nextEvents);
@@ -20,7 +25,7 @@ export const useEvents = () => {
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      });
+      }, handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load events.');

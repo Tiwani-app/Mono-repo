@@ -4,83 +4,91 @@ import {
   Poll,
   PollOption,
   Race,
-} from '../../types/voting';
+} from "../../types/voting";
 import {
-  DocumentSnapshotLike,
   RawRecord,
   asNullableString,
   asNumber,
-  asString,
-  enumValue,
-  snapshotToRecord,
-} from './shared';
+  requiredEnum,
+  requiredRecordArray,
+  requiredString,
+} from "./shared";
 
-const pollStatuses: Poll['status'][] = ['draft', 'open', 'closed'];
-const pollResultVisibility: Poll['resultVisibility'][] = ['after_vote', 'after_close'];
-const ballotTypes: Election['ballotType'][] = ['open', 'secret'];
-const electionStatuses: Election['status'][] = ['draft', 'open', 'closed'];
-const electionResultVisibility: Election['resultVisibility'][] = ['after_close', 'admin_only'];
+const pollStatuses: Poll["status"][] = ["draft", "open", "closed"];
+const pollResultVisibility: Poll["resultVisibility"][] = [
+  "after_vote",
+  "after_close",
+];
+const ballotTypes: Election["ballotType"][] = ["open", "secret"];
+const electionStatuses: Election["status"][] = ["draft", "open", "closed"];
+const electionResultVisibility: Election["resultVisibility"][] = [
+  "after_close",
+  "admin_only",
+];
 
 const optionFromRecord = (record: RawRecord, index: number): PollOption => ({
-  id: asString(record.id, `option-${index + 1}`),
-  label: asString(record.label),
+  id:
+    typeof record.optionId === "string" && record.optionId.trim()
+      ? record.optionId
+      : `option-${index + 1}`,
+  label: requiredString(record, "label"),
   imageURL: asNullableString(record.imageURL),
   voteCount: asNumber(record.voteCount),
 });
 
 const candidateFromRecord = (record: RawRecord): Candidate => ({
   uid: asNullableString(record.uid),
-  name: asString(record.name),
-  manifestoLine: asString(record.manifestoLine),
+  name: requiredString(record, "name"),
+  manifestoLine:
+    typeof record.manifesto === "string"
+      ? record.manifesto
+      : typeof record.manifestoLine === "string"
+        ? record.manifestoLine
+        : "",
   photoURL: asNullableString(record.photoURL),
 });
 
 const raceFromRecord = (record: RawRecord, index: number): Race => ({
-  raceId: asString(record.raceId, `race-${index + 1}`),
-  office: asString(record.office),
-  candidates: Array.isArray(record.candidates)
-    ? record.candidates.map(item =>
-        candidateFromRecord(item && typeof item === 'object' ? (item as RawRecord) : {}),
-      )
-    : [],
+  raceId:
+    typeof record.raceId === "string" && record.raceId.trim()
+      ? record.raceId
+      : `race-${index + 1}`,
+  office: requiredString({ office: record.title }, "office"),
+  candidates: requiredRecordArray(record, "candidates").map(
+    candidateFromRecord,
+  ),
 });
 
 export const pollFromRecord = (record: RawRecord): Poll => {
-  const options = Array.isArray(record.options)
-    ? record.options.map((item, index) =>
-        optionFromRecord(item && typeof item === 'object' ? (item as RawRecord) : {}, index),
-      )
-    : [];
+  const options = requiredRecordArray(record, "options").map((item, index) =>
+    optionFromRecord(item, index),
+  );
   return {
-    id: asString(record.id),
-    title: asString(record.title),
-    question: asString(record.question),
+    id: requiredString(record, "id"),
+    title: requiredString(record, "title"),
+    question: requiredString(record, "question"),
     options,
-    status: enumValue(record.status, pollStatuses, 'draft'),
-    totalVotes: asNumber(
-      record.totalVotes,
-      options.reduce((sum, option) => sum + option.voteCount, 0),
+    status: requiredEnum(record.status, pollStatuses, "status"),
+    totalVotes: asNumber(record.totalVotes),
+    resultVisibility: requiredEnum(
+      record.resultVisibility,
+      pollResultVisibility,
+      "resultVisibility",
     ),
-    resultVisibility: enumValue(record.resultVisibility, pollResultVisibility, 'after_vote'),
   };
 };
 
-export const pollFromSnapshot = (snapshot: DocumentSnapshotLike): Poll =>
-  pollFromRecord(snapshotToRecord(snapshot));
-
 export const electionFromRecord = (record: RawRecord): Election => ({
-  id: asString(record.id),
-  title: asString(record.title),
-  ballotType: enumValue(record.ballotType, ballotTypes, 'secret'),
-  races: Array.isArray(record.races)
-    ? record.races.map((item, index) =>
-        raceFromRecord(item && typeof item === 'object' ? (item as RawRecord) : {}, index),
-      )
-    : [],
-  status: enumValue(record.status, electionStatuses, 'draft'),
-  resultVisibility: enumValue(record.resultVisibility, electionResultVisibility, 'after_close'),
+  id: requiredString(record, "id"),
+  title: requiredString(record, "title"),
+  ballotType: requiredEnum(record.ballotType, ballotTypes, "ballotType"),
+  races: requiredRecordArray(record, "races").map((item, index) =>
+    raceFromRecord(item, index),
+  ),
+  status: requiredEnum(record.status, electionStatuses, "status"),
+  resultVisibility: requiredEnum(
+    record.resultVisibility,
+    electionResultVisibility,
+    "resultVisibility",
+  ),
 });
-
-export const electionFromSnapshot = (snapshot: DocumentSnapshotLike): Election =>
-  electionFromRecord(snapshotToRecord(snapshot));
-

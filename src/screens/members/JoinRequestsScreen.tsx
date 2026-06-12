@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
@@ -14,6 +14,7 @@ import { JoinRequest } from "../../types/user";
 import { formatRelativeTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
+import type { SetupDeliveryResult } from "../../services/cloudFunctionsService";
 
 const statusColor = (status: JoinRequest["status"]) => {
   if (status === "approved") {
@@ -25,10 +26,27 @@ const statusColor = (status: JoinRequest["status"]) => {
   return colors.gold.default;
 };
 
+const setupDeliveryMessage = (delivery: SetupDeliveryResult | null) => {
+  if (!delivery) {
+    return null;
+  }
+  if (delivery.setupEmailSent) {
+    return "The member account was created and the setup email was sent.";
+  }
+  return [
+    "The member account was created, but the setup email was not sent.",
+    delivery.setupEmailError ? `Reason: ${delivery.setupEmailError}` : null,
+    delivery.setupLink ? `Setup link: ${delivery.setupLink}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+};
+
 const JoinRequestsScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { requests } = useJoinRequests({ enabled: admin });
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const handleReview = (
     request: JoinRequest,
@@ -40,8 +58,27 @@ const JoinRequestsScreen = ({ navigation }: any) => {
       {
         text: verb,
         style: status === "declined" ? "destructive" : "default",
-        onPress: () =>
-          reviewJoinRequest(request.id, status, user?.uid ?? "admin"),
+        onPress: async () => {
+          try {
+            setReviewingId(request.id);
+            const delivery = await reviewJoinRequest(
+              request.id,
+              status,
+              user?.uid ?? "admin",
+            );
+            const message = setupDeliveryMessage(delivery);
+            if (message) {
+              Alert.alert("Request approved", message);
+            }
+          } catch (error) {
+            Alert.alert(
+              "Request not updated",
+              error instanceof Error ? error.message : "Please try again.",
+            );
+          } finally {
+            setReviewingId(null);
+          }
+        },
       },
     ]);
   };
@@ -97,11 +134,13 @@ const JoinRequestsScreen = ({ navigation }: any) => {
                 <GoldButton
                   label="Approve"
                   onPress={() => handleReview(item, "approved")}
+                  loading={reviewingId === item.id}
                 />
                 <OutlineButton
                   label="Decline"
                   color={colors.status.error}
                   onPress={() => handleReview(item, "declined")}
+                  disabled={reviewingId === item.id}
                 />
               </View>
             )}

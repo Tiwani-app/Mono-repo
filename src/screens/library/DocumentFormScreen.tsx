@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
+import * as DocumentPicker from "expo-document-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
@@ -22,6 +23,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import {
   createLibraryDocument,
   getLibraryDocument,
+  LibraryUploadFile,
   updateLibraryDocument,
 } from "../../services/libraryService";
 import { colors, spacing, typography } from "../../theme";
@@ -98,9 +100,10 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     useState<LibraryDocumentVisibility>("all_members");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(documentId));
+  const [selectedFile, setSelectedFile] = useState<LibraryUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const canManage = canManageLibraryDocuments(user);
-  const { control, handleSubmit, reset, watch, formState } =
+  const { control, handleSubmit, reset, setValue, watch, formState } =
     useForm<FormValues>({
       defaultValues: {
         title: "",
@@ -151,6 +154,34 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     setType(typeOptionsByCategory[nextCategory][0]);
   };
 
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+        type: "application/pdf",
+      });
+      if (result.canceled) {
+        return;
+      }
+      const asset = result.assets[0];
+      const uploadFile: LibraryUploadFile = {
+        uri: asset.uri,
+        name: asset.name || "library-document.pdf",
+        size: typeof asset.size === "number" ? asset.size : null,
+        mimeType: asset.mimeType ?? null,
+      };
+      setSelectedFile(uploadFile);
+      setValue("fileName", uploadFile.name, { shouldDirty: true });
+      setValue("fileURL", "", { shouldDirty: true });
+    } catch (error) {
+      Alert.alert(
+        "Document not selected",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
@@ -158,8 +189,8 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     const title = values.title.trim();
     const description = values.description.trim();
     const documentDate = parseDocumentDate(values.documentDate);
-    const fileName = values.fileName.trim();
-    const fileURL = values.fileURL.trim() || null;
+    const fileName = selectedFile?.name.trim() || values.fileName.trim();
+    const fileURL = selectedFile ? null : values.fileURL.trim() || null;
     const fileType = inferFileType(fileName);
     if (documentDate === undefined) {
       Alert.alert("Document date invalid", "Choose a valid document date.");
@@ -183,6 +214,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           fileName,
           fileURL,
           fileType,
+          uploadFile: selectedFile,
           category,
           type,
           status,
@@ -200,7 +232,9 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
           documentDate,
           fileURL,
           fileType,
-          fileSize: null,
+          fileSize: selectedFile?.size ?? null,
+          storagePath: null,
+          uploadFile: selectedFile,
         });
       }
       safeGoBack(navigation, "Library");
@@ -282,18 +316,20 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
               <AttachmentField
                 label="DOCUMENT FILE"
                 mode="document"
-                fileName={watch("fileName")}
+                fileName={selectedFile?.name ?? watch("fileName")}
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(nextValue) => {
+                  setSelectedFile(null);
+                  onChange(nextValue);
+                }}
                 error={formState.errors.fileURL?.message}
                 placeholder="https://example.com/document.pdf"
-                helperText="Attach the Library file or paste the storage URL."
-                onPick={() =>
-                  Alert.alert(
-                    "File picker",
-                    "Document selection will use the storage-backed picker when backend storage is connected.",
-                  )
+                helperText={
+                  selectedFile
+                    ? "PDF selected. It will upload to Firebase Storage when you save."
+                    : "Pick a PDF file or paste an existing document URL."
                 }
+                onPick={handlePickDocument}
               />
             )}
           />

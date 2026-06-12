@@ -18,6 +18,12 @@ import { useJoinRequests } from "../hooks/useJoinRequests";
 import { useMembers } from "../hooks/useMembers";
 import { useNotifications } from "../hooks/useNotifications";
 import { colors, spacing, typography } from "../theme";
+import {
+  getFinanceStanding,
+  getFinanceStandingColor,
+} from "../utils/financeStanding";
+import { getFinanceTotals } from "../utils/financeTotals";
+import { visibleUpcomingEvents } from "../utils/eventGuards";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
 import {
@@ -107,13 +113,18 @@ const DashboardScreen = ({ navigation }: any) => {
   const firstName = user?.fullName.split(" ")[0] ?? "there";
   const quickActions = getDashboardQuickActions(admin, navigation);
   const pendingRequests = getPendingJoinRequests(requests);
+  const upcomingEvents = visibleUpcomingEvents(events);
   const activeMembers = members.filter((member) => member.status === "active");
   const overdueMembers = members.filter(
-    (member) => member.outstandingBalance > 0,
+    (member) =>
+      getFinanceStanding(member.financialStatus, member.outstandingBalance) ===
+      "overdue",
   );
-  const totalCollected = ledgerEntries
-    .filter((entry) => entry.type !== "payment" && entry.paid)
-    .reduce((sum, entry) => sum + entry.amount, 0);
+  const userFinanceStanding = getFinanceStanding(
+    user?.financialStatus,
+    user?.outstandingBalance ?? 0,
+  );
+  const { totalPaid: totalCollected } = getFinanceTotals(ledgerEntries);
   const currentDuesPeriod =
     duesPeriods.find((period) => period.status === "active") ?? duesPeriods[0];
   const loading =
@@ -163,7 +174,7 @@ const DashboardScreen = ({ navigation }: any) => {
                 onPress={() => navigation.navigate("MembersList")}
               />
               <StatTile
-                value={String(events.length)}
+                value={String(upcomingEvents.length)}
                 label="Events"
                 subLabel="upcoming"
                 accentColor={colors.status.info}
@@ -184,22 +195,28 @@ const DashboardScreen = ({ navigation }: any) => {
           ) : (
             <>
               <StatTile
-                value={String(events.length)}
+                value={String(upcomingEvents.length)}
                 label="Events"
                 subLabel="upcoming"
                 accentColor={colors.status.info}
               />
               <StatTile
-                value={user?.financialStatus === "green" ? "Green" : "Red"}
+                value={
+                  userFinanceStanding === "clear"
+                    ? "Clear"
+                    : userFinanceStanding === "overdue"
+                      ? "Overdue"
+                      : "Balance"
+                }
                 label="My Status"
                 subLabel={
-                  user?.financialStatus === "green" ? "clear" : "dues due"
+                  userFinanceStanding === "clear"
+                    ? "good standing"
+                    : userFinanceStanding === "overdue"
+                      ? "dues overdue"
+                      : "dues due"
                 }
-                accentColor={
-                  user?.financialStatus === "green"
-                    ? colors.status.success
-                    : colors.status.error
-                }
+                accentColor={getFinanceStandingColor(userFinanceStanding)}
               />
             </>
           )}
@@ -244,14 +261,14 @@ const DashboardScreen = ({ navigation }: any) => {
             title="Events unavailable"
             message={eventsError}
           />
-        ) : events.length === 0 ? (
+        ) : upcomingEvents.length === 0 ? (
           <EmptyState
             icon="!"
             title="No upcoming events"
             message="New events will appear here."
           />
         ) : (
-          events.slice(0, 2).map((event) => (
+          upcomingEvents.slice(0, 2).map((event) => (
             <EventCard
               key={event.id}
               event={event}

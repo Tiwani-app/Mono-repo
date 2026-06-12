@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -17,12 +17,16 @@ import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { recordPayment } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import { LedgerEntry } from "../../types/finance";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
+import { getChargeOutstanding } from "../../utils/financeTotals";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -39,8 +43,15 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   const admin = isAdmin(user);
   const { members, error, loading } = useMembers({ enabled: admin });
   const [selectedUid, setSelectedUid] = useState(routeMemberId ?? "");
+  const [selectedChargeId, setSelectedChargeId] = useState("");
+  const [chargeMenuOpen, setChargeMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { control, handleSubmit, formState } = useForm<FormValues>({
+  const {
+    control,
+    handleSubmit,
+    formState,
+    setValue,
+  } = useForm<FormValues>({
     defaultValues: {
       amount: "",
       paymentMethod: "Bank transfer",
@@ -48,11 +59,53 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       note: "",
     },
   });
+  const {
+    error: chargesError,
+    ledgerEntries,
+    loading: chargesLoading,
+  } = useFinance(admin && selectedUid ? selectedUid : undefined);
 
   const selectedMember = useMemo(
     () => members.find((member) => member.uid === selectedUid),
     [members, selectedUid],
   );
+  const openCharges = useMemo(
+    () =>
+      ledgerEntries
+        .filter(
+          (entry) =>
+            entry.uid === selectedUid &&
+            entry.type !== "payment" &&
+            getChargeOutstanding(entry) > 0,
+        )
+        .sort((left, right) => {
+          const leftMillis = left.dueDate?.getTime() ?? 0;
+          const rightMillis = right.dueDate?.getTime() ?? 0;
+          return leftMillis - rightMillis;
+        }),
+    [ledgerEntries, selectedUid],
+  );
+  const selectedCharge = openCharges.find(
+    (charge) => charge.id === selectedChargeId,
+  );
+
+  useEffect(() => {
+    setSelectedChargeId("");
+    setChargeMenuOpen(false);
+  }, [selectedUid]);
+
+  useEffect(() => {
+    if (!selectedUid || selectedChargeId) {
+      return;
+    }
+    if (openCharges.length === 1) {
+      const [charge] = openCharges;
+      setSelectedChargeId(charge.id);
+      setValue("amount", String(getChargeOutstanding(charge)), {
+        shouldValidate: true,
+      });
+    }
+  }, [openCharges, selectedChargeId, selectedUid, setValue]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
@@ -70,11 +123,26 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       Alert.alert("Amount required", "Enter an amount greater than zero.");
       return;
     }
+    if (!selectedCharge) {
+      Alert.alert(
+        "Charge required",
+        "Choose which open charge this payment should settle.",
+      );
+      return;
+    }
+    if (amount > getChargeOutstanding(selectedCharge)) {
+      Alert.alert(
+        "Amount too high",
+        "Payment cannot exceed the selected charge balance.",
+      );
+      return;
+    }
 
     try {
       setSubmitting(true);
       await recordPayment({
         uid: selectedUid,
+        chargeEntryId: selectedCharge.id,
         amount,
         paymentMethod: values.paymentMethod.trim(),
         reference: values.reference.trim(),
@@ -200,6 +268,23 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
               },
             }}
           />
+          <Text style={styles.sectionLabel}>REFERENCE / CHARGE</Text>
+          <ChargeDropdown
+            error={chargesError}
+            loading={chargesLoading}
+            onChange={(charge) => {
+              setSelectedChargeId(charge.id);
+              setChargeMenuOpen(false);
+              setValue("amount", String(getChargeOutstanding(charge)), {
+                shouldValidate: true,
+              });
+            }}
+            open={chargeMenuOpen}
+            openCharges={openCharges}
+            selectedCharge={selectedCharge}
+            selectedUid={selectedUid}
+            setOpen={setChargeMenuOpen}
+          />
           <Field
             control={control}
             error={formState.errors.paymentMethod?.message}
@@ -210,7 +295,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
           <Field
             control={control}
             error={formState.errors.reference?.message}
-            label="REFERENCE"
+            label="BANK / RECEIPT REFERENCE"
             name="reference"
           />
           <Field
@@ -266,6 +351,128 @@ const Field = ({
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
 );
+
+const ChargeDropdown = ({
+  error,
+  loading,
+  onChange,
+  open,
+  openCharges,
+  selectedCharge,
+  selectedUid,
+  setOpen,
+}: {
+  error: string | null;
+  loading: boolean;
+  openCharges: LedgerEntry[];
+  selectedCharge: LedgerEntry | undefined;
+  selectedUid: string;
+  open: boolean;
+  onChange: (charge: LedgerEntry) => void;
+  setOpen: (open: boolean) => void;
+}) => {
+  if (!selectedUid) {
+    return (
+      <View style={styles.noticeCard}>
+        <Text style={styles.noticeText}>Select a member to load open charges.</Text>
+      </View>
+    );
+  }
+  if (loading) {
+    return (
+      <View style={styles.noticeCard}>
+        <Text style={styles.noticeText}>Loading open charges...</Text>
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={styles.noticeCard}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+  if (openCharges.length === 0) {
+    return (
+      <View style={styles.noticeCard}>
+        <Text style={styles.noticeText}>This member has no open charges.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.chargeDropdown}>
+      <TouchableOpacity
+        style={[styles.chargeButton, open && styles.chargeButtonOpen]}
+        onPress={() => setOpen(!open)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.chargeButtonCopy}>
+          <Text
+            style={[
+              styles.chargeButtonTitle,
+              !selectedCharge && styles.placeholderText,
+            ]}
+          >
+            {selectedCharge?.label ?? "Select the charge being paid"}
+          </Text>
+          <Text style={styles.chargeButtonMeta}>
+            {selectedCharge
+              ? chargeMeta(selectedCharge)
+              : `${openCharges.length} open charge${
+                  openCharges.length === 1 ? "" : "s"
+                } available`}
+          </Text>
+        </View>
+        <Text style={styles.dropdownChevron}>{open ? "^" : "v"}</Text>
+      </TouchableOpacity>
+      {open && (
+        <View style={styles.chargePanel}>
+          {openCharges.map((charge) => {
+            const selected = selectedCharge?.id === charge.id;
+            return (
+              <TouchableOpacity
+                key={charge.id}
+                style={[
+                  styles.chargeOption,
+                  selected && styles.chargeOptionSelected,
+                ]}
+                onPress={() => onChange(charge)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.chargeOptionCopy}>
+                  <Text
+                    style={[
+                      styles.chargeOptionTitle,
+                      selected && styles.chargeOptionTitleSelected,
+                    ]}
+                  >
+                    {charge.label}
+                  </Text>
+                  <Text style={styles.chargeOptionMeta}>
+                    {chargeMeta(charge)}
+                  </Text>
+                </View>
+                <Text style={styles.chargeAmount}>
+                  {formatCurrency(getChargeOutstanding(charge))}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const chargeMeta = (charge: LedgerEntry) => {
+  const dueText = charge.dueDate
+    ? `Due ${formatDisplayDate(charge.dueDate)}`
+    : "No due date";
+  const overdue =
+    charge.dueDate !== null && charge.dueDate.getTime() < Date.now();
+  return `${dueText} · ${overdue ? "overdue" : "not overdue"}`;
+};
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
@@ -344,6 +551,76 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
+  noticeCard: {
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  noticeText: { fontSize: typography.size.sm, color: colors.text.secondary },
+  chargeDropdown: { gap: spacing.xs },
+  chargeButton: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  chargeButtonOpen: { borderColor: colors.gold.default },
+  chargeButtonCopy: { flex: 1, gap: spacing.xs },
+  chargeButtonTitle: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  placeholderText: { color: colors.text.secondary },
+  chargeButtonMeta: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+  },
+  dropdownChevron: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.default,
+  },
+  chargePanel: {
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  chargeOption: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 8,
+  },
+  chargeOptionSelected: { backgroundColor: `${colors.gold.default}14` },
+  chargeOptionCopy: { flex: 1, gap: spacing.xs },
+  chargeOptionTitle: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  chargeOptionTitleSelected: { color: colors.gold.light },
+  chargeOptionMeta: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+  },
+  chargeAmount: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.black,
+    color: colors.gold.light,
+  },
 });
 
 export default RecordPaymentScreen;

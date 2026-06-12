@@ -151,6 +151,16 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       );
       return;
     }
+    const children = values.children
+      .map((child) => ({
+        name: child.name.trim(),
+        dateOfBirth: child.dateOfBirth.trim(),
+      }))
+      .filter((child) => child.name || child.dateOfBirth);
+    if (children.some((child) => !child.name)) {
+      Alert.alert("Child name required", "Enter a name for each child.");
+      return;
+    }
     try {
       setSubmitting(true);
       const payload = {
@@ -166,17 +176,29 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         spouseName: values.spouseName.trim() || null,
         spouseDateOfBirth: values.spouseDateOfBirth.trim() || null,
         weddingAnniversary: values.weddingAnniversary.trim() || null,
-        children: values.children
-          .map((child) => ({
-            name: child.name.trim(),
-            dateOfBirth: child.dateOfBirth.trim(),
-          }))
-          .filter((child) => child.name || child.dateOfBirth),
+        children,
       };
       if (memberId) {
         await updateMember(memberId, payload);
       } else {
-        await createMember(payload);
+        const createdMember = await createMember(payload);
+        if (createdMember.setupDelivery) {
+          const delivery = createdMember.setupDelivery;
+          Alert.alert(
+            "Member created",
+            delivery.setupEmailSent
+              ? "The setup email was sent to the new member."
+              : [
+                  "The member was created, but the setup email was not sent.",
+                  delivery.setupEmailError
+                    ? `Reason: ${delivery.setupEmailError}`
+                    : null,
+                  delivery.setupLink ? `Setup link: ${delivery.setupLink}` : null,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+          );
+        }
       }
       safeGoBack(navigation, "MembersList");
     } catch (error) {
@@ -244,6 +266,14 @@ const MemberFormScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {!memberId && (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Account provisioning</Text>
+              <Text style={styles.infoText}>
+                This will create the Firebase Auth account and matching member profile together.
+              </Text>
+            </View>
+          )}
           <Field
             control={control}
             error={formState.errors.fullName?.message}
@@ -476,6 +506,24 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
+  infoCard: {
+    gap: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  infoTitle: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  infoText: {
+    fontSize: typography.size.sm,
+    lineHeight: 20,
+    color: colors.text.secondary,
+  },
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

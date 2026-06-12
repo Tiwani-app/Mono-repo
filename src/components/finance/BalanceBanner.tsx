@@ -3,20 +3,27 @@ import {StyleSheet, Text, View} from 'react-native';
 import Badge from '../common/Badge';
 import {colors, spacing, typography} from '../../theme';
 import {formatCurrency} from '../../utils/formatCurrency';
+import {
+  getFinanceStanding,
+  getFinanceStandingBannerLabel,
+  getFinanceStandingColor,
+} from '../../utils/financeStanding';
+import {FinancialStatus} from '../../types/user';
 
 interface Props {
   outstanding: number;
+  financialStatus?: FinancialStatus;
 }
 
-const BalanceBanner = ({outstanding}: Props) => {
-  const clear = outstanding <= 0;
-  const color = clear ? colors.status.success : colors.status.error;
+const BalanceBanner = ({outstanding, financialStatus}: Props) => {
+  const standing = getFinanceStanding(financialStatus, outstanding);
+  const color = getFinanceStandingColor(standing);
 
   return (
     <View style={styles.banner}>
       <Text style={styles.label}>OUTSTANDING BALANCE</Text>
       <Text style={[styles.amount, {color}]}>{formatCurrency(outstanding)}</Text>
-      <Badge label={clear ? 'IN GOOD STANDING' : 'DUES OVERDUE'} color={color} />
+      <Badge label={getFinanceStandingBannerLabel(standing)} color={color} />
     </View>
   );
 };

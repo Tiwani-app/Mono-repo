@@ -5,7 +5,25 @@ import {
   PollVoterState,
   Race,
 } from "../types/voting";
-import { delay, mockElections, mockPolls } from "./mockData";
+import {
+  castElectionBallotCallable,
+  castPollVoteCallable,
+  closeElectionCallable,
+  closePollCallable,
+  generateElectionResultsCallable,
+  openElectionCallable,
+  openPollCallable,
+} from "./cloudFunctionsService";
+import {
+  electionFromRecord,
+  pollFromRecord,
+} from "./converters/votingConverter";
+import {
+  firestore,
+  getCurrentOrgId,
+  snapshotRecords,
+  startOrgSubscription,
+} from "./firebaseHelpers";
 
 export interface PollInput {
   title: string;
@@ -30,336 +48,235 @@ export interface RaceResult {
   candidates: { name: string; voteCount: number }[];
 }
 
-let polls = mockPolls.slice();
-let elections = mockElections.slice();
-const pollSubscribers = new Set<(polls: Poll[]) => void>();
-const electionSubscribers = new Set<(elections: Election[]) => void>();
-const pollVotes = new Set<string>();
-const electionVotes = new Set<string>();
-const electionBallots: Record<string, Record<string, string>[]> = {};
-const electionReceipts: Record<string, string> = {};
-const pollStatuses: Poll["status"][] = ["draft", "open", "closed"];
-const electionStatuses: Election["status"][] = ["draft", "open", "closed"];
-const ballotTypes: Election["ballotType"][] = ["open", "secret"];
-
-const visiblePolls = () => polls.filter((poll) => poll.status === "open");
-const visibleElections = () =>
-  elections.filter((election) => election.status === "open");
-
-const emitPolls = () => {
-  const snapshot = visiblePolls();
-  pollSubscribers.forEach((callback) => callback(snapshot));
-};
-
-const emitElections = () => {
-  const snapshot = visibleElections();
-  electionSubscribers.forEach((callback) => callback(snapshot));
-};
-
-const optionIdFromLabel = (label: string, index: number) => {
-  const slug = label
+const slug = (value: string, fallback: string) =>
+  value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug || `option-${index + 1}`;
-};
+    .replace(/^-|-$/g, "") || fallback;
 
-const raceIdFromOffice = (office: string, index: number) => {
-  const slug = office
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug || `race-${index + 1}`;
-};
-
-const uniqueTrimmed = (values: string[]) => {
-  const seen = new Set<string>();
-  return values.reduce<string[]>((result, value) => {
-    const trimmed = value.trim();
-    const key = trimmed.toLowerCase();
-    if (!trimmed || seen.has(key)) {
-      return result;
-    }
-    seen.add(key);
-    return [...result, trimmed];
-  }, []);
-};
-
-const normalizePollInput = (data: PollInput): PollInput => ({
-  ...data,
-  title: data.title.trim(),
-  question: data.question.trim(),
-  options: uniqueTrimmed(data.options),
-});
-
-const validatePollInput = (data: PollInput) => {
-  if (!data.title) {
-    throw new Error("Poll title is required.");
-  }
-  if (!data.question) {
-    throw new Error("Poll question is required.");
-  }
-  if (!pollStatuses.includes(data.status)) {
-    throw new Error("Poll status is invalid.");
-  }
-  if (data.options.length < 2) {
-    throw new Error("Polls require at least two unique options.");
-  }
-};
-
-const normalizeElectionInput = (data: ElectionInput): ElectionInput => ({
-  ...data,
-  title: data.title.trim(),
-  races: data.races.map((race) => ({
-    office: race.office.trim(),
-    candidates: race.candidates
-      .map((candidate) => ({
-        name: candidate.name.trim(),
-        manifestoLine: candidate.manifestoLine.trim(),
-      }))
-      .filter((candidate) => candidate.name),
-  })),
-});
-
-const validateElectionInput = (data: ElectionInput) => {
-  if (!data.title) {
-    throw new Error("Election title is required.");
-  }
-  if (!ballotTypes.includes(data.ballotType)) {
-    throw new Error("Election ballot type is invalid.");
-  }
-  if (!electionStatuses.includes(data.status)) {
-    throw new Error("Election status is invalid.");
-  }
-  if (data.races.length === 0) {
-    throw new Error("Elections require at least one race.");
-  }
-  data.races.forEach((race) => {
-    if (!race.office) {
-      throw new Error("Election office is required.");
-    }
-    const uniqueCandidates = uniqueTrimmed(
-      race.candidates.map((candidate) => candidate.name),
-    );
-    if (race.candidates.length < 2 || uniqueCandidates.length < 2) {
-      throw new Error(
-        "Each election race requires at least two unique candidates.",
-      );
-    }
+const pollOptions = (labels: string[], current?: Poll) =>
+  labels.map((label, index) => {
+    const existing = current?.options.find((option) => option.label === label);
+    return {
+      optionId: existing?.id ?? slug(label, `option-${index + 1}`),
+      label: label.trim(),
+      imageURL: existing?.imageURL ?? null,
+      voteCount: existing?.voteCount ?? 0,
+    };
   });
+
+const resolveRaces = async (data: ElectionInput): Promise<Race[]> => {
+  const memberSnapshot = await firestore()
+    .collection("users")
+    .where("orgId", "==", await getCurrentOrgId())
+    .where("status", "==", "active")
+    .get();
+  const members = snapshotRecords(memberSnapshot);
+
+  return data.races.map((race, raceIndex) => ({
+    raceId: slug(race.office, `race-${raceIndex + 1}`),
+    office: race.office.trim(),
+    candidates: race.candidates.map((candidate) => {
+      const member = members.find(
+        (item) =>
+          typeof item.fullName === "string" &&
+          item.fullName.trim().toLowerCase() === candidate.name.trim().toLowerCase(),
+      );
+      if (!member) {
+        throw new Error(
+          `Candidate "${candidate.name}" must match an active member name.`,
+        );
+      }
+      return {
+        uid: String(member.id),
+        name: String(member.fullName),
+        manifestoLine: candidate.manifestoLine.trim(),
+        photoURL: typeof member.photoURL === "string" ? member.photoURL : null,
+      };
+    }),
+  }));
 };
 
-const racesFromInput = (data: ElectionInput): Race[] =>
-  data.races.map((race, raceIndex) => ({
-    raceId: raceIdFromOffice(race.office, raceIndex),
-    office: race.office,
+const storedRaces = (races: Race[]) =>
+  races.map((race) => ({
+    raceId: race.raceId,
+    title: race.office,
     candidates: race.candidates.map((candidate) => ({
-      uid: null,
+      uid: candidate.uid,
       name: candidate.name,
-      manifestoLine: candidate.manifestoLine,
-      photoURL: null,
+      manifesto: candidate.manifestoLine,
+      photoURL: candidate.photoURL,
     })),
   }));
 
-export const subscribeToPolls = (callback: (polls: Poll[]) => void) => {
-  pollSubscribers.add(callback);
-  callback(visiblePolls());
-  return () => {
-    pollSubscribers.delete(callback);
-  };
-};
+export const subscribeToPolls = (
+  callback: (polls: Poll[]) => void,
+  onError?: (error: Error) => void,
+) => startOrgSubscription("polls", pollFromRecord, callback, undefined, onError);
 
 export const subscribeToElections = (
   callback: (elections: Election[]) => void,
-) => {
-  electionSubscribers.add(callback);
-  callback(visibleElections());
-  return () => {
-    electionSubscribers.delete(callback);
-  };
-};
+  onError?: (error: Error) => void,
+) => startOrgSubscription("elections", electionFromRecord, callback, undefined, onError);
 
 export const getPoll = async (pollId: string): Promise<Poll> => {
-  await delay();
-  const poll = polls.find((item) => item.id === pollId);
-  if (!poll) {
+  const snapshot = await firestore().collection("polls").doc(pollId).get();
+  if (!snapshot.exists()) {
     throw new Error("Poll not found.");
   }
-  return poll;
+  return pollFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
 };
 
 export const getElection = async (electionId: string): Promise<Election> => {
-  await delay();
-  const election = elections.find((item) => item.id === electionId);
-  if (!election) {
+  const snapshot = await firestore().collection("elections").doc(electionId).get();
+  if (!snapshot.exists()) {
     throw new Error("Election not found.");
   }
-  return election;
+  return electionFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
 };
 
 export const createPoll = async (data: PollInput): Promise<Poll> => {
-  await delay();
-  const normalized = normalizePollInput(data);
-  validatePollInput(normalized);
-  const poll: Poll = {
-    id: `poll-${Date.now()}`,
-    title: normalized.title,
-    question: normalized.question,
-    status: normalized.status,
-    totalVotes: 0,
+  if (data.status === "closed") {
+    throw new Error("Create the poll as draft or open, then close it from the voting hub.");
+  }
+  const ref = firestore().collection("polls").doc();
+  const shouldOpenWithCallable = data.status === "open";
+  await ref.set({
+    pollId: ref.id,
+    orgId: await getCurrentOrgId(),
+    title: data.title.trim(),
+    question: data.question.trim(),
+    status: shouldOpenWithCallable ? "draft" : data.status,
     resultVisibility: "after_vote",
-    options: normalized.options.map((label, index) => ({
-      id: optionIdFromLabel(label, index),
-      label,
-      imageURL: null,
-      voteCount: 0,
-    })),
-  };
-  polls = [poll, ...polls];
-  emitPolls();
-  return poll;
+    totalVotes: 0,
+    options: pollOptions(data.options),
+  });
+  if (shouldOpenWithCallable) {
+    await openPollCallable(ref.id);
+  }
+  return getPoll(ref.id);
 };
 
 export const updatePoll = async (
   pollId: string,
   data: Partial<PollInput>,
 ): Promise<void> => {
-  await delay();
-  const existingPoll = polls.find((poll) => poll.id === pollId);
-  if (!existingPoll) {
-    throw new Error("Poll not found.");
+  const current = await getPoll(pollId);
+  if (data.status === "closed" && current.status === "open") {
+    await closePoll(pollId);
+    return;
   }
-  const normalized = normalizePollInput({
-    title: data.title ?? existingPoll.title,
-    question: data.question ?? existingPoll.question,
-    status: data.status ?? existingPoll.status,
-    options: data.options ?? existingPoll.options.map((option) => option.label),
-  });
-  validatePollInput(normalized);
-  polls = polls.map((poll) => {
-    if (poll.id !== pollId) {
-      return poll;
-    }
-    const nextOptions = normalized.options
-      ? normalized.options.map((label, index) => {
-          const existing = poll.options.find(
-            (option) => option.label === label,
-          );
-          return {
-            id: existing?.id ?? optionIdFromLabel(label, index),
-            label,
-            imageURL: existing?.imageURL ?? null,
-            voteCount: existing?.voteCount ?? 0,
-          };
-        })
-      : poll.options;
-    return {
-      ...poll,
-      ...normalized,
-      options: nextOptions,
-      totalVotes: nextOptions.reduce(
-        (sum, option) => sum + option.voteCount,
-        0,
-      ),
-    };
-  });
-  emitPolls();
+  if (current.status !== "draft") {
+    throw new Error("Only draft polls can be edited. Close open polls from the voting hub.");
+  }
+  if (data.status === "closed") {
+    throw new Error("Open this poll before closing it from the voting hub.");
+  }
+  const shouldOpenWithCallable =
+    data.status === "open" && current.status === "draft";
+  await firestore()
+    .collection("polls")
+    .doc(pollId)
+    .update({
+      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+      ...(data.question !== undefined ? { question: data.question.trim() } : {}),
+      ...(data.status !== undefined && !shouldOpenWithCallable
+        ? { status: data.status }
+        : {}),
+      ...(data.options !== undefined
+        ? { options: pollOptions(data.options, current) }
+        : {}),
+    });
+  if (shouldOpenWithCallable) {
+    await openPollCallable(pollId);
+  }
 };
 
 export const closePoll = async (pollId: string): Promise<void> => {
-  await updatePoll(pollId, { status: "closed" });
+  await closePollCallable(pollId);
 };
 
 export const createElection = async (
   data: ElectionInput,
 ): Promise<Election> => {
-  await delay();
-  const normalized = normalizeElectionInput(data);
-  validateElectionInput(normalized);
-  const election: Election = {
-    id: `election-${Date.now()}`,
-    title: normalized.title,
-    ballotType: normalized.ballotType,
-    status: normalized.status,
+  if (data.status === "closed") {
+    throw new Error("Create the election as draft or open, then close it from the voting hub.");
+  }
+  const ref = firestore().collection("elections").doc();
+  const shouldOpenWithCallable = data.status === "open";
+  await ref.set({
+    electionId: ref.id,
+    orgId: await getCurrentOrgId(),
+    title: data.title.trim(),
+    ballotType: data.ballotType,
+    status: shouldOpenWithCallable ? "draft" : data.status,
     resultVisibility: "after_close",
-    races: racesFromInput(normalized),
-  };
-  elections = [election, ...elections];
-  emitElections();
-  return election;
+    races: storedRaces(await resolveRaces(data)),
+  });
+  if (shouldOpenWithCallable) {
+    await openElectionCallable(ref.id);
+  }
+  return getElection(ref.id);
 };
 
 export const updateElection = async (
   electionId: string,
   data: Partial<ElectionInput>,
 ): Promise<void> => {
-  await delay();
-  const existingElection = elections.find(
-    (election) => election.id === electionId,
-  );
-  if (!existingElection) {
-    throw new Error("Election not found.");
+  const current = await getElection(electionId);
+  if (data.status === "closed" && current.status === "open") {
+    await closeElection(electionId);
+    return;
   }
-  const normalized = normalizeElectionInput({
-    title: data.title ?? existingElection.title,
-    ballotType: data.ballotType ?? existingElection.ballotType,
-    status: data.status ?? existingElection.status,
-    races:
-      data.races ??
-      existingElection.races.map((race) => ({
-        office: race.office,
-        candidates: race.candidates.map((candidate) => ({
-          name: candidate.name,
-          manifestoLine: candidate.manifestoLine,
-        })),
-      })),
-  });
-  validateElectionInput(normalized);
-  elections = elections.map((election) =>
-    election.id === electionId
-      ? {
-          ...election,
-          ...normalized,
-          races: racesFromInput(normalized),
-        }
-      : election,
-  );
-  emitElections();
+  if (current.status !== "draft") {
+    throw new Error("Only draft elections can be edited. Close open elections from the voting hub.");
+  }
+  if (data.status === "closed") {
+    throw new Error("Open this election before closing it from the voting hub.");
+  }
+  const shouldOpenWithCallable =
+    data.status === "open" && current.status === "draft";
+  await firestore()
+    .collection("elections")
+    .doc(electionId)
+    .update({
+      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+      ...(data.ballotType !== undefined ? { ballotType: data.ballotType } : {}),
+      ...(data.status !== undefined && !shouldOpenWithCallable
+        ? { status: data.status }
+        : {}),
+      ...(data.races !== undefined
+        ? { races: storedRaces(await resolveRaces(data as ElectionInput)) }
+        : {}),
+    });
+  if (shouldOpenWithCallable) {
+    await openElectionCallable(electionId);
+  }
 };
 
 export const closeElection = async (electionId: string): Promise<void> => {
-  await updateElection(electionId, { status: "closed" });
+  await closeElectionCallable(electionId);
 };
 
 export const getElectionResults = async (
   electionId: string,
 ): Promise<RaceResult[]> => {
-  await delay();
-  const election = elections.find((item) => item.id === electionId);
-  if (!election) {
-    throw new Error("Election not found.");
-  }
-  const ballots = electionBallots[electionId] ?? [];
-  return election.races.map((race) => ({
-    raceId: race.raceId,
-    office: race.office,
-    candidates: race.candidates.map((candidate) => ({
-      name: candidate.name,
-      voteCount: ballots.filter(
-        (ballot) => ballot[race.raceId] === candidate.name,
-      ).length,
-    })),
-  }));
+  const result = await generateElectionResultsCallable(electionId);
+  return result.races;
 };
 
 export const hasCastPollVote = async (
   pollId: string,
   userId: string,
 ): Promise<boolean> => {
-  await delay();
-  return pollVotes.has(`${pollId}:${userId}`);
+  const snapshot = await firestore()
+    .collection("polls")
+    .doc(pollId)
+    .collection("votes")
+    .doc(userId)
+    .get();
+  return snapshot.exists();
 };
 
 export const getPollVoterState = async (
@@ -382,8 +299,13 @@ export const hasCastElectionVote = async (
   electionId: string,
   userId: string,
 ): Promise<boolean> => {
-  await delay();
-  return electionVotes.has(`${electionId}:${userId}`);
+  const snapshot = await firestore()
+    .collection("elections")
+    .doc(electionId)
+    .collection("voterRegistry")
+    .doc(userId)
+    .get();
+  return snapshot.exists();
 };
 
 export const getElectionVoterState = async (
@@ -394,10 +316,9 @@ export const getElectionVoterState = async (
     getElection(electionId),
     hasCastElectionVote(electionId, userId),
   ]);
-  const voteKey = `${electionId}:${userId}`;
   return {
     hasVoted,
-    ballotReceipt: electionReceipts[voteKey] ?? null,
+    ballotReceipt: null,
     resultsVisible:
       election.status === "closed" &&
       election.resultVisibility === "after_close",
@@ -407,59 +328,15 @@ export const getElectionVoterState = async (
 export const castPollVote = async (
   pollId: string,
   optionId: string,
-  userId: string,
+  _userId: string,
 ): Promise<void> => {
-  await delay();
-  const voteKey = `${pollId}:${userId}`;
-  if (pollVotes.has(voteKey)) {
-    return;
-  }
-  const poll = polls.find((item) => item.id === pollId);
-  const option = poll?.options.find((item) => item.id === optionId);
-  if (!poll || !option) {
-    throw new Error("Vote option not found.");
-  }
-  if (poll.status !== "open") {
-    throw new Error("This poll is not open for voting.");
-  }
-  option.voteCount += 1;
-  poll.totalVotes += 1;
-  pollVotes.add(voteKey);
-  emitPolls();
+  await castPollVoteCallable(pollId, optionId);
 };
 
 export const castElectionBallot = async (
   electionId: string,
   choices: Record<string, string>,
-  userId: string,
+  _userId: string,
 ): Promise<void> => {
-  await delay();
-  const voteKey = `${electionId}:${userId}`;
-  if (electionVotes.has(voteKey)) {
-    return;
-  }
-  const election = elections.find((item) => item.id === electionId);
-  const completeBallot = election?.races.every((race) => choices[race.raceId]);
-  if (!election || !completeBallot) {
-    throw new Error("Ballot is incomplete.");
-  }
-  if (election.status !== "open") {
-    throw new Error("This election is not open for ballots.");
-  }
-  const hasInvalidChoice = election.races.some((race) => {
-    const selectedCandidate = choices[race.raceId];
-    return !race.candidates.some(
-      (candidate) => candidate.name === selectedCandidate,
-    );
-  });
-  if (hasInvalidChoice) {
-    throw new Error("Ballot contains an invalid candidate.");
-  }
-  electionBallots[electionId] = [
-    ...(electionBallots[electionId] ?? []),
-    choices,
-  ];
-  electionVotes.add(voteKey);
-  electionReceipts[voteKey] = `BALLOT-${electionId}-${userId}-${Date.now()}`;
-  emitElections();
+  await castElectionBallotCallable(electionId, choices);
 };

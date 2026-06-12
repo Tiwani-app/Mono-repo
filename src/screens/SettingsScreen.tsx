@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
@@ -18,12 +20,10 @@ import Badge from "../components/common/Badge";
 import GoldButton from "../components/common/GoldButton";
 import OutlineButton from "../components/common/OutlineButton";
 import ScreenHeader from "../components/common/ScreenHeader";
+import { env } from "../config/env";
 import { signOut } from "../services/authService";
 import { updateMemberProfile } from "../services/membersService";
-import {
-  PushRegistrationResult,
-  requestPushPermissionAndRegister,
-} from "../services/notificationsService";
+import { requestPushPermissionAndRegister } from "../services/notificationsService";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import { NotificationPreferences } from "../types/user";
@@ -40,13 +40,11 @@ import {
 const SettingsScreen = ({ navigation }: any) => {
   const { updateCurrentUser, user } = useAuthStore();
   const [editingProfile, setEditingProfile] = useState(false);
-  const [pushRegistration, setPushRegistration] =
-    useState<PushRegistrationResult | null>(null);
-  const [registeringPush, setRegisteringPush] = useState(false);
   const [savingPreference, setSavingPreference] = useState<
     keyof NotificationPreferences | null
   >(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [registeringPush, setRegisteringPush] = useState(false);
 
   const { control, handleSubmit, reset, formState } =
     useForm<ProfileFormValues>({
@@ -126,17 +124,41 @@ const SettingsScreen = ({ navigation }: any) => {
     ]);
   };
 
-  const handleEnablePush = async () => {
+  const openExternalLink = async (label: string, url: string) => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      Alert.alert(
+        `${label} unavailable`,
+        "This link has not been configured for this build yet.",
+      );
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(trimmedUrl);
+      if (!supported) {
+        Alert.alert(`${label} unavailable`, "This link could not be opened.");
+        return;
+      }
+      await Linking.openURL(trimmedUrl);
+    } catch {
+      Alert.alert(`${label} unavailable`, "This link could not be opened.");
+    }
+  };
+
+  const handleRegisterPush = async () => {
     if (registeringPush) {
       return;
     }
     try {
       setRegisteringPush(true);
       const result = await requestPushPermissionAndRegister(user.uid);
-      setPushRegistration(result);
-      if (result.status !== "registered") {
-        Alert.alert("Push notifications", result.message);
-      }
+      Alert.alert(
+        result.status === "registered"
+          ? "Push notifications enabled"
+          : "Push notifications unavailable",
+        result.message,
+      );
     } finally {
       setRegisteringPush(false);
     }
@@ -274,27 +296,40 @@ const SettingsScreen = ({ navigation }: any) => {
             <View style={styles.pushCopy}>
               <Text style={styles.pushTitle}>Push Notifications</Text>
               <Text style={styles.pushMeta}>
-                {pushRegistration?.message ??
-                  "Enable device alerts for important updates."}
+                Enable device alerts for association announcements.
               </Text>
             </View>
             <GoldButton
-              label={
-                pushRegistration?.status === "registered"
-                  ? "Enabled"
-                  : "Enable Push"
-              }
-              onPress={handleEnablePush}
+              label="Enable Push"
+              onPress={handleRegisterPush}
               loading={registeringPush}
-              disabled={pushRegistration?.status === "registered"}
               fullWidth
             />
           </View>
           <Text style={styles.sectionLabel}>LINKS</Text>
-          <Row label="Privacy Policy" value="Open" />
-          <Row label="Terms of Use" value="Open" />
-          <Row label="Help & Support" value="Open" />
-          <Row label="About Tiwani" value="v2.1" />
+          <LinkRow
+            label="Privacy Policy"
+            value="Open"
+            onPress={() =>
+              openExternalLink("Privacy Policy", env.privacyPolicyUrl)
+            }
+          />
+          <LinkRow
+            label="Terms of Use"
+            value="Open"
+            onPress={() => openExternalLink("Terms of Use", env.termsUrl)}
+          />
+          <LinkRow
+            label="Help & Support"
+            value="Open"
+            onPress={() => openExternalLink("Help & Support", env.supportUrl)}
+          />
+          <LinkRow
+            label="Account Deletion"
+            value="Request"
+            onPress={() => navigation.navigate("AccountDeletion")}
+          />
+          <Row label="About Tiwani" value={`v${env.appVersion}`} />
           <OutlineButton
             label="Sign Out"
             onPress={handleSignOut}
@@ -352,6 +387,25 @@ const Row = ({ label, value }: { label: string; value: string }) => (
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={styles.rowValue}>{value}</Text>
   </View>
+);
+
+const LinkRow = ({
+  label,
+  onPress,
+  value,
+}: {
+  label: string;
+  onPress: () => void;
+  value: string;
+}) => (
+  <TouchableOpacity
+    style={styles.row}
+    onPress={onPress}
+    activeOpacity={0.82}
+  >
+    <Text style={styles.rowLabel}>{label}</Text>
+    <Text style={[styles.rowValue, styles.linkValue]}>{value}</Text>
+  </TouchableOpacity>
 );
 
 const ToggleRow = ({
@@ -440,6 +494,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontSize: typography.size.base, color: colors.text.primary },
   rowValue: { fontSize: typography.size.base, color: colors.text.secondary },
+  linkValue: { color: colors.gold.default, fontWeight: typography.weight.bold },
   pushCard: {
     gap: spacing.md,
     padding: spacing.lg,

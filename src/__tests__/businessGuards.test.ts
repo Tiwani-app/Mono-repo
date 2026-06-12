@@ -1,7 +1,20 @@
 import { LibraryDocument } from "../types/library";
+import { LedgerEntry } from "../types/finance";
 import { Listing } from "../types/marketplace";
+import { TiwaniEvent } from "../types/event";
 import { Election } from "../types/voting";
+import { format } from "date-fns";
 import { canViewLedgerForMember } from "../utils/financeGuards";
+import {
+  getFinanceStanding,
+  getFinanceStandingBadgeLabel,
+  getFinanceStandingBannerLabel,
+} from "../utils/financeStanding";
+import { getFinanceTotals } from "../utils/financeTotals";
+import {
+  getCenteredDateWindow,
+  visibleUpcomingEvents,
+} from "../utils/eventGuards";
 import {
   filterLibraryDocumentsByCategory,
   filterLibraryDocumentsBySearch,
@@ -65,9 +78,30 @@ const listing = (id: string): Listing => ({
   imageURL: null,
   postedBy: "admin-1",
   postedByName: "Admin",
+  contactPhone: "+2348000000000",
+  contactEmail: "admin@example.com",
   contactInstruction: "Message admin",
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
+});
+
+const event = (
+  id: string,
+  overrides: Partial<TiwaniEvent>,
+): TiwaniEvent => ({
+  id,
+  title: `Event ${id}`,
+  description: "Association event",
+  category: "meeting",
+  dateTime: new Date("2026-06-08T17:00:00.000Z"),
+  location: "Clubhouse",
+  createdBy: "admin-1",
+  status: "published",
+  rsvpList: [],
+  rsvpCount: 0,
+  capacity: 50,
+  attendees: [],
+  ...overrides,
 });
 
 const document = (
@@ -87,6 +121,7 @@ const document = (
   visibility: "all_members",
   fileName: `${id}.pdf`,
   fileURL: null,
+  storagePath: null,
   fileType: "pdf",
   fileSize: null,
   ...overrides,
@@ -115,7 +150,103 @@ const user = (uid: string, role: User["role"]): User => ({
   timezone: "America/New_York",
 });
 
+const ledgerEntry = (
+  id: string,
+  overrides: Partial<LedgerEntry>,
+): LedgerEntry => ({
+  id,
+  uid: "member-1",
+  type: "dues",
+  label: "Q3 2026 Dues",
+  amount: 5000,
+  amountPaid: 0,
+  dueDate: new Date("2026-08-01"),
+  paid: false,
+  paidStatus: "unpaid",
+  paidAt: null,
+  note: "",
+  ...overrides,
+});
+
 describe("business guardrails", () => {
+  it("distinguishes clear, balance due, and overdue finance standing", () => {
+    expect(getFinanceStanding("green", 0)).toBe("clear");
+    expect(getFinanceStandingBadgeLabel("clear")).toBe("CLEAR");
+    expect(getFinanceStandingBannerLabel("clear")).toBe("IN GOOD STANDING");
+
+    expect(getFinanceStanding("green", 2500)).toBe("balance_due");
+    expect(getFinanceStandingBadgeLabel("balance_due")).toBe("BALANCE DUE");
+    expect(getFinanceStandingBannerLabel("balance_due")).toBe("BALANCE DUE");
+
+    expect(getFinanceStanding("red", 2500)).toBe("overdue");
+    expect(getFinanceStandingBadgeLabel("overdue")).toBe("OVERDUE");
+    expect(getFinanceStandingBannerLabel("overdue")).toBe("DUES OVERDUE");
+  });
+
+  it("calculates finance totals from charge settlement, not payment receipt rows", () => {
+    const totals = getFinanceTotals([
+      ledgerEntry("dues-paid", {
+        amountPaid: 5000,
+        paid: true,
+        paidStatus: "paid",
+      }),
+      ledgerEntry("dues-open", {}),
+      ledgerEntry("fine-paid", {
+        type: "fine",
+        label: "Inactivity",
+        amount: 50,
+        amountPaid: 50,
+        paid: true,
+        paidStatus: "paid",
+      }),
+      ledgerEntry("fine-open", {
+        type: "fine",
+        label: "Inactivity",
+        amount: 50,
+      }),
+      ledgerEntry("payment-5000", {
+        type: "payment",
+        label: "Bank transfer",
+        amount: 5000,
+        amountPaid: 5000,
+        paid: true,
+        paidStatus: "paid",
+        paidAt: new Date("2026-06-03"),
+      }),
+      ledgerEntry("payment-50", {
+        type: "payment",
+        label: "Bank transfer",
+        amount: 50,
+        amountPaid: 50,
+        paid: true,
+        paidStatus: "paid",
+        paidAt: new Date("2026-06-03"),
+      }),
+    ]);
+
+    expect(totals).toEqual({
+      totalCharged: 10100,
+      totalPaid: 5050,
+      outstanding: 5050,
+    });
+  });
+
+  it("counts partially paid charges by their remaining balance", () => {
+    expect(
+      getFinanceTotals([
+        ledgerEntry("partial", {
+          amount: 5000,
+          amountPaid: 3000,
+          paidStatus: "partial",
+        }),
+      ]),
+    ).toEqual({
+      totalCharged: 5000,
+      totalPaid: 3000,
+      outstanding: 2000,
+    });
+  });
+
   it("requires one election choice per race", () => {
     expect(isElectionBallotComplete(election, {})).toBe(false);
     expect(isElectionBallotComplete(election, { president: "Ada" })).toBe(
@@ -318,5 +449,35 @@ describe("business guardrails", () => {
       false,
     );
     expect(canViewLedgerForMember(null, "member-1")).toBe(false);
+  });
+
+  it("keeps only future published events in upcoming lists", () => {
+    const now = new Date("2026-06-07T12:00:00.000Z");
+    const visible = visibleUpcomingEvents(
+      [
+        event("past", { dateTime: new Date("2026-06-06T12:00:00.000Z") }),
+        event("draft", { status: "draft" }),
+        event("cancelled", { status: "cancelled" }),
+        event("later", { dateTime: new Date("2026-06-09T12:00:00.000Z") }),
+        event("soon", { dateTime: new Date("2026-06-07T13:00:00.000Z") }),
+      ],
+      now,
+    );
+
+    expect(visible.map((item) => item.id)).toEqual(["soon", "later"]);
+  });
+
+  it("centers the rolling date window on today", () => {
+    const days = getCenteredDateWindow(new Date("2026-06-07T10:00:00.000Z"));
+
+    expect(days.map((day) => format(day, "yyyy-MM-dd"))).toEqual([
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-06",
+      "2026-06-07",
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+    ]);
   });
 });

@@ -2,36 +2,38 @@ import {
   Listing,
   ListingCondition,
   ListingStatus,
-} from '../../types/marketplace';
+} from "../../types/marketplace";
 import {
-  DocumentSnapshotLike,
   RawRecord,
-  asDate,
   asNullableString,
-  asNumber,
-  asString,
-  enumValue,
-  snapshotToRecord,
-} from './shared';
+  requiredDate,
+  requiredEnum,
+  requiredNumber,
+  requiredString,
+} from "./shared";
 
-const listingStatuses: ListingStatus[] = ['available', 'sold', 'archived'];
-const listingConditions: ListingCondition[] = ['new', 'like_new', 'good', 'fair', 'used'];
+const listingStatuses: ListingStatus[] = ["available", "sold", "archived"];
+const listingConditions: ListingCondition[] = [
+  "new",
+  "like_new",
+  "good",
+  "fair",
+  "used",
+];
 
 export const listingFromRecord = (record: RawRecord): Listing => ({
-  id: asString(record.id),
-  title: asString(record.title),
-  price: asNumber(record.price),
-  description: asString(record.description),
-  condition: enumValue(record.condition, listingConditions, 'good'),
-  status: enumValue(record.status, listingStatuses, 'available'),
-  imageURL: asNullableString(record.imageURL),
-  postedBy: asString(record.postedBy),
-  postedByName: asString(record.postedByName),
-  contactInstruction: asString(record.contactInstruction),
-  createdAt: asDate(record.createdAt),
-  updatedAt: asDate(record.updatedAt),
+  id: requiredString(record, "id"),
+  title: requiredString(record, "title"),
+  price: requiredNumber(record, "price"),
+  description: requiredString(record, "description"),
+  condition: requiredEnum(record.condition, listingConditions, "condition"),
+  status: requiredEnum(record.status, listingStatuses, "status"),
+  imageURL: asNullableString(record.imageURL, "imageURL"),
+  postedBy: requiredString(record, "postedBy"),
+  postedByName: requiredString(record, "postedByName"),
+  contactPhone: asNullableString(record.contactPhone, "contactPhone"),
+  contactEmail: asNullableString(record.contactEmail, "contactEmail"),
+  contactInstruction: requiredString(record, "contactInstruction"),
+  createdAt: requiredDate(record, "createdAt"),
+  updatedAt: requiredDate(record, "updatedAt"),
 });
-
-export const listingFromSnapshot = (snapshot: DocumentSnapshotLike): Listing =>
-  listingFromRecord(snapshotToRecord(snapshot));
-

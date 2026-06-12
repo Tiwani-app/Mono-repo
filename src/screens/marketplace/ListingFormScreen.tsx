@@ -65,8 +65,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
         title: "",
         price: "",
         description: "",
-        contactInstruction:
-          "WhatsApp the seller to arrange inspection and pickup.",
+        contactInstruction: "",
         imageURL: "",
       },
     });
@@ -237,6 +236,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
             label="CONTACT INSTRUCTION"
             multiline
             name="contactInstruction"
+            placeholder="WhatsApp +234..., email seller@example.com, or visit https://..."
             rules={{ required: "Contact instruction is required." }}
           />
           <Controller
@@ -286,6 +286,7 @@ const Field = ({
   label,
   multiline,
   name,
+  placeholder,
   rules,
 }: any) => (
   <View style={styles.field}>
@@ -306,6 +307,7 @@ const Field = ({
               : undefined
           }
           multiline={multiline}
+          placeholder={placeholder}
           placeholderTextColor={colors.text.tertiary}
           style={[
             styles.input,

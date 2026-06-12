@@ -1,98 +1,82 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
-import Icon from '../../components/common/FeatherIcon';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import EmptyState from '../../components/common/EmptyState';
-import GoldButton from '../../components/common/GoldButton';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ScreenHeader from '../../components/common/ScreenHeader';
-import CandidateCard from '../../components/voting/CandidateCard';
-import FinancialGate from '../../components/voting/FinancialGate';
-import {castElectionBallot, getElection, getElectionVoterState} from '../../services/votingService';
-import {useAuthStore} from '../../store/authStore';
-import {useVotingStore} from '../../store/votingStore';
-import {colors, spacing, typography} from '../../theme';
-import {Election} from '../../types/voting';
-import {safeGoBack} from '../../utils/navigation';
-import {isElectionBallotComplete} from '../../utils/votingGuards';
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import EmptyState from "../../components/common/EmptyState";
+import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ScreenHeader from "../../components/common/ScreenHeader";
+import CandidateCard from "../../components/voting/CandidateCard";
+import FinancialGate from "../../components/voting/FinancialGate";
+import {
+  castElectionBallot,
+  getElection,
+  getElectionVoterState,
+} from "../../services/votingService";
+import { useAuthStore } from "../../store/authStore";
+import { colors, spacing, typography } from "../../theme";
+import { Election, ElectionVoterState } from "../../types/voting";
+import { safeGoBack } from "../../utils/navigation";
+import { isElectionBallotComplete } from "../../utils/votingGuards";
 
-const ElectionBallotScreen = ({navigation, route}: any) => {
+const ElectionBallotScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
-  const [gated, setGated] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const [election, setElection] = useState<Election | null>(null);
+  const [voterState, setVoterState] = useState<ElectionVoterState | null>(null);
+  const [choices, setChoices] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [localElection, setLocalElection] = useState<Election | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [ballotReceipt, setBallotReceipt] = useState<string | null>(null);
-  const [voteSubmitted, setVoteSubmitted] = useState(false);
-  const {user} = useAuthStore();
-  const {
-    electionChoices,
-    elections,
-    hasVotedElection,
-    resetElectionChoices,
-    setElectionChoice,
-    setHasVotedElection,
-  } = useVotingStore();
-  const storeElection = useMemo(
-    () => elections.find(item => item.id === electionId),
-    [elections, electionId],
-  );
-  const election = storeElection ?? localElection;
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-    const init = async () => {
-      setLoading(true);
-      setLoadError(null);
-      setGated(false);
-      setBallotReceipt(null);
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      if (!electionId) {
-        setLoadError('This election could not be found.');
-        setLoading(false);
-        return;
-      }
-      if (user.financialStatus === 'red') {
-        setGated(true);
-        setLoading(false);
-        return;
-      }
-      try {
-        const [nextElection, voterState] = await Promise.all([
-          storeElection ? Promise.resolve(storeElection) : getElection(electionId),
-          getElectionVoterState(electionId, user.uid),
-        ]);
-        if (!active) {
-          return;
-        }
-        setLocalElection(nextElection);
-        setHasVotedElection(voterState.hasVoted);
-        setBallotReceipt(voterState.ballotReceipt);
-      } catch (error) {
-        if (active) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Could not load this election.',
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-    init();
-    return () => {
-      active = false;
-    };
-  }, [electionId, setHasVotedElection, storeElection, user]);
+    if (!electionId || !user?.uid) {
+      setError("Election not found.");
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      getElection(electionId),
+      getElectionVoterState(electionId, user.uid),
+    ])
+      .then(([nextElection, nextVoterState]) => {
+        setElection(nextElection);
+        setVoterState(nextVoterState);
+      })
+      .catch((loadError) =>
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Could not load this election.",
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, [electionId, user?.uid]);
 
-  if (gated) {
+  const handleSubmit = async () => {
+    if (!electionId || !user?.uid || !election) {
+      return;
+    }
+    if (!isElectionBallotComplete(election, choices)) {
+      Alert.alert("Ballot incomplete", "Choose a candidate for every race.");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await castElectionBallot(electionId, choices, user.uid);
+      const nextVoterState = await getElectionVoterState(electionId, user.uid);
+      setVoterState(nextVoterState);
+      Alert.alert("Ballot recorded", "Your ballot has been saved.");
+    } catch (submitError) {
+      Alert.alert(
+        "Ballot not recorded",
+        submitError instanceof Error ? submitError.message : "Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (user?.financialStatus === "red") {
     return <FinancialGate showBack />;
   }
 
@@ -100,162 +84,111 @@ const ElectionBallotScreen = ({navigation, route}: any) => {
     return <LoadingSpinner />;
   }
 
-  if (loadError || !election) {
+  if (error || !election || !voterState) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Election" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+        <ScreenHeader
+          title="Election"
+          showBack
+          onBack={() => safeGoBack(navigation, "VotingHub")}
+        />
         <EmptyState
           icon="!"
           title="Election unavailable"
-          message={loadError ?? 'This election could not be found.'}
+          message={error ?? "Could not load this election."}
           actionLabel="Back to Voting"
-          onAction={() => safeGoBack(navigation, 'VotingHub')}
+          onAction={() => safeGoBack(navigation, "VotingHub")}
         />
       </SafeAreaView>
     );
   }
 
-  if (election.status !== 'open' && !hasVotedElection && !voteSubmitted) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Election" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
-        <EmptyState
-          icon="!"
-          title="Election closed"
-          message="This election is not open for ballots right now."
-          actionLabel="Back to Voting"
-          onAction={() => safeGoBack(navigation, 'VotingHub')}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  const allRacesFilled = isElectionBallotComplete(election, electionChoices);
-
-  const handleSubmitBallot = async () => {
-    if (!user) {
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await castElectionBallot(election.id, electionChoices, user.uid);
-      const voterState = await getElectionVoterState(election.id, user.uid);
-      setHasVotedElection(true);
-      setBallotReceipt(voterState.ballotReceipt);
-      setVoteSubmitted(true);
-      resetElectionChoices();
-    } catch (error) {
-      Alert.alert(
-        'Ballot failed',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (voteSubmitted || hasVotedElection) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Ballot Submitted" showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
-        <View style={styles.successContainer}>
-          <View style={styles.checkCircle}>
-            <Icon name="check" size={28} color={colors.status.success} />
-          </View>
-          <Text style={styles.successTitle}>Ballot Submitted</Text>
-          <Text style={styles.successBody}>
-            Your {election.ballotType === 'secret' ? 'secret ' : ''}ballot has been recorded.
-          </Text>
-          {ballotReceipt && (
-            <View style={styles.receiptCard}>
-              <Text style={styles.receiptLabel}>BALLOT RECEIPT</Text>
-              <Text style={styles.receiptValue}>{ballotReceipt}</Text>
-            </View>
-          )}
-          <GoldButton label="Back to Voting" onPress={() => safeGoBack(navigation, 'VotingHub')} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const canVote = election.status === "open" && !voterState.hasVoted;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title={election.title} showBack onBack={() => safeGoBack(navigation, 'VotingHub')} />
+      <ScreenHeader
+        title="Election"
+        showBack
+        onBack={() => safeGoBack(navigation, "VotingHub")}
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        {election.ballotType === 'secret' && (
-          <View style={styles.disclaimer}>
-            <Icon name="lock" size={16} color={colors.gold.default} />
-            <Text style={styles.disclaimerText}>Secret ballot results are announced after voting closes.</Text>
-          </View>
-        )}
-        {election.races.map(race => (
-          <View key={race.raceId} style={styles.race}>
-            <Text style={styles.office}>Vote for {race.office}</Text>
-            <Text style={styles.subtitle}>Select one candidate</Text>
-            {race.candidates.map(candidate => (
+        <View style={styles.headerCard}>
+          <Text style={styles.title}>{election.title}</Text>
+          <Text style={styles.meta}>
+            {election.ballotType === "secret" ? "Secret ballot" : "Open ballot"}
+          </Text>
+        </View>
+        {election.races.map((race) => (
+          <View key={race.raceId} style={styles.raceCard}>
+            <Text style={styles.office}>{race.office}</Text>
+            {race.candidates.map((candidate) => (
               <CandidateCard
-                key={candidate.name}
+                key={candidate.uid ?? candidate.name}
                 candidate={candidate}
-                selected={electionChoices[race.raceId] === candidate.name}
-                onPress={() => setElectionChoice(race.raceId, candidate.name)}
+                selected={choices[race.raceId] === (candidate.uid ?? candidate.name)}
+                onPress={() =>
+                  canVote &&
+                  setChoices((current) => ({
+                    ...current,
+                    [race.raceId]: candidate.uid ?? candidate.name,
+                  }))
+                }
               />
             ))}
           </View>
         ))}
-        <GoldButton
-          label="Submit Ballot"
-          onPress={handleSubmitBallot}
-          disabled={!allRacesFilled}
-          loading={submitting}
-          fullWidth
-        />
+        {canVote ? (
+          <GoldButton
+            label="Submit Ballot"
+            onPress={handleSubmit}
+            loading={submitting}
+            fullWidth
+          />
+        ) : (
+          <EmptyState
+            icon="✓"
+            title={voterState.hasVoted ? "Already voted" : "Voting closed"}
+            message={
+              voterState.hasVoted
+                ? "Your ballot has already been recorded."
+                : "This election is not accepting ballots."
+            }
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.bg.secondary},
-  content: {padding: spacing.lg, gap: spacing.lg},
-  disclaimer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: 8,
-    backgroundColor: `${colors.gold.default}12`,
-  },
-  disclaimerText: {flex: 1, color: colors.text.secondary},
-  race: {gap: spacing.md},
-  office: {fontSize: typography.size.lg, color: colors.text.primary, fontWeight: typography.weight.bold},
-  subtitle: {fontSize: typography.size.sm, color: colors.text.secondary},
-  successContainer: {flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl},
-  checkCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: `${colors.status.success}18`,
-  },
-  successTitle: {fontSize: typography.size.xl, color: colors.text.primary, fontWeight: typography.weight.black},
-  successBody: {fontSize: typography.size.base, color: colors.text.secondary, textAlign: 'center'},
-  receiptCard: {
-    width: '100%',
-    gap: spacing.xs,
+  safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  content: { padding: spacing.lg, gap: spacing.md },
+  headerCard: {
+    gap: spacing.sm,
     padding: spacing.lg,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.card,
   },
-  receiptLabel: {
-    fontSize: typography.size.xs,
+  title: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  meta: {
+    fontSize: typography.size.sm,
+    color: colors.gold.light,
+    fontWeight: typography.weight.semibold,
+  },
+  raceCard: { gap: spacing.md },
+  office: {
+    marginTop: spacing.sm,
+    fontSize: typography.size.sm,
     color: colors.text.secondary,
     fontWeight: typography.weight.bold,
-  },
-  receiptValue: {
-    fontSize: typography.size.sm,
-    color: colors.text.primary,
+    letterSpacing: 0.5,
   },
 });
 

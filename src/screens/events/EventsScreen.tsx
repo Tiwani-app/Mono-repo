@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -18,6 +18,7 @@ import WeekStrip from "../../components/events/WeekStrip";
 import { useEvents } from "../../hooks/useEvents";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import { visibleUpcomingEvents } from "../../utils/eventGuards";
 import { isAdmin } from "../../utils/roleGuard";
 
 const EventsScreen = ({ navigation }: any) => {
@@ -25,17 +26,10 @@ const EventsScreen = ({ navigation }: any) => {
   const { error, events, lastSyncedAt, loading, syncState } = useEvents();
   const { user } = useAuthStore();
 
-  const visibleEvents = useMemo(() => {
-    const sortedEvents = [...events].sort(
-      (a, b) => a.dateTime.getTime() - b.dateTime.getTime(),
-    );
-    if (!selectedDay) {
-      return sortedEvents;
-    }
-    return sortedEvents.filter((event) =>
-      isSameDay(event.dateTime, selectedDay),
-    );
-  }, [events, selectedDay]);
+  const upcomingEvents = visibleUpcomingEvents(events);
+  const visibleEvents = selectedDay
+    ? upcomingEvents.filter((event) => isSameDay(event.dateTime, selectedDay))
+    : upcomingEvents;
 
   if (loading) {
     return <LoadingSpinner />;
@@ -70,7 +64,7 @@ const EventsScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
         <WeekStrip
-          events={events}
+          events={upcomingEvents}
           selectedDay={selectedDay}
           onDayPress={setSelectedDay}
         />

@@ -23,25 +23,45 @@ const ListingCard = ({ listing }: Props) => {
   const sold = listing.status === "sold";
 
   const handleEnquire = async () => {
-    const phone = "2348034567890";
     const message = encodeURIComponent(
-      `Hi, I'm interested in "${listing.title}" listed on Tiwani for ${formatCurrency(listing.price)}. Is it still available?`,
+      `Hi ${listing.postedByName}, I'm interested in "${listing.title}" listed on Tiwani for ${formatCurrency(listing.price)}. Is it still available?`,
     );
-    const whatsappUrl = `whatsapp://send?phone=${phone}&text=${message}`;
-    const smsUrl = `sms:+${phone}?body=${message}`;
+    const phone =
+      listing.contactPhone?.replace(/[^\d+]/g, "") ??
+      listing.contactInstruction
+        .match(/\+?\d[\d\s()-]{7,}\d/)?.[0]
+        ?.replace(/[^\d+]/g, "");
+    const whatsappPhone = phone?.replace(/\D/g, "");
+    const email =
+      listing.contactEmail ??
+      listing.contactInstruction.match(
+        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
+      )?.[0];
+    const contactUrls = [
+      whatsappPhone
+        ? `https://wa.me/${whatsappPhone}?text=${message}`
+        : null,
+      phone ? `sms:${phone}&body=${message}` : null,
+      email
+        ? `mailto:${email}?subject=Tiwani marketplace enquiry&body=${message}`
+        : null,
+    ].filter((contactUrl): contactUrl is string => Boolean(contactUrl));
+
     try {
-      const canOpenWhatsapp = await Linking.canOpenURL(whatsappUrl);
-      const url = canOpenWhatsapp ? whatsappUrl : smsUrl;
-      const canOpenContact =
-        canOpenWhatsapp || (await Linking.canOpenURL(smsUrl));
-      if (!canOpenContact) {
-        Alert.alert("Contact unavailable", listing.contactInstruction);
-        return;
+      for (const contactUrl of contactUrls) {
+        if (await Linking.canOpenURL(contactUrl)) {
+          await Linking.openURL(contactUrl);
+          return;
+        }
       }
-      await Linking.openURL(url);
     } catch {
-      Alert.alert("Contact unavailable", listing.contactInstruction);
+      // Fall through to the seller's instructions when an external app fails.
     }
+
+    Alert.alert(
+      "Contact unavailable",
+      "This listing does not have a phone number or email for enquiries.",
+    );
   };
 
   return (

@@ -1,200 +1,176 @@
 import {
-  LibraryCategory,
   LibraryDocument,
   LibraryDocumentStatus,
-  LibraryDocumentType,
-  LibraryDocumentVisibility,
-  LibraryFileType,
 } from "../types/library";
+import { firebaseStorage } from "../config/firebase";
+import { libraryDocumentFromRecord } from "./converters/libraryConverter";
 import {
-  isLibraryDocumentTypeAllowed,
-  visibleLibraryDocuments,
-} from "../utils/libraryGuards";
-import { delay, mockLibraryDocuments } from "./mockData";
+  currentUid,
+  firestore,
+  getCurrentOrgId,
+  getCurrentUserRecord,
+  serverTimestamp,
+  startOrgSubscription,
+} from "./firebaseHelpers";
 
 export type LibraryDocumentInput = Omit<
   LibraryDocument,
   "id" | "uploadedAt" | "uploadedBy" | "uploadedByName"
+> & {
+  uploadFile?: LibraryUploadFile | null;
+};
+
+export interface LibraryUploadFile {
+  uri: string;
+  name: string;
+  size: number | null;
+  mimeType: string | null;
+}
+
+type UploadedLibraryFileMetadata = Pick<
+  LibraryDocument,
+  "fileName" | "fileURL" | "fileSize" | "fileType" | "storagePath"
 >;
 
-let documents = mockLibraryDocuments.slice();
-const subscribers = new Set<(documents: LibraryDocument[]) => void>();
-const categories: LibraryCategory[] = ["constitutional", "minutes_reports"];
-const statuses: LibraryDocumentStatus[] = ["draft", "published", "archived"];
-const visibilities: LibraryDocumentVisibility[] = ["all_members", "admin_only"];
-const fileTypes: LibraryFileType[] = ["pdf", "doc", "docx", "image", "other"];
-const supportedFileTypes: LibraryFileType[] = ["pdf", "doc", "docx", "image"];
-const urlPattern = /^https?:\/\/\S+$/i;
-const emitDocuments = () => {
-  subscribers.forEach((callback) =>
-    callback(visibleLibraryDocuments(documents, true)),
-  );
+const MAX_LIBRARY_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+const sanitizeStorageFileName = (name: string) =>
+  name
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || "library-document.pdf";
+
+const assertPdfUpload = (file: LibraryUploadFile) => {
+  const lowerName = file.name.trim().toLowerCase();
+  if (!lowerName.endsWith(".pdf") && file.mimeType !== "application/pdf") {
+    throw new Error("Library uploads currently support PDF files only.");
+  }
+  if (file.size !== null && file.size > MAX_LIBRARY_UPLOAD_BYTES) {
+    throw new Error("Library PDF uploads must be 20MB or smaller.");
+  }
+};
+
+const uploadLibraryFile = async (
+  orgId: string,
+  documentId: string,
+  file: LibraryUploadFile,
+): Promise<UploadedLibraryFileMetadata> => {
+  assertPdfUpload(file);
+  const storagePath = `organisations/${orgId}/library/${documentId}/${sanitizeStorageFileName(file.name)}`;
+  const ref = firebaseStorage().ref(storagePath);
+  await ref.putFile(file.uri, { contentType: "application/pdf" });
+  const fileURL = await ref.getDownloadURL();
+  return {
+    fileName: file.name.trim(),
+    fileURL,
+    fileSize: file.size,
+    fileType: "pdf" as const,
+    storagePath,
+  };
 };
 
 export const subscribeToLibraryDocuments = (
   callback: (documents: LibraryDocument[]) => void,
   includeAdmin = false,
-) => {
-  const subscriber = () =>
-    callback(visibleLibraryDocuments(documents, includeAdmin));
-  subscribers.add(subscriber);
-  subscriber();
-  return () => {
-    subscribers.delete(subscriber);
-  };
-};
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "library_documents",
+    libraryDocumentFromRecord,
+    callback,
+    (query) =>
+      includeAdmin
+        ? query
+        : query
+            .where("status", "==", "published")
+            .where("visibility", "==", "all_members"),
+    onError,
+  );
 
 export const getLibraryDocument = async (
   documentId: string,
-  includeAdmin = false,
+  _includeAdmin = false,
 ): Promise<LibraryDocument> => {
-  await delay();
-  const document = documents.find((item) => item.id === documentId);
-  if (
-    !document ||
-    !visibleLibraryDocuments([document], includeAdmin).some(
-      (visibleDocument) => visibleDocument.id === documentId,
-    )
-  ) {
+  const snapshot = await firestore()
+    .collection("library_documents")
+    .doc(documentId)
+    .get();
+  if (!snapshot.exists()) {
     throw new Error("Document not found.");
   }
-  return document;
-};
-
-const normalizeLibraryDocumentInput = (
-  data: LibraryDocumentInput,
-): LibraryDocumentInput => {
-  const fileURL = data.fileURL?.trim() ?? "";
-  return {
-    ...data,
-    title: data.title.trim(),
-    description: data.description.trim(),
-    fileName: data.fileName.trim(),
-    fileURL: fileURL || null,
-  };
-};
-
-const validateLibraryDocumentInput = (data: LibraryDocumentInput) => {
-  if (!data.title) {
-    throw new Error("Document title is required.");
-  }
-  if (!data.description) {
-    throw new Error("Document description is required.");
-  }
-  if (!categories.includes(data.category)) {
-    throw new Error("Document category is invalid.");
-  }
-  if (!isLibraryDocumentTypeAllowed(data.category, data.type)) {
-    throw new Error("Document type is invalid for this category.");
-  }
-  if (
-    data.documentDate !== null &&
-    (!(data.documentDate instanceof Date) ||
-      Number.isNaN(data.documentDate.getTime()))
-  ) {
-    throw new Error("Document date is invalid.");
-  }
-  if (!statuses.includes(data.status)) {
-    throw new Error("Document status is invalid.");
-  }
-  if (!visibilities.includes(data.visibility)) {
-    throw new Error("Document visibility is invalid.");
-  }
-  if (!data.fileName) {
-    throw new Error("File name is required.");
-  }
-  if (!fileTypes.includes(data.fileType)) {
-    throw new Error("Document file type is invalid.");
-  }
-  if (!supportedFileTypes.includes(data.fileType)) {
-    throw new Error("Unsupported file type.");
-  }
-  if (data.fileURL && !urlPattern.test(data.fileURL)) {
-    throw new Error("A valid document file URL is required.");
-  }
-  if (
-    data.fileSize !== null &&
-    (!Number.isFinite(data.fileSize) || data.fileSize < 0)
-  ) {
-    throw new Error("Document file size must be zero or more.");
-  }
-};
-
-const libraryDocumentInputFromUpdate = (
-  document: LibraryDocument,
-  data: Partial<LibraryDocument>,
-): LibraryDocumentInput => {
-  const has = (key: keyof LibraryDocument) =>
-    Object.prototype.hasOwnProperty.call(data, key);
-
-  return {
-    title: has("title") ? (data.title as string) : document.title,
-    description: has("description")
-      ? (data.description as string)
-      : document.description,
-    category: has("category")
-      ? (data.category as LibraryCategory)
-      : document.category,
-    type: has("type") ? (data.type as LibraryDocumentType) : document.type,
-    documentDate: has("documentDate")
-      ? (data.documentDate as Date | null)
-      : document.documentDate,
-    status: has("status")
-      ? (data.status as LibraryDocumentStatus)
-      : document.status,
-    visibility: has("visibility")
-      ? (data.visibility as LibraryDocumentVisibility)
-      : document.visibility,
-    fileName: has("fileName") ? (data.fileName as string) : document.fileName,
-    fileURL: has("fileURL")
-      ? (data.fileURL as string | null)
-      : document.fileURL,
-    fileType: has("fileType")
-      ? (data.fileType as LibraryFileType)
-      : document.fileType,
-    fileSize: has("fileSize")
-      ? (data.fileSize as number | null)
-      : document.fileSize,
-  };
+  return libraryDocumentFromRecord({
+    id: snapshot.id,
+    ...(snapshot.data() ?? {}),
+  });
 };
 
 export const createLibraryDocument = async (
   data: LibraryDocumentInput,
 ): Promise<LibraryDocument> => {
-  await delay();
-  const normalized = normalizeLibraryDocumentInput(data);
-  validateLibraryDocumentInput(normalized);
-  const document: LibraryDocument = {
-    ...normalized,
-    id: `doc-${Date.now()}`,
-    uploadedAt: new Date(),
-    uploadedBy: "admin-1",
-    uploadedByName: "Chukwuemeka Obi",
-  };
-  documents = [document, ...documents];
-  emitDocuments();
-  return document;
+  const [orgId, uploader] = await Promise.all([
+    getCurrentOrgId(),
+    getCurrentUserRecord(),
+  ]);
+  const ref = firestore().collection("library_documents").doc();
+  const { uploadFile, ...documentData } = data;
+  const uploadData: Partial<UploadedLibraryFileMetadata> = uploadFile
+    ? await uploadLibraryFile(orgId, ref.id, uploadFile)
+    : {};
+  await ref.set({
+    documentId: ref.id,
+    orgId,
+    ...documentData,
+    ...uploadData,
+    title: data.title.trim(),
+    description: data.description.trim(),
+    fileName: uploadData.fileName ?? data.fileName.trim(),
+    fileURL: uploadData.fileURL ?? (data.fileURL?.trim() || null),
+    fileSize: uploadData.fileSize ?? data.fileSize,
+    fileType: uploadData.fileType ?? data.fileType,
+    storagePath: uploadData.storagePath ?? data.storagePath ?? null,
+    uploadedBy: currentUid(),
+    uploadedByName:
+      typeof uploader.fullName === "string" ? uploader.fullName : "",
+    uploadedAt: serverTimestamp(),
+  });
+  return getLibraryDocument(ref.id, true);
 };
 
 export const updateLibraryDocument = async (
   documentId: string,
-  data: Partial<LibraryDocument>,
+  data: Partial<LibraryDocument> & { uploadFile?: LibraryUploadFile | null },
 ): Promise<void> => {
-  await delay();
-  const existingDocument = documents.find(
-    (document) => document.id === documentId,
+  const orgId = await getCurrentOrgId();
+  const uploadData: Partial<UploadedLibraryFileMetadata> = data.uploadFile
+    ? await uploadLibraryFile(orgId, documentId, data.uploadFile)
+    : {};
+  const editableFields: (keyof LibraryDocument)[] = [
+    "title",
+    "description",
+    "category",
+    "type",
+    "documentDate",
+    "status",
+    "visibility",
+    "fileName",
+    "fileURL",
+    "storagePath",
+    "fileType",
+    "fileSize",
+  ];
+  const updates = Object.fromEntries(
+    editableFields
+      .filter((field) => Object.prototype.hasOwnProperty.call(data, field))
+      .map((field) => [field, data[field]]),
   );
-  if (!existingDocument) {
-    throw new Error("Document not found.");
-  }
-  const normalized = normalizeLibraryDocumentInput(
-    libraryDocumentInputFromUpdate(existingDocument, data),
-  );
-  validateLibraryDocumentInput(normalized);
-  documents = documents.map((document) =>
-    document.id === documentId ? { ...document, ...normalized } : document,
-  );
-  emitDocuments();
+  await firestore()
+    .collection("library_documents")
+    .doc(documentId)
+    .update({
+      ...updates,
+      ...uploadData,
+    });
 };
 
 export const setLibraryDocumentStatus = async (
@@ -213,12 +189,7 @@ export const unarchiveLibraryDocument = async (
 export const deleteLibraryDocument = async (
   documentId: string,
 ): Promise<void> => {
-  await delay();
-  if (!documents.some((document) => document.id === documentId)) {
-    throw new Error("Document not found.");
-  }
-  documents = documents.filter((document) => document.id !== documentId);
-  emitDocuments();
+  await firestore().collection("library_documents").doc(documentId).delete();
 };
 
 export const getLibraryDocumentURL = async (
@@ -226,5 +197,10 @@ export const getLibraryDocumentURL = async (
   includeAdmin = false,
 ): Promise<string | null> => {
   const document = await getLibraryDocument(documentId, includeAdmin);
-  return document.fileURL;
+  if (document.fileURL) {
+    return document.fileURL;
+  }
+  return document.storagePath
+    ? firebaseStorage().ref(document.storagePath).getDownloadURL()
+    : null;
 };

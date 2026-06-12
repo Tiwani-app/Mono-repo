@@ -1,4 +1,5 @@
 export type LedgerType = 'dues' | 'levy' | 'fine' | 'pledge' | 'payment';
+export type LedgerPaidStatus = 'unpaid' | 'partial' | 'paid';
 
 export interface LedgerEntry {
   id: string;
@@ -6,8 +7,10 @@ export interface LedgerEntry {
   type: LedgerType;
   label: string;
   amount: number;
+  amountPaid: number;
   dueDate: Date | null;
   paid: boolean;
+  paidStatus: LedgerPaidStatus;
   paidAt: Date | null;
   paymentMethod?: string;
   reference?: string;

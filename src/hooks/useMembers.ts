@@ -31,6 +31,11 @@ export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
     setLoading(true);
     setError(null);
     setSyncState("syncing");
+    const handleError = (error: Error) => {
+      setError(error.message || "Could not load members.");
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToMembers((nextMembers) => {
         setMembers(nextMembers);
@@ -38,7 +43,7 @@ export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
         setError(null);
         setSyncState("fresh");
         setLoading(false);
-      });
+      }, handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(

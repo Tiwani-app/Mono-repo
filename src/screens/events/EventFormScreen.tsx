@@ -24,6 +24,7 @@ import {
   updateEvent,
 } from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
+import { useEventsStore } from "../../store/eventsStore";
 import { colors, spacing, typography } from "../../theme";
 import { EventCategory, EventStatus } from "../../types/event";
 import { safeGoBack } from "../../utils/navigation";
@@ -52,6 +53,21 @@ const statusOptions: { label: string; value: EventStatus }[] = [
   { label: "Completed", value: "completed" },
 ];
 
+const hourOptions = Array.from({ length: 12 }, (_, index) => {
+  const value = String(index + 1);
+  return { label: value, value };
+});
+
+const minuteOptions = Array.from({ length: 12 }, (_, index) => {
+  const value = String(index * 5).padStart(2, "0");
+  return { label: value, value };
+});
+
+const periodOptions = [
+  { label: "AM", value: "AM" },
+  { label: "PM", value: "PM" },
+];
+
 const parseDateTime = (dateValue: string, timeValue: string) => {
   const trimmedDate = dateValue.trim();
   const trimmedTime = timeValue.trim();
@@ -65,14 +81,44 @@ const parseDateTime = (dateValue: string, timeValue: string) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const timePartsFromValue = (value: string) => {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  const hour24 = match ? Number(match[1]) : 10;
+  const minute = match ? match[2] : "00";
+  return {
+    hour: String(((hour24 + 11) % 12) + 1),
+    minute,
+    period: hour24 >= 12 ? "PM" : "AM",
+  };
+};
+
+const timeValueFromParts = (
+  hourValue: string,
+  minuteValue: string,
+  periodValue: string,
+) => {
+  const hour12 = Number(hourValue);
+  const hour24 =
+    periodValue === "PM"
+      ? hour12 === 12
+        ? 12
+        : hour12 + 12
+      : hour12 === 12
+        ? 0
+        : hour12;
+  return `${String(hour24).padStart(2, "0")}:${minuteValue}`;
+};
+
 const EventFormScreen = ({ navigation, route }: any) => {
   const eventId = route.params?.eventId as string | undefined;
   const [category, setCategory] = useState<EventCategory>("meeting");
   const [status, setStatus] = useState<EventStatus>("published");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
+  const [openTimeMenu, setOpenTimeMenu] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
+  const upsertEvent = useEventsStore((state) => state.upsertEvent);
   const admin = isAdmin(user);
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
@@ -142,11 +188,13 @@ const EventFormScreen = ({ navigation, route }: any) => {
         capacity,
         status,
       };
+      let savedEvent;
       if (eventId) {
-        await updateEvent(eventId, payload);
+        savedEvent = await updateEvent(eventId, payload);
       } else {
-        await createEvent(payload);
+        savedEvent = await createEvent(payload);
       }
+      upsertEvent(savedEvent);
       safeGoBack(navigation, "EventsList");
     } catch (error) {
       Alert.alert(
@@ -234,7 +282,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             selectedValue={category}
             onChange={setCategory}
           />
-          <View style={styles.twoColumn}>
+          <View style={styles.dateTimeStack}>
             <Controller
               control={control}
               name="date"
@@ -255,18 +303,19 @@ const EventFormScreen = ({ navigation, route }: any) => {
                 />
               )}
             />
-            <Field
+            <Controller
               control={control}
-              error={formState.errors.time?.message}
-              label="TIME"
               name="time"
-              rules={{
-                required: "Time is required.",
-                pattern: {
-                  value: /^\d{2}:\d{2}$/,
-                  message: "Use HH:mm.",
-                },
-              }}
+              rules={{ required: "Time is required." }}
+              render={({ field: { onChange, value } }) => (
+                <TimeDropdown
+                  value={value}
+                  onChange={onChange}
+                  openMenu={openTimeMenu}
+                  setOpenMenu={setOpenTimeMenu}
+                  error={formState.errors.time?.message}
+                />
+              )}
             />
           </View>
           <Field
@@ -372,6 +421,131 @@ const ChipRow = <T extends string>({
   </View>
 );
 
+const DropdownSelect = <T extends string>({
+  id,
+  label,
+  onChange,
+  openMenu,
+  options,
+  setOpenMenu,
+  value,
+}: {
+  id: string;
+  label: string;
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (value: T) => void;
+  openMenu: string | null;
+  setOpenMenu: (value: string | null) => void;
+}) => {
+  const open = openMenu === id;
+  return (
+    <View style={styles.dropdownWrap}>
+      <Text style={styles.dropdownLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.dropdownButton, open && styles.dropdownButtonOpen]}
+        onPress={() => setOpenMenu(open ? null : id)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.dropdownValue}>
+          {options.find((option) => option.value === value)?.label ?? value}
+        </Text>
+        <Text style={styles.dropdownChevron}>{open ? "^" : "v"}</Text>
+      </TouchableOpacity>
+      {open && (
+        <View style={styles.dropdownPanel}>
+          {options.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.dropdownOption,
+                option.value === value && styles.dropdownOptionSelected,
+              ]}
+              onPress={() => {
+                onChange(option.value);
+                setOpenMenu(null);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.dropdownOptionText,
+                  option.value === value && styles.dropdownOptionTextSelected,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const TimeDropdown = ({
+  error,
+  onChange,
+  openMenu,
+  setOpenMenu,
+  value,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  openMenu: string | null;
+  setOpenMenu: (value: string | null) => void;
+  error?: string;
+}) => {
+  const parts = timePartsFromValue(value);
+  const resolvedMinuteOptions = minuteOptions.some(
+    (option) => option.value === parts.minute,
+  )
+    ? minuteOptions
+    : [...minuteOptions, { label: parts.minute, value: parts.minute }].sort(
+        (left, right) => Number(left.value) - Number(right.value),
+      );
+  const updatePart = (next: Partial<typeof parts>) => {
+    const merged = { ...parts, ...next };
+    onChange(timeValueFromParts(merged.hour, merged.minute, merged.period));
+  };
+
+  return (
+    <View style={styles.timeField}>
+      <Text style={styles.label}>TIME</Text>
+      <View style={styles.timeRow}>
+        <DropdownSelect
+          id="event-hour"
+          label="Hour"
+          options={hourOptions}
+          value={parts.hour}
+          onChange={(hour) => updatePart({ hour })}
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+        />
+        <DropdownSelect
+          id="event-minute"
+          label="Minute"
+          options={resolvedMinuteOptions}
+          value={parts.minute}
+          onChange={(minute) => updatePart({ minute })}
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+        />
+        <DropdownSelect
+          id="event-period"
+          label="AM/PM"
+          options={periodOptions}
+          value={parts.period}
+          onChange={(period) => updatePart({ period })}
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+        />
+      </View>
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
@@ -422,7 +596,62 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
-  twoColumn: { flexDirection: "row", gap: spacing.md },
+  dateTimeStack: { gap: spacing.md },
+  timeField: { gap: spacing.xs },
+  timeRow: { flexDirection: "row", gap: spacing.sm },
+  dropdownWrap: { flex: 1, gap: spacing.xs },
+  dropdownLabel: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    letterSpacing: 0.4,
+  },
+  dropdownButton: {
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xs,
+  },
+  dropdownButtonOpen: { borderColor: colors.gold.default },
+  dropdownValue: {
+    flex: 1,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  dropdownChevron: {
+    fontSize: typography.size.xs,
+    color: colors.gold.light,
+  },
+  dropdownPanel: {
+    padding: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+    gap: spacing.xs,
+  },
+  dropdownOption: {
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  dropdownOptionSelected: { backgroundColor: `${colors.gold.default}22` },
+  dropdownOptionText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  dropdownOptionTextSelected: {
+    color: colors.gold.light,
+    fontWeight: typography.weight.bold,
+  },
   helpText: { fontSize: typography.size.xs, color: colors.text.tertiary },
 });
 

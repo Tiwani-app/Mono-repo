@@ -23,12 +23,16 @@ export const useJoinRequests = ({
 
     setLoading(true);
     setError(null);
+    const handleError = (err: Error) => {
+      setError(err.message || "Could not load join requests.");
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToJoinRequests((items) => {
         setRequests(items);
         setError(null);
         setLoading(false);
-      });
+      }, handleError);
       return () => unsubscribe();
     } catch (err) {
       setError(

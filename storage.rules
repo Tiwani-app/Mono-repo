@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return signedIn() && userDoc().status == "active";
+    }
+
+    function isAdmin() {
+      return isActive() && userDoc().role == "admin";
+    }
+
+    function sameOrg(orgId) {
+      return isActive() && userDoc().orgId == orgId;
+    }
+
+    function pdfUpload() {
+      return request.resource != null &&
+        request.resource.contentType == "application/pdf" &&
+        request.resource.size <= 20 * 1024 * 1024;
+    }
+
+    function imageUpload() {
+      return request.resource != null &&
+        request.resource.contentType.matches("image/.*") &&
+        request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    match /organisations/{orgId}/library/{documentId}/{fileName} {
+      allow read: if sameOrg(orgId);
+      allow write: if isAdmin() && sameOrg(orgId) && pdfUpload();
+    }
+
+    match /organisations/{orgId}/profiles/{userId}/{fileName} {
+      allow read: if sameOrg(orgId);
+      allow write: if sameOrg(orgId) &&
+        (isAdmin() || request.auth.uid == userId) &&
+        imageUpload();
+    }
+
+    match /organisations/{orgId}/marketplace/{listingId}/{fileName} {
+      allow read: if sameOrg(orgId);
+      allow write: if sameOrg(orgId) && imageUpload();
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

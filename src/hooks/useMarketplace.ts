@@ -13,6 +13,11 @@ export const useMarketplace = (includeArchived = false) => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
+    const handleError = (error: Error) => {
+      setError(error.message || 'Could not load listings.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToListings(
         nextListings => {
@@ -23,6 +28,7 @@ export const useMarketplace = (includeArchived = false) => {
           setLoading(false);
         },
         includeArchived,
+        handleError,
       );
       return () => unsubscribe();
     } catch (error) {

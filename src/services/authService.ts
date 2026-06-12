@@ -1,133 +1,119 @@
+import { requireFirebaseApp, firebaseAuth } from "../config/firebase";
 import { User } from "../types/user";
-import { delay, mockUsers } from "./mockData";
-
-declare const require: (name: string) => any;
-
-let currentUser: User | null = null;
-let hydratedSession = false;
-const listeners = new Set<(user: User | null) => void>();
-const sessionKey = "tiwani.currentUserUid";
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const notify = () => listeners.forEach((listener) => listener(currentUser));
+import { userFromRecord } from "./converters/userConverter";
+import { firestore, getUserRecord } from "./firebaseHelpers";
 
 const authError = (code: string) => ({ code });
 
-const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const errorCode = (error: unknown): string =>
+  typeof error === "object" && error && "code" in error
+    ? String((error as { code?: string }).code)
+    : "";
 
-const assertValidEmail = (email: string) => {
-  if (!email || !emailPattern.test(email)) {
-    throw authError("auth/invalid-email");
+const safeSignOut = async (): Promise<void> => {
+  try {
+    const auth = firebaseAuth();
+    if (!auth.currentUser) {
+      return;
+    }
+    await auth.signOut();
+  } catch (error) {
+    if (errorCode(error) !== "auth/no-current-user") {
+      throw error;
+    }
   }
 };
 
 const assertActiveAccount = (user: User) => {
-  if (user.status === "pending") {
-    throw authError("auth/account-pending");
-  }
-  if (user.status === "inactive") {
-    throw authError("auth/account-inactive");
-  }
-  if (user.status === "suspended") {
-    throw authError("auth/account-suspended");
+  if (user.status !== "active") {
+    throw authError(`auth/account-${user.status}`);
   }
 };
 
-const sessionStorage = () => {
+const getProfile = async (uid: string): Promise<User> => {
+  let record;
   try {
-    const module = require("@react-native-async-storage/async-storage");
-    return module.default ?? module;
-  } catch {
-    return null;
-  }
-};
-
-const persistSession = async (uid: string | null) => {
-  const storage = sessionStorage();
-  if (!storage) {
-    return;
-  }
-  try {
-    if (uid) {
-      await storage.setItem(sessionKey, uid);
-    } else {
-      await storage.removeItem(sessionKey);
+    record = await getUserRecord(uid);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Member profile not found.") {
+      throw new Error(
+        "This Firebase sign-in exists, but its Tiwani member profile has not been provisioned. Ask an administrator to add or approve this member before signing in.",
+      );
     }
-  } catch {
-    // Session persistence is best-effort in the mock/Expo Go build.
+    throw error;
   }
-};
+  const baseProfile = userFromRecord(record);
+  if (baseProfile.status !== "active") {
+    return baseProfile;
+  }
 
-const hydrateSession = async () => {
-  if (hydratedSession) {
-    return;
+  const orgId = typeof record.orgId === "string" ? record.orgId.trim() : "";
+  if (!orgId) {
+    throw new Error(
+      'Your Tiwani member profile is missing an organisation. Add an "orgId" field to this user profile before signing in.',
+    );
   }
-  hydratedSession = true;
-  const storage = sessionStorage();
-  if (!storage) {
-    return;
-  }
-  const uid = await storage.getItem(sessionKey);
-  if (!uid) {
-    return;
-  }
-  const user = mockUsers.find((item) => item.uid === uid) ?? null;
-  if (user?.status === "active") {
-    currentUser = user;
-  }
+  const organisation = orgId
+    ? await firestore().collection("organisations").doc(orgId).get()
+    : null;
+  return userFromRecord({
+    ...record,
+    currencySymbol: organisation?.data()?.currencySymbol,
+    timezone: organisation?.data()?.timezone,
+  });
 };
 
 export const signIn = async (
   email: string,
   password: string,
 ): Promise<User> => {
-  await delay();
-  const normalizedEmail = normalizeEmail(email);
-  assertValidEmail(normalizedEmail);
-  if (password !== "password") {
-    throw authError("auth/wrong-password");
-  }
-  const user = mockUsers.find(
-    (item) => normalizeEmail(item.email) === normalizedEmail,
+  requireFirebaseApp();
+  const credential = await firebaseAuth().signInWithEmailAndPassword(
+    email.trim().toLowerCase(),
+    password,
   );
-  if (!user) {
-    throw authError("auth/user-not-found");
+  try {
+    const profile = await getProfile(credential.user.uid);
+    assertActiveAccount(profile);
+    return profile;
+  } catch (error) {
+    await safeSignOut();
+    throw error;
   }
-  assertActiveAccount(user);
-  currentUser = user;
-  await persistSession(user.uid);
-  notify();
-  return user;
 };
 
 export const signOut = async (): Promise<void> => {
-  await delay();
-  currentUser = null;
-  await persistSession(null);
-  notify();
+  requireFirebaseApp();
+  await safeSignOut();
 };
 
 export const sendPasswordReset = async (email: string): Promise<void> => {
-  await delay();
-  const normalizedEmail = normalizeEmail(email);
-  assertValidEmail(normalizedEmail);
-  const user = mockUsers.find(
-    (item) => normalizeEmail(item.email) === normalizedEmail,
-  );
-  if (!user) {
-    throw authError("auth/user-not-found");
-  }
-  assertActiveAccount(user);
+  requireFirebaseApp();
+  await firebaseAuth().sendPasswordResetEmail(email.trim().toLowerCase());
 };
 
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
-  listeners.add(callback);
-  hydrateSession()
-    .catch(() => {
-      currentUser = null;
-    })
-    .finally(() => callback(currentUser));
-  return () => {
-    listeners.delete(callback);
-  };
+  try {
+    requireFirebaseApp();
+    return firebaseAuth().onAuthStateChanged((authUser) => {
+      if (!authUser) {
+        callback(null);
+        return;
+      }
+      getProfile(authUser.uid)
+        .then((profile) => {
+          assertActiveAccount(profile);
+          callback(profile);
+        })
+        .catch(async (error) => {
+          console.warn("Could not restore the signed-in profile.", error);
+          await safeSignOut();
+          callback(null);
+        });
+    });
+  } catch (error) {
+    console.error("Firebase authentication is not configured.", error);
+    callback(null);
+    return () => {};
+  }
 };

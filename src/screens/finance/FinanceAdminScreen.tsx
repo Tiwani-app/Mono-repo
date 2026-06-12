@@ -20,7 +20,13 @@ import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import {
+  getFinanceStanding,
+  getFinanceStandingBadgeLabel,
+  getFinanceStandingColor,
+} from "../../utils/financeStanding";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { getFinanceTotals } from "../../utils/financeTotals";
 import { getInitials } from "../../utils/getInitials";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -77,13 +83,11 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     );
   }
 
-  const totalCharged = ledgerEntries
-    .filter((entry) => entry.type !== "payment")
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const totalCollected = ledgerEntries
-    .filter((entry) => entry.type !== "payment" && entry.paid)
-    .reduce((sum, entry) => sum + entry.amount, 0);
-  const outstanding = totalCharged - totalCollected;
+  const {
+    outstanding,
+    totalCharged,
+    totalPaid: totalCollected,
+  } = getFinanceTotals(ledgerEntries);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -132,37 +136,42 @@ const FinanceAdminScreen = ({ navigation }: any) => {
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
           </>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.memberRow}
-            onPress={() =>
-              navigation.navigate("MyLedger", { memberId: item.uid })
-            }
-            activeOpacity={0.8}
-          >
-            <Avatar
-              initials={getInitials(item.fullName)}
-              photoURL={item.photoURL}
-              statusDot={item.financialStatus}
-            />
-            <View style={styles.memberContent}>
-              <Text style={styles.memberName}>{item.fullName}</Text>
-              <Text style={styles.memberMeta}>
-                {item.financialStatus === "green"
-                  ? "Good standing"
-                  : `Owes ${formatCurrency(item.outstandingBalance)}`}
-              </Text>
-            </View>
-            <Badge
-              label={item.financialStatus === "green" ? "CLEAR" : "OVERDUE"}
-              color={
-                item.financialStatus === "green"
-                  ? colors.status.success
-                  : colors.status.error
+        renderItem={({ item }) => {
+          const standing = getFinanceStanding(
+            item.financialStatus,
+            item.outstandingBalance,
+          );
+          const balance = formatCurrency(item.outstandingBalance);
+          return (
+            <TouchableOpacity
+              style={styles.memberRow}
+              onPress={() =>
+                navigation.navigate("MyLedger", { memberId: item.uid })
               }
-            />
-          </TouchableOpacity>
-        )}
+              activeOpacity={0.8}
+            >
+              <Avatar
+                initials={getInitials(item.fullName)}
+                photoURL={item.photoURL}
+                statusDot={item.financialStatus}
+              />
+              <View style={styles.memberContent}>
+                <Text style={styles.memberName}>{item.fullName}</Text>
+                <Text style={styles.memberMeta}>
+                  {standing === "clear"
+                    ? "Good standing"
+                    : standing === "overdue"
+                      ? `Overdue ${balance}`
+                      : `Balance due ${balance}`}
+                </Text>
+              </View>
+              <Badge
+                label={getFinanceStandingBadgeLabel(standing)}
+                color={getFinanceStandingColor(standing)}
+              />
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );

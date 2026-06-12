@@ -30,6 +30,11 @@ export const useFinance = (uid?: string, includeAll = false) => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
+    const handleError = (error: Error) => {
+      setError(error.message || 'Could not load finance data.');
+      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setLoading(false);
+    };
     try {
       const unsubscribe = subscribeToLedger(ledgerUid, entries => {
         setLedgerEntries(entries);
@@ -37,7 +42,11 @@ export const useFinance = (uid?: string, includeAll = false) => {
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      });
+      }, handleError);
+      if (!includeAll) {
+        setDuesPeriods([]);
+        return () => unsubscribe();
+      }
       getDuesPeriods()
         .then(periods => {
           setDuesPeriods(periods);
@@ -45,10 +54,7 @@ export const useFinance = (uid?: string, includeAll = false) => {
           setError(null);
           setSyncState('fresh');
         })
-        .catch(error => {
-          setError(error instanceof Error ? error.message : 'Could not load finance data.');
-          setSyncState(getFailureSyncState(hasCachedDataRef.current));
-        });
+        .catch(handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load finance data.');
