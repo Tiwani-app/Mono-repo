@@ -32,6 +32,7 @@ const eventData = (data: Partial<EventInput>) => ({
 export const subscribeToEvents = (
   callback: (events: TiwaniEvent[]) => void,
   onError?: (error: Error) => void,
+  options: { includeUnpublished?: boolean } = {},
 ) =>
   startOrgSubscription(
     "events",
@@ -40,7 +41,9 @@ export const subscribeToEvents = (
       callback(
         events.sort((left, right) => left.dateTime.getTime() - right.dateTime.getTime()),
       ),
-    undefined,
+    options.includeUnpublished
+      ? undefined
+      : (query) => query.where("status", "==", "published"),
     onError,
   );
 

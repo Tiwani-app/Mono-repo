@@ -69,6 +69,20 @@ const seed = async () => {
       rsvpList: [],
       attendeeList: [],
     });
+    await db.doc("events/draft-event").set({
+      eventId: "draft-event",
+      orgId: "org-1",
+      title: "Draft Event",
+      description: "Admin planning draft",
+      category: "meeting",
+      startTime: new Date("2026-08-01T18:00:00.000Z"),
+      location: "Main Hall",
+      capacity: 50,
+      createdBy: "admin-1",
+      status: "draft",
+      rsvpList: [],
+      attendeeList: [],
+    });
     await db.doc("finance/charge-1").set({
       entryId: "charge-1",
       orgId: "org-1",
@@ -103,6 +117,34 @@ const seed = async () => {
       resultVisibility: "after_vote",
       totalVotes: 0,
       options: [{ optionId: "hall", label: "Hall", voteCount: 0 }],
+    });
+    await db.doc("polls/draft-poll").set({
+      pollId: "draft-poll",
+      orgId: "org-1",
+      title: "Draft Poll",
+      question: "Should members see this?",
+      status: "draft",
+      resultVisibility: "after_vote",
+      totalVotes: 0,
+      options: [{ optionId: "yes", label: "Yes", voteCount: 0 }],
+    });
+    await db.doc("elections/election-1").set({
+      electionId: "election-1",
+      orgId: "org-1",
+      title: "Executive Election",
+      ballotType: "single_choice",
+      status: "open",
+      resultVisibility: "after_close",
+      races: [],
+    });
+    await db.doc("elections/draft-election").set({
+      electionId: "draft-election",
+      orgId: "org-1",
+      title: "Draft Election",
+      ballotType: "single_choice",
+      status: "draft",
+      resultVisibility: "after_close",
+      races: [],
     });
   });
 };
@@ -171,6 +213,57 @@ describe("Firestore security rules", () => {
     );
     await assertFails(
       memberDb.doc("finance/charge-1").update({ amountPaid: 100 }),
+    );
+  });
+
+  it("requires member list queries to match published event visibility", async () => {
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+
+    await assertSucceeds(
+      memberDb
+        .collection("events")
+        .where("orgId", "==", "org-1")
+        .where("status", "==", "published")
+        .get(),
+    );
+    await assertFails(
+      memberDb.collection("events").where("orgId", "==", "org-1").get(),
+    );
+    await assertSucceeds(
+      adminDb.collection("events").where("orgId", "==", "org-1").get(),
+    );
+  });
+
+  it("requires member list queries to exclude draft polls and elections", async () => {
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+
+    await assertSucceeds(
+      memberDb
+        .collection("polls")
+        .where("orgId", "==", "org-1")
+        .where("status", "in", ["open", "closed"])
+        .get(),
+    );
+    await assertSucceeds(
+      memberDb
+        .collection("elections")
+        .where("orgId", "==", "org-1")
+        .where("status", "in", ["open", "closed"])
+        .get(),
+    );
+    await assertFails(
+      memberDb.collection("polls").where("orgId", "==", "org-1").get(),
+    );
+    await assertFails(
+      memberDb.collection("elections").where("orgId", "==", "org-1").get(),
+    );
+    await assertSucceeds(
+      adminDb.collection("polls").where("orgId", "==", "org-1").get(),
+    );
+    await assertSucceeds(
+      adminDb.collection("elections").where("orgId", "==", "org-1").get(),
     );
   });
 

@@ -113,12 +113,32 @@ const storedRaces = (races: Race[]) =>
 export const subscribeToPolls = (
   callback: (polls: Poll[]) => void,
   onError?: (error: Error) => void,
-) => startOrgSubscription("polls", pollFromRecord, callback, undefined, onError);
+  options: { includeDrafts?: boolean } = {},
+) =>
+  startOrgSubscription(
+    "polls",
+    pollFromRecord,
+    callback,
+    options.includeDrafts
+      ? undefined
+      : (query) => query.where("status", "in", ["open", "closed"]),
+    onError,
+  );
 
 export const subscribeToElections = (
   callback: (elections: Election[]) => void,
   onError?: (error: Error) => void,
-) => startOrgSubscription("elections", electionFromRecord, callback, undefined, onError);
+  options: { includeDrafts?: boolean } = {},
+) =>
+  startOrgSubscription(
+    "elections",
+    electionFromRecord,
+    callback,
+    options.includeDrafts
+      ? undefined
+      : (query) => query.where("status", "in", ["open", "closed"]),
+    onError,
+  );
 
 export const getPoll = async (pollId: string): Promise<Poll> => {
   const snapshot = await firestore().collection("polls").doc(pollId).get();

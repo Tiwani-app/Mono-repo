@@ -1,9 +1,12 @@
 import {useEffect, useRef} from 'react';
 import {subscribeToElections, subscribeToPolls} from '../services/votingService';
+import {useAuthStore} from '../store/authStore';
 import {useVotingStore} from '../store/votingStore';
+import {isAdmin} from '../utils/roleGuard';
 import {getFailureSyncState} from '../utils/syncState';
 
 export const useVoting = () => {
+  const {user} = useAuthStore();
   const {
     elections,
     polls,
@@ -14,6 +17,7 @@ export const useVoting = () => {
     setPolls,
     setSyncState,
   } = useVotingStore();
+  const includeDrafts = isAdmin(user);
   const hasCachedDataRef = useRef(false);
 
   hasCachedDataRef.current = polls.length > 0 || elections.length > 0;
@@ -34,14 +38,14 @@ export const useVoting = () => {
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      }, handleError);
+      }, handleError, {includeDrafts});
       const unsubscribeElections = subscribeToElections(nextElections => {
         setElections(nextElections);
         setLastSyncedAt(new Date());
         setError(null);
         setSyncState('fresh');
         setLoading(false);
-      }, handleError);
+      }, handleError, {includeDrafts});
       return () => {
         unsubscribePolls();
         unsubscribeElections();
@@ -51,7 +55,7 @@ export const useVoting = () => {
       setSyncState(getFailureSyncState(hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [setElections, setError, setLastSyncedAt, setLoading, setPolls, setSyncState]);
+  }, [includeDrafts, setElections, setError, setLastSyncedAt, setLoading, setPolls, setSyncState]);
 
   return useVotingStore();
 };
