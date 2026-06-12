@@ -33,6 +33,34 @@ import {
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
+const getAgeFromDateOfBirth = (dateOfBirth: string): number | null => {
+  const parsed = new Date(dateOfBirth);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const birthdayPassed =
+    today.getMonth() > parsed.getMonth() ||
+    (today.getMonth() === parsed.getMonth() &&
+      today.getDate() >= parsed.getDate());
+
+  if (!birthdayPassed) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+};
+
+const formatChildDateOfBirth = (dateOfBirth: string): string => {
+  const age = getAgeFromDateOfBirth(dateOfBirth);
+  if (age === null) {
+    return dateOfBirth;
+  }
+  return `${dateOfBirth} (${age} ${age === 1 ? "year" : "years"} old)`;
+};
+
 const MemberProfileScreen = ({ navigation, route }: any) => {
   const memberId = route.params?.memberId as string | undefined;
   const [member, setMember] = useState<User | null>(null);
@@ -194,6 +222,9 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             {member.maritalStatus === "married" && profile.spouseName && (
               <Info label="Spouse" value={profile.spouseName} />
             )}
+            <Text style={styles.familySectionLabel}>
+              Children ({profile.children.length})
+            </Text>
             {profile.children.length === 0 ? (
               <Text style={styles.emptyText}>No children recorded.</Text>
             ) : (
@@ -201,7 +232,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
                 <Info
                   key={child.name}
                   label={child.name}
-                  value={child.dateOfBirth}
+                  value={formatChildDateOfBirth(child.dateOfBirth)}
                 />
               ))
             )}
@@ -290,6 +321,14 @@ const styles = StyleSheet.create({
   infoRow: { gap: spacing.xs },
   infoLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   infoValue: { fontSize: typography.size.base, color: colors.text.primary },
+  familySectionLabel: {
+    marginTop: spacing.xs,
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.bold,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
   emptyText: { color: colors.text.secondary },
   restricted: { color: colors.status.error, textAlign: "center" },
   editButton: {
