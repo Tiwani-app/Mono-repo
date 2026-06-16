@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Tiwani</string>
+    <string>Tiwani Dev</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -29,6 +29,18 @@
         <array>
           <string>tiwani</string>
           <string>com.tiwani.app</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>exp+tiwani</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>app-1-898397481054-ios-08f0042ec7371de4a56ccf</string>
         </array>
       </dict>
     </array>
@@ -53,15 +65,15 @@
     <string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>remote-notification</string>
+    </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
       <string>arm64</string>
-    </array>
-    <key>UIBackgroundModes</key>
-    <array>
-      <string>remote-notification</string>
     </array>
     <key>UIRequiresFullScreen</key>
     <false/>

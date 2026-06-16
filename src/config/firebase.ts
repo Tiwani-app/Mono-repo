@@ -1,9 +1,15 @@
 import type { FirebaseApp } from "@react-native-firebase/app";
+import type {
+  FirebaseAppCheckTypes,
+  ReactNativeFirebaseAppCheckProvider,
+} from "@react-native-firebase/app-check";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import type { FirebaseCrashlyticsTypes } from "@react-native-firebase/crashlytics";
 import type { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
 import type { FirebaseFunctionsTypes } from "@react-native-firebase/functions";
 import type { FirebaseMessagingTypes } from "@react-native-firebase/messaging";
 import type { FirebaseStorageTypes } from "@react-native-firebase/storage";
+import { NativeModules } from "react-native";
 import { env } from "./env";
 
 export interface FirebaseClientConfigState {
@@ -15,6 +21,21 @@ interface FirebaseMessagingModule {
   AuthorizationStatus: {
     AUTHORIZED: unknown;
     PROVISIONAL: unknown;
+  };
+}
+
+interface AppCheckProviderOptionsMap {
+  android?: {
+    provider?: "debug" | "playIntegrity";
+    debugToken?: string;
+  };
+  apple?: {
+    provider?:
+      | "debug"
+      | "deviceCheck"
+      | "appAttest"
+      | "appAttestWithDeviceCheckFallback";
+    debugToken?: string;
   };
 }
 
@@ -39,7 +60,11 @@ const nativeFirebaseUnavailableMessage =
 
 const nativeFirebaseModules = {
   "@react-native-firebase/app": () => require("@react-native-firebase/app"),
+  "@react-native-firebase/app-check": () =>
+    require("@react-native-firebase/app-check"),
   "@react-native-firebase/auth": () => require("@react-native-firebase/auth"),
+  "@react-native-firebase/crashlytics": () =>
+    require("@react-native-firebase/crashlytics"),
   "@react-native-firebase/firestore": () =>
     require("@react-native-firebase/firestore"),
   "@react-native-firebase/functions": () =>
@@ -51,6 +76,15 @@ const nativeFirebaseModules = {
 };
 
 type NativeFirebaseModuleName = keyof typeof nativeFirebaseModules;
+
+const optionalNativeModuleNames = {
+  "@react-native-firebase/app-check": "RNFBAppCheckModule",
+  "@react-native-firebase/crashlytics": "RNFBCrashlyticsModule",
+} as const;
+
+const isOptionalNativeModuleInstalled = (
+  moduleName: keyof typeof optionalNativeModuleNames,
+): boolean => Boolean(NativeModules[optionalNativeModuleNames[moduleName]]);
 
 const loadNativeDefault = <T>(
   moduleName: NativeFirebaseModuleName,
@@ -71,6 +105,11 @@ const loadNativeFactory = <T>(
   loadNativeDefault<NativeFirebaseFactory<T>>(moduleName);
 
 let firebaseEmulatorsConfigured = false;
+let firebaseRuntimeServicesPromise: Promise<void> | null = null;
+
+const crashlyticsEnabled = () => env.crashlyticsEnabled && !__DEV__;
+const appCheckEnabled = () =>
+  env.appCheckEnabled && !env.useFirebaseEmulators;
 
 const configureFirebaseDevelopmentEmulators = () => {
   if (!env.useFirebaseEmulators || firebaseEmulatorsConfigured) {
@@ -88,6 +127,101 @@ const configureFirebaseDevelopmentEmulators = () => {
     "@react-native-firebase/functions",
   )().useEmulator(host, 5001);
   firebaseEmulatorsConfigured = true;
+};
+
+const configureAppCheckProvider = (
+  provider: ReactNativeFirebaseAppCheckProvider,
+) => {
+  const runningDebugProvider = __DEV__ || env.appEnvironment === "development";
+  const androidOptions: AppCheckProviderOptionsMap["android"] =
+    {
+      provider: runningDebugProvider ? "debug" : env.appCheckAndroidProvider,
+    };
+  const appleOptions: AppCheckProviderOptionsMap["apple"] =
+    {
+      provider: runningDebugProvider ? "debug" : env.appCheckAppleProvider,
+    };
+
+  if (env.appCheckAndroidDebugToken.trim()) {
+    androidOptions.debugToken = env.appCheckAndroidDebugToken.trim();
+  }
+
+  if (env.appCheckAppleDebugToken.trim()) {
+    appleOptions.debugToken = env.appCheckAppleDebugToken.trim();
+  }
+
+  provider.configure({
+    android: androidOptions,
+    apple: appleOptions,
+  });
+};
+
+const initializeAppCheck = async () => {
+  if (!appCheckEnabled()) {
+    return;
+  }
+
+  if (
+    !isOptionalNativeModuleInstalled("@react-native-firebase/app-check")
+  ) {
+    console.warn(
+      "Firebase App Check is enabled in env, but the native App Check module is unavailable in this build.",
+    );
+    return;
+  }
+
+  const appCheck = loadNativeFactory<FirebaseAppCheckTypes.Module>(
+    "@react-native-firebase/app-check",
+  )();
+  const provider = appCheck.newReactNativeFirebaseAppCheckProvider();
+  configureAppCheckProvider(provider);
+  await appCheck.initializeAppCheck({
+    provider,
+    isTokenAutoRefreshEnabled: env.appCheckTokenAutoRefreshEnabled,
+  });
+};
+
+const getCrashlytics = (): FirebaseCrashlyticsTypes.Module | null => {
+  if (!crashlyticsEnabled()) {
+    return null;
+  }
+
+  if (
+    !isOptionalNativeModuleInstalled("@react-native-firebase/crashlytics")
+  ) {
+    console.warn(
+      "Firebase Crashlytics is enabled in env, but the native Crashlytics module is unavailable in this build.",
+    );
+    return null;
+  }
+
+  try {
+    return loadNativeFactory<FirebaseCrashlyticsTypes.Module>(
+      "@react-native-firebase/crashlytics",
+    )();
+  } catch {
+    return null;
+  }
+};
+
+const initializeCrashlytics = async () => {
+  if (!crashlyticsEnabled()) {
+    return;
+  }
+
+  const crashlytics = getCrashlytics();
+  if (!crashlytics) {
+    return;
+  }
+
+  await crashlytics.setCrashlyticsCollectionEnabled(crashlyticsEnabled());
+  crashlytics.log(
+    `Tiwani runtime boot ${env.appEnvironment} v${env.appVersion}`,
+  );
+  await crashlytics.setAttributes({
+    app_environment: env.appEnvironment,
+    app_version: env.appVersion,
+  });
 };
 
 export const getFirebaseClientConfigState = (): FirebaseClientConfigState => {
@@ -121,6 +255,61 @@ export const requireFirebaseApp = (): FirebaseApp => {
   return loadNativeDefault<NativeFirebaseAppRoot>(
     "@react-native-firebase/app",
   ).app();
+};
+
+export const initializeFirebaseRuntimeServices = async (): Promise<void> => {
+  if (firebaseRuntimeServicesPromise) {
+    return firebaseRuntimeServicesPromise;
+  }
+
+  firebaseRuntimeServicesPromise = (async () => {
+    requireFirebaseApp();
+    await initializeAppCheck();
+    await initializeCrashlytics();
+  })().catch((error) => {
+    firebaseRuntimeServicesPromise = null;
+    throw error;
+  });
+
+  return firebaseRuntimeServicesPromise;
+};
+
+export const setCrashlyticsUserContext = async (
+  userId: string | null,
+  role?: string,
+): Promise<void> => {
+  if (!crashlyticsEnabled()) {
+    return;
+  }
+
+  const crashlytics = getCrashlytics();
+  if (!crashlytics) {
+    return;
+  }
+
+  await crashlytics.setUserId(userId?.trim() || "");
+  if (role) {
+    await crashlytics.setAttribute("member_role", role);
+  }
+};
+
+export const recordCrashlyticsError = (
+  error: unknown,
+  context: string,
+): void => {
+  if (!crashlyticsEnabled()) {
+    return;
+  }
+
+  const crashlytics = getCrashlytics();
+  if (!crashlytics) {
+    return;
+  }
+
+  const normalizedError =
+    error instanceof Error ? error : new Error(context);
+  crashlytics.log(context);
+  crashlytics.recordError(normalizedError, context);
 };
 
 export const firebaseAuth = (): FirebaseAuthTypes.Module =>

@@ -10,10 +10,12 @@ import {
   RaceResult,
   getElection,
   getElectionResults,
+  getElectionVoterReceipts,
 } from '../../services/votingService';
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
-import { Election } from '../../types/voting';
+import { Election, ElectionVoterReceipt } from '../../types/voting';
+import { formatDisplayDate } from '../../utils/formatDate';
 import { safeGoBack } from '../../utils/navigation';
 import { canViewElectionResults } from '../../utils/roleGuard';
 
@@ -21,6 +23,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
   const { user } = useAuthStore();
   const [election, setElection] = useState<Election | null>(null);
+  const [receipts, setReceipts] = useState<ElectionVoterReceipt[]>([]);
   const [results, setResults] = useState<RaceResult[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,13 +36,16 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
       setLoading(false);
       return;
     }
+    const canLoadReceipts = canViewElectionResults(user);
     Promise.all([
       getElection(electionId),
       getElectionResults(electionId),
+      canLoadReceipts ? getElectionVoterReceipts(electionId) : Promise.resolve([]),
     ])
-      .then(([nextElection, nextResults]) => {
+      .then(([nextElection, nextResults, nextReceipts]) => {
         setElection(nextElection);
         setResults(nextResults);
+        setReceipts(nextReceipts);
       })
       .catch(error =>
         setLoadError(
@@ -49,7 +55,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
         ),
       )
       .finally(() => setLoading(false));
-  }, [electionId]);
+  }, [electionId, user]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -144,6 +150,41 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
             message="Results will appear after ballots are submitted."
           />
         }
+        ListFooterComponent={
+          canViewElectionResults(user) ? (
+            <View style={styles.registryCard}>
+              <Text style={styles.registryTitle}>
+                VOTER REGISTRY ({receipts.length})
+              </Text>
+              <Text style={styles.registryHelp}>
+                These receipts confirm who voted. Secret ballot choices remain
+                private.
+              </Text>
+              {receipts.length === 0 ? (
+                <Text style={styles.registryMeta}>No ballots recorded yet.</Text>
+              ) : (
+                receipts.map(receipt => (
+                  <View key={receipt.uid} style={styles.registryRow}>
+                    <View style={styles.registryCopy}>
+                      <Text style={styles.registryName}>{receipt.fullName}</Text>
+                      <Text style={styles.registryMeta}>
+                        {receipt.email || receipt.uid}
+                      </Text>
+                      {receipt.votedAt && (
+                        <Text style={styles.registryMeta}>
+                          Voted {formatDisplayDate(receipt.votedAt)}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={styles.registryReceipt}>
+                      {receipt.ballotReceipt}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -188,6 +229,43 @@ const styles = StyleSheet.create({
   },
   candidateName: {flex: 1, fontSize: typography.size.base, color: colors.text.primary},
   voteCount: {fontSize: typography.size.sm, color: colors.text.secondary},
+  registryCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  registryTitle: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+    letterSpacing: 0.8,
+  },
+  registryHelp: {
+    fontSize: typography.size.sm,
+    lineHeight: typography.size.sm * typography.lineHeight.normal,
+    color: colors.text.secondary,
+  },
+  registryRow: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+  registryCopy: {gap: spacing.xs},
+  registryName: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  registryMeta: {fontSize: typography.size.sm, color: colors.text.secondary},
+  registryReceipt: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+  },
 });
 
 export default ElectionResultsScreen;

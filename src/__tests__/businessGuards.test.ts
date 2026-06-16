@@ -290,7 +290,7 @@ describe("business guardrails", () => {
     ).toEqual(["Tiwalade Adebayo"]);
   });
 
-  it("enforces the marketplace visible listing cap", () => {
+  it("shows all non-archived marketplace listings without a fixed cap", () => {
     const archivedListing = {
       ...listing("archived"),
       status: "archived" as const,
@@ -299,13 +299,15 @@ describe("business guardrails", () => {
     const listings = [listing("1"), archivedListing, soldListing, listing("3")];
 
     expect(visibleMarketplaceListings(listings).map((item) => item.id)).toEqual(
-      ["1", "sold"],
+      ["1", "sold", "3"],
     );
-    expect(marketplaceListingSlotsUsed(listings)).toBe(2);
-    expect(marketplaceListingSlotsRemaining(listings)).toBe(0);
+    expect(marketplaceListingSlotsUsed(listings)).toBe(3);
+    expect(marketplaceListingSlotsRemaining(listings)).toBe(
+      Number.POSITIVE_INFINITY,
+    );
     expect(canAddMarketplaceListing([])).toBe(true);
     expect(canAddMarketplaceListing([listing("1")])).toBe(true);
-    expect(canAddMarketplaceListing([listing("1"), listing("2")])).toBe(false);
+    expect(canAddMarketplaceListing([listing("1"), listing("2")])).toBe(true);
     expect(canAddMarketplaceListing([listing("1"), archivedListing])).toBe(
       true,
     );

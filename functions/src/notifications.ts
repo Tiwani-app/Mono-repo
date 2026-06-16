@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
-import { BatchResponse, SendResponse } from "firebase-admin/messaging";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { requireActiveUser } from "./authz";
-import { db, messaging } from "./firebase";
+import { publishOrgAnnouncement } from "./activityNotifications";
+import { db } from "./firebase";
 import { stringField } from "./validation";
 
 const notificationTypes = [
@@ -14,20 +14,16 @@ const notificationTypes = [
   "marketplace",
 ] as const;
 
-const invalidTokenCodes = new Set([
-  "messaging/invalid-registration-token",
-  "messaging/registration-token-not-registered",
-]);
+type NotificationType = (typeof notificationTypes)[number];
 
-const tokenDocId = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
+const tokenDocId = (token: string) => createHash("sha256").update(token).digest("hex");
 
-const notificationTypeField = (data: unknown) => {
+const notificationTypeField = (data: unknown): NotificationType => {
   const type = stringField(data, "type", { maxLength: 40 });
-  if (!notificationTypes.includes(type as typeof notificationTypes[number])) {
+  if (!notificationTypes.includes(type as NotificationType)) {
     throw new HttpsError("invalid-argument", "Announcement type is invalid.");
   }
-  return type;
+  return type as NotificationType;
 };
 
 const optionalStringField = (
@@ -35,31 +31,6 @@ const optionalStringField = (
   field: string,
   options: { maxLength?: number } = {},
 ): string => stringField(data, field, { ...options, required: false });
-
-const markInvalidTokens = async (
-  response: BatchResponse,
-  tokens: FirebaseFirestore.QueryDocumentSnapshot[],
-) => {
-  const batch = db.batch();
-  let invalidCount = 0;
-  response.responses.forEach((result: SendResponse, index: number) => {
-    const code = result.error?.code;
-    if (!code || !invalidTokenCodes.has(code)) {
-      return;
-    }
-    invalidCount += 1;
-    batch.update(tokens[index].ref, {
-      disabled: true,
-      invalidAt: FieldValue.serverTimestamp(),
-      invalidReason: code,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-  if (invalidCount > 0) {
-    await batch.commit();
-  }
-  return invalidCount;
-};
 
 export const registerDeviceToken = onCall(async (request) => {
   const user = await requireActiveUser(request);
@@ -90,76 +61,20 @@ export const sendAnnouncementPush = onCall(async (request) => {
   const title = stringField(request.data, "title", { maxLength: 120 });
   const body = stringField(request.data, "body", { maxLength: 1000 });
   const type = notificationTypeField(request.data);
-  const announcementRef = db.collection("announcements").doc();
-
-  await announcementRef.set({
-    notifId: announcementRef.id,
-    orgId: user.profile.orgId,
-    title,
-    body,
-    type,
-    targetAudience: "all",
-    target: null,
-    relatedDocId: null,
-    sentAt: FieldValue.serverTimestamp(),
-    readBy: [],
-    sentBy: user.uid,
-  });
-
-  const tokenSnapshot = await db
-    .collection("device_tokens")
-    .where("orgId", "==", user.profile.orgId)
-    .where("disabled", "==", false)
-    .get();
-  const tokenDocs = tokenSnapshot.docs.filter((doc) => {
-    const token = doc.data().token;
-    return typeof token === "string" && token.trim();
-  });
-
-  let delivered = 0;
-  let failed = 0;
-  let invalidated = 0;
-  const chunkSize = 500;
-  for (let index = 0; index < tokenDocs.length; index += chunkSize) {
-    const chunk = tokenDocs.slice(index, index + chunkSize);
-    const response = await messaging.sendEachForMulticast({
-      tokens: chunk.map((doc) => String(doc.data().token)),
-      notification: { body, title },
-      data: {
-        announcementId: announcementRef.id,
-        orgId: user.profile.orgId,
-        type,
-      },
-    });
-    delivered += response.successCount;
-    failed += response.failureCount;
-    invalidated += await markInvalidTokens(response, chunk);
-  }
-
-  await db.collection("audit_logs").add({
-    action: "announcement.push_sent",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: announcementRef.path,
-    details: {
-      delivered,
-      failed,
-      invalidated,
-      notifId: announcementRef.id,
-      tokenCount: tokenDocs.length,
-      type,
+  return publishOrgAnnouncement({
+    audit: {
+      action: "announcement.push_sent",
+      actorRole: user.profile.role,
+      actorUid: user.uid,
     },
-    createdAt: FieldValue.serverTimestamp(),
+    body,
+    orgId: user.profile.orgId,
+    relatedDocId: null,
+    sentBy: user.uid,
+    target: null,
+    title,
+    type,
   });
-
-  return {
-    delivered,
-    failed,
-    invalidated,
-    notifId: announcementRef.id,
-    success: true,
-  };
 });
 
 export const cleanupInvalidPushTokens = onCall(async (request) => {

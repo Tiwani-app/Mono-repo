@@ -3,6 +3,6 @@
     "default": "tiwani-backend",
     "development": "tiwani-backend",
     "staging": "tiwani-staging",
-    "production": "tiwani-prod"
+    "production": "tiwani-backend"
   }
 }

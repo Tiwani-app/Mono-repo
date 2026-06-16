@@ -41,6 +41,8 @@ const chargeTypes: { label: string; value: LedgerType }[] = [
   { label: "Pledge", value: "pledge" },
 ];
 
+type TargetMode = "all" | "single" | "multiple";
+
 const parseDate = (value: string) => {
   if (!value.trim()) {
     return null;
@@ -58,10 +60,13 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   const admin = isAdmin(user);
   const { members, error, loading } = useMembers({ enabled: admin });
   const [type, setType] = useState<LedgerType>("levy");
-  const [targetMode, setTargetMode] = useState<"all" | "single">(
+  const [targetMode, setTargetMode] = useState<TargetMode>(
     routeMemberId ? "single" : "all",
   );
   const [selectedUid, setSelectedUid] = useState(routeMemberId ?? "");
+  const [selectedUids, setSelectedUids] = useState<string[]>(
+    routeMemberId ? [routeMemberId] : [],
+  );
   const [submitting, setSubmitting] = useState(false);
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === "active"),
@@ -76,6 +81,27 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
     },
   });
 
+  const handleTargetModeChange = (mode: TargetMode) => {
+    setTargetMode(mode);
+    if (mode === "single") {
+      setSelectedUid((current) => current || selectedUids[0] || "");
+      return;
+    }
+    if (mode === "multiple") {
+      setSelectedUids((current) =>
+        current.length > 0 ? current : selectedUid ? [selectedUid] : [],
+      );
+    }
+  };
+
+  const toggleSelectedUid = (uid: string) => {
+    setSelectedUids((current) =>
+      current.includes(uid)
+        ? current.filter((selected) => selected !== uid)
+        : [...current, uid],
+    );
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
@@ -85,9 +111,11 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
     const memberIds =
       targetMode === "all"
         ? activeMembers.map((member) => member.uid)
-        : selectedUid
-          ? [selectedUid]
-          : [];
+        : targetMode === "single"
+          ? selectedUid
+            ? [selectedUid]
+            : []
+          : selectedUids;
 
     if (dueDate === undefined) {
       Alert.alert(
@@ -197,14 +225,23 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
             options={[
               { label: "All Active", value: "all" },
               { label: "One Member", value: "single" },
+              { label: "Selected Members", value: "multiple" },
             ]}
             selectedValue={targetMode}
-            onChange={setTargetMode}
+            onChange={handleTargetModeChange}
           />
-          {targetMode === "single" && (
+          {targetMode === "multiple" && (
+            <Text style={styles.selectionHint}>
+              {selectedUids.length} member{selectedUids.length === 1 ? "" : "s"} selected
+            </Text>
+          )}
+          {(targetMode === "single" || targetMode === "multiple") && (
             <View style={styles.memberList}>
               {activeMembers.map((member) => {
-                const selected = selectedUid === member.uid;
+                const selected =
+                  targetMode === "single"
+                    ? selectedUid === member.uid
+                    : selectedUids.includes(member.uid);
                 return (
                   <TouchableOpacity
                     key={member.uid}
@@ -212,7 +249,11 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
                       styles.memberRow,
                       selected && styles.selectedMember,
                     ]}
-                    onPress={() => setSelectedUid(member.uid)}
+                    onPress={() =>
+                      targetMode === "single"
+                        ? setSelectedUid(member.uid)
+                        : toggleSelectedUid(member.uid)
+                    }
                     activeOpacity={0.8}
                   >
                     <Avatar
@@ -377,6 +418,10 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
+  selectionHint: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
   memberList: { gap: spacing.sm },
   memberRow: {
     minHeight: 64,

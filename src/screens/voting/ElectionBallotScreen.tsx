@@ -14,9 +14,30 @@ import {
 } from "../../services/votingService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import { User } from "../../types/user";
 import { Election, ElectionVoterState } from "../../types/voting";
 import { safeGoBack } from "../../utils/navigation";
+import { isAdmin, isElectoralChairman } from "../../utils/roleGuard";
 import { isElectionBallotComplete } from "../../utils/votingGuards";
+
+const secretBallotInstructions = {
+  admin:
+    "Create, open, and close the election without collecting voter choices directly. Once voting opens, avoid changing races or candidates unless the election is restarted.",
+  electoral_chairman:
+    "Supervise the process, answer voting questions, and use ballot receipts or the voter registry for disputes. Do not ask members to disclose their selections.",
+  member:
+    "Choose one candidate for every race, review your selections, then submit once. Secret ballots separate your voting record from your choices in admin views.",
+};
+
+const secretInstructionFor = (user: User | null) => {
+  if (isAdmin(user)) {
+    return secretBallotInstructions.admin;
+  }
+  if (isElectoralChairman(user)) {
+    return secretBallotInstructions.electoral_chairman;
+  }
+  return secretBallotInstructions.member;
+};
 
 const ElectionBallotScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
@@ -62,10 +83,21 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
     }
     try {
       setSubmitting(true);
-      await castElectionBallot(electionId, choices, user.uid);
+      const ballotReceipt = await castElectionBallot(
+        electionId,
+        choices,
+        user.uid,
+      );
       const nextVoterState = await getElectionVoterState(electionId, user.uid);
-      setVoterState(nextVoterState);
-      Alert.alert("Ballot recorded", "Your ballot has been saved.");
+      setVoterState({
+        ...nextVoterState,
+        ballotReceipt: nextVoterState.ballotReceipt ?? ballotReceipt,
+        hasVoted: true,
+      });
+      Alert.alert(
+        "Ballot recorded",
+        `Your ballot has been saved.\n\nReceipt: ${ballotReceipt}`,
+      );
     } catch (submitError) {
       Alert.alert(
         "Ballot not recorded",
@@ -119,6 +151,16 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
             {election.ballotType === "secret" ? "Secret ballot" : "Open ballot"}
           </Text>
         </View>
+        {election.ballotType === "secret" && (
+          <View style={styles.instructionCard}>
+            <Text style={styles.instructionTitle}>
+              Secret ballot instructions
+            </Text>
+            <Text style={styles.instructionText}>
+              {secretInstructionFor(user)}
+            </Text>
+          </View>
+        )}
         {election.races.map((race) => (
           <View key={race.raceId} style={styles.raceCard}>
             <Text style={styles.office}>{race.office}</Text>
@@ -146,15 +188,29 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
             fullWidth
           />
         ) : (
-          <EmptyState
-            icon="✓"
-            title={voterState.hasVoted ? "Already voted" : "Voting closed"}
-            message={
-              voterState.hasVoted
-                ? "Your ballot has already been recorded."
-                : "This election is not accepting ballots."
-            }
-          />
+          <>
+            <EmptyState
+              icon="✓"
+              title={voterState.hasVoted ? "Already voted" : "Voting closed"}
+              message={
+                voterState.hasVoted
+                  ? "Your ballot has already been recorded."
+                  : "This election is not accepting ballots."
+              }
+            />
+            {voterState.hasVoted && voterState.ballotReceipt && (
+              <View style={styles.receiptCard}>
+                <Text style={styles.receiptLabel}>BALLOT RECEIPT</Text>
+                <Text style={styles.receiptValue}>
+                  {voterState.ballotReceipt}
+                </Text>
+                <Text style={styles.receiptHelp}>
+                  Keep this receipt for election records. It proves your ballot
+                  was received without showing your secret choices.
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -181,6 +237,48 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.gold.light,
     fontWeight: typography.weight.semibold,
+  },
+  instructionCard: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  instructionTitle: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+  },
+  instructionText: {
+    fontSize: typography.size.sm,
+    lineHeight: typography.size.sm * typography.lineHeight.normal,
+    color: colors.text.secondary,
+  },
+  receiptCard: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold.default,
+    backgroundColor: colors.bg.card,
+  },
+  receiptLabel: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    letterSpacing: 0.8,
+    color: colors.gold.light,
+  },
+  receiptValue: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  receiptHelp: {
+    fontSize: typography.size.sm,
+    lineHeight: typography.size.sm * typography.lineHeight.normal,
+    color: colors.text.secondary,
   },
   raceCard: { gap: spacing.md },
   office: {

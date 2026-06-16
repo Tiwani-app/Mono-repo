@@ -1,5 +1,6 @@
 import {
   Election,
+  ElectionVoterReceipt,
   ElectionVoterState,
   Poll,
   PollVoterState,
@@ -10,9 +11,12 @@ import {
   castPollVoteCallable,
   closeElectionCallable,
   closePollCallable,
+  createElectionCallable,
+  createPollCallable,
   generateElectionResultsCallable,
-  openElectionCallable,
-  openPollCallable,
+  listElectionVoterReceiptsCallable,
+  updateElectionCallable,
+  updatePollCallable,
 } from "./cloudFunctionsService";
 import {
   electionFromRecord,
@@ -38,7 +42,12 @@ export interface ElectionInput {
   status: Election["status"];
   races: {
     office: string;
-    candidates: { name: string; manifestoLine: string }[];
+    candidates: {
+      name: string;
+      manifestoLine: string;
+      photoURL?: string | null;
+      uid?: string | null;
+    }[];
   }[];
 }
 
@@ -48,23 +57,30 @@ export interface RaceResult {
   candidates: { name: string; voteCount: number }[];
 }
 
+export interface ElectionVoterReceiptPayload {
+  ballotReceipt: string;
+  email: string;
+  fullName: string;
+  uid: string;
+  votedAt: string | null;
+}
+
+const voterReceiptFromPayload = (
+  receipt: ElectionVoterReceiptPayload,
+): ElectionVoterReceipt => ({
+  ballotReceipt: receipt.ballotReceipt,
+  email: receipt.email,
+  fullName: receipt.fullName,
+  uid: receipt.uid,
+  votedAt: receipt.votedAt ? new Date(receipt.votedAt) : null,
+});
+
 const slug = (value: string, fallback: string) =>
   value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || fallback;
-
-const pollOptions = (labels: string[], current?: Poll) =>
-  labels.map((label, index) => {
-    const existing = current?.options.find((option) => option.label === label);
-    return {
-      optionId: existing?.id ?? slug(label, `option-${index + 1}`),
-      label: label.trim(),
-      imageURL: existing?.imageURL ?? null,
-      voteCount: existing?.voteCount ?? 0,
-    };
-  });
 
 const resolveRaces = async (data: ElectionInput): Promise<Race[]> => {
   const memberSnapshot = await firestore()
@@ -98,17 +114,25 @@ const resolveRaces = async (data: ElectionInput): Promise<Race[]> => {
   }));
 };
 
-const storedRaces = (races: Race[]) =>
-  races.map((race) => ({
-    raceId: race.raceId,
-    title: race.office,
-    candidates: race.candidates.map((candidate) => ({
-      uid: candidate.uid,
-      name: candidate.name,
-      manifesto: candidate.manifestoLine,
-      photoURL: candidate.photoURL,
+const electionCallablePayload = async (
+  data: ElectionInput,
+): Promise<ElectionInput> => {
+  const races = await resolveRaces(data);
+  return {
+    title: data.title,
+    ballotType: data.ballotType,
+    status: data.status,
+    races: races.map((race) => ({
+      office: race.office,
+      candidates: race.candidates.map((candidate) => ({
+        uid: candidate.uid,
+        name: candidate.name,
+        manifestoLine: candidate.manifestoLine,
+        photoURL: candidate.photoURL,
+      })),
     })),
-  }));
+  };
+};
 
 export const subscribeToPolls = (
   callback: (polls: Poll[]) => void,
@@ -160,57 +184,15 @@ export const createPoll = async (data: PollInput): Promise<Poll> => {
   if (data.status === "closed") {
     throw new Error("Create the poll as draft or open, then close it from the voting hub.");
   }
-  const ref = firestore().collection("polls").doc();
-  const shouldOpenWithCallable = data.status === "open";
-  await ref.set({
-    pollId: ref.id,
-    orgId: await getCurrentOrgId(),
-    title: data.title.trim(),
-    question: data.question.trim(),
-    status: shouldOpenWithCallable ? "draft" : data.status,
-    resultVisibility: "after_vote",
-    totalVotes: 0,
-    options: pollOptions(data.options),
-  });
-  if (shouldOpenWithCallable) {
-    await openPollCallable(ref.id);
-  }
-  return getPoll(ref.id);
+  const result = await createPollCallable(data);
+  return getPoll(result.pollId);
 };
 
 export const updatePoll = async (
   pollId: string,
-  data: Partial<PollInput>,
+  data: PollInput,
 ): Promise<void> => {
-  const current = await getPoll(pollId);
-  if (data.status === "closed" && current.status === "open") {
-    await closePoll(pollId);
-    return;
-  }
-  if (current.status !== "draft") {
-    throw new Error("Only draft polls can be edited. Close open polls from the voting hub.");
-  }
-  if (data.status === "closed") {
-    throw new Error("Open this poll before closing it from the voting hub.");
-  }
-  const shouldOpenWithCallable =
-    data.status === "open" && current.status === "draft";
-  await firestore()
-    .collection("polls")
-    .doc(pollId)
-    .update({
-      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
-      ...(data.question !== undefined ? { question: data.question.trim() } : {}),
-      ...(data.status !== undefined && !shouldOpenWithCallable
-        ? { status: data.status }
-        : {}),
-      ...(data.options !== undefined
-        ? { options: pollOptions(data.options, current) }
-        : {}),
-    });
-  if (shouldOpenWithCallable) {
-    await openPollCallable(pollId);
-  }
+  await updatePollCallable(pollId, data);
 };
 
 export const closePoll = async (pollId: string): Promise<void> => {
@@ -223,56 +205,15 @@ export const createElection = async (
   if (data.status === "closed") {
     throw new Error("Create the election as draft or open, then close it from the voting hub.");
   }
-  const ref = firestore().collection("elections").doc();
-  const shouldOpenWithCallable = data.status === "open";
-  await ref.set({
-    electionId: ref.id,
-    orgId: await getCurrentOrgId(),
-    title: data.title.trim(),
-    ballotType: data.ballotType,
-    status: shouldOpenWithCallable ? "draft" : data.status,
-    resultVisibility: "after_close",
-    races: storedRaces(await resolveRaces(data)),
-  });
-  if (shouldOpenWithCallable) {
-    await openElectionCallable(ref.id);
-  }
-  return getElection(ref.id);
+  const result = await createElectionCallable(await electionCallablePayload(data));
+  return getElection(result.electionId);
 };
 
 export const updateElection = async (
   electionId: string,
-  data: Partial<ElectionInput>,
+  data: ElectionInput,
 ): Promise<void> => {
-  const current = await getElection(electionId);
-  if (data.status === "closed" && current.status === "open") {
-    await closeElection(electionId);
-    return;
-  }
-  if (current.status !== "draft") {
-    throw new Error("Only draft elections can be edited. Close open elections from the voting hub.");
-  }
-  if (data.status === "closed") {
-    throw new Error("Open this election before closing it from the voting hub.");
-  }
-  const shouldOpenWithCallable =
-    data.status === "open" && current.status === "draft";
-  await firestore()
-    .collection("elections")
-    .doc(electionId)
-    .update({
-      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
-      ...(data.ballotType !== undefined ? { ballotType: data.ballotType } : {}),
-      ...(data.status !== undefined && !shouldOpenWithCallable
-        ? { status: data.status }
-        : {}),
-      ...(data.races !== undefined
-        ? { races: storedRaces(await resolveRaces(data as ElectionInput)) }
-        : {}),
-    });
-  if (shouldOpenWithCallable) {
-    await openElectionCallable(electionId);
-  }
+  await updateElectionCallable(electionId, await electionCallablePayload(data));
 };
 
 export const closeElection = async (electionId: string): Promise<void> => {
@@ -284,6 +225,13 @@ export const getElectionResults = async (
 ): Promise<RaceResult[]> => {
   const result = await generateElectionResultsCallable(electionId);
   return result.races;
+};
+
+export const getElectionVoterReceipts = async (
+  electionId: string,
+): Promise<ElectionVoterReceipt[]> => {
+  const result = await listElectionVoterReceiptsCallable(electionId);
+  return result.receipts.map(voterReceiptFromPayload);
 };
 
 export const hasCastPollVote = async (
@@ -315,30 +263,40 @@ export const getPollVoterState = async (
   };
 };
 
-export const hasCastElectionVote = async (
+export const getElectionVoteRecord = async (
   electionId: string,
   userId: string,
-): Promise<boolean> => {
+): Promise<{ ballotReceipt: string | null; hasVoted: boolean }> => {
   const snapshot = await firestore()
     .collection("elections")
     .doc(electionId)
     .collection("voterRegistry")
     .doc(userId)
     .get();
-  return snapshot.exists();
+  if (!snapshot.exists()) {
+    return { ballotReceipt: null, hasVoted: false };
+  }
+  const record = snapshot.data() ?? {};
+  return {
+    ballotReceipt:
+      typeof record.ballotReceipt === "string" && record.ballotReceipt.trim()
+        ? record.ballotReceipt
+        : null,
+    hasVoted: true,
+  };
 };
 
 export const getElectionVoterState = async (
   electionId: string,
   userId: string,
 ): Promise<ElectionVoterState> => {
-  const [election, hasVoted] = await Promise.all([
+  const [election, voteRecord] = await Promise.all([
     getElection(electionId),
-    hasCastElectionVote(electionId, userId),
+    getElectionVoteRecord(electionId, userId),
   ]);
   return {
-    hasVoted,
-    ballotReceipt: null,
+    hasVoted: voteRecord.hasVoted,
+    ballotReceipt: voteRecord.ballotReceipt,
     resultsVisible:
       election.status === "closed" &&
       election.resultVisibility === "after_close",
@@ -357,6 +315,7 @@ export const castElectionBallot = async (
   electionId: string,
   choices: Record<string, string>,
   _userId: string,
-): Promise<void> => {
-  await castElectionBallotCallable(electionId, choices);
+): Promise<string> => {
+  const result = await castElectionBallotCallable(electionId, choices);
+  return result.ballotReceipt;
 };

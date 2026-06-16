@@ -28,7 +28,9 @@ module.exports = {
     userInterfaceStyle: "dark",
     plugins: [
       "@react-native-firebase/app",
+      "@react-native-firebase/app-check",
       "@react-native-firebase/auth",
+      "@react-native-firebase/crashlytics",
       "@react-native-firebase/messaging",
       [
         "expo-build-properties",
@@ -37,7 +39,9 @@ module.exports = {
             useFrameworks: "static",
             forceStaticLinking: [
               "RNFBApp",
+              "RNFBAppCheck",
               "RNFBAuth",
+              "RNFBCrashlytics",
               "RNFBFirestore",
               "RNFBFunctions",
               "RNFBMessaging",
@@ -63,6 +67,9 @@ module.exports = {
     },
     extra: {
       appEnvironment,
+      eas: {
+        projectId: "39d30076-8431-410f-9d2f-eb8f8787a20e",
+      },
     },
   },
 };

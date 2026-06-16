@@ -32,6 +32,7 @@ const profileFromRecord = (uid: string, data: FirebaseFirestore.DocumentData): U
     orgId: data.orgId.trim(),
     fullName: data.fullName.trim(),
     email: data.email.trim(),
+    phone: typeof data.phone === "string" ? data.phone.trim() : "",
     role: role as Role,
     status,
   };

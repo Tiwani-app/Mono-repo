@@ -8,7 +8,12 @@ import type {
   DuesPeriodInput,
   PaymentInput,
 } from "./financeService";
-import type { RaceResult } from "./votingService";
+import type {
+  ElectionInput,
+  ElectionVoterReceiptPayload,
+  PollInput,
+  RaceResult,
+} from "./votingService";
 import type {
   SendAnnouncementInput,
   SendAnnouncementResult,
@@ -153,6 +158,18 @@ export const openPollCallable = (pollId: string) =>
     { pollId },
   );
 
+export const createPollCallable = (data: PollInput) =>
+  callCloudFunction<PollInput, { ok: boolean; pollId: string }>(
+    "createPoll",
+    data,
+  );
+
+export const updatePollCallable = (pollId: string, data: PollInput) =>
+  callCloudFunction<
+    PollInput & { pollId: string },
+    { ok: boolean; pollId: string }
+  >("updatePoll", { ...data, pollId });
+
 export const closePollCallable = (pollId: string) =>
   callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
     "closePoll",
@@ -170,6 +187,21 @@ export const openElectionCallable = (electionId: string) =>
     { electionId: string },
     { electionId: string; ok: boolean }
   >("openElection", { electionId });
+
+export const createElectionCallable = (data: ElectionInput) =>
+  callCloudFunction<ElectionInput, { electionId: string; ok: boolean }>(
+    "createElection",
+    data,
+  );
+
+export const updateElectionCallable = (
+  electionId: string,
+  data: ElectionInput,
+) =>
+  callCloudFunction<
+    ElectionInput & { electionId: string },
+    { electionId: string; ok: boolean }
+  >("updateElection", { ...data, electionId });
 
 export const closeElectionCallable = (electionId: string) =>
   callCloudFunction<
@@ -191,6 +223,16 @@ export const generateElectionResultsCallable = (electionId: string) =>
     { electionId: string },
     { electionId: string; ok: boolean; races: RaceResult[] }
   >("generateElectionResults", { electionId });
+
+export const listElectionVoterReceiptsCallable = (electionId: string) =>
+  callCloudFunction<
+    { electionId: string },
+    {
+      electionId: string;
+      ok: boolean;
+      receipts: ElectionVoterReceiptPayload[];
+    }
+  >("listElectionVoterReceipts", { electionId });
 
 export const publishElectionResultsCallable = (electionId: string) =>
   callCloudFunction<

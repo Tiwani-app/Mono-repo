@@ -65,15 +65,20 @@ jest.mock("../services/cloudFunctionsService", () => ({
   approveJoinRequestCallable: jest.fn(),
   castElectionBallotCallable: jest.fn(),
   createAdHocChargesCallable: jest.fn(),
+  createElectionCallable: jest.fn(),
   createFinancePeriodCallable: jest.fn(),
   createMemberAccountCallable: jest.fn(),
+  createPollCallable: jest.fn(),
   declineJoinRequestCallable: jest.fn(),
+  listElectionVoterReceiptsCallable: jest.fn(),
   recordPaymentCallable: jest.fn(),
   requestAccountDeletionCallable: jest.fn(),
   sendAnnouncementPushCallable: jest.fn(),
   updateMemberRoleCallable: jest.fn(),
+  updatePollCallable: jest.fn(),
   suspendMemberCallable: jest.fn(),
   reactivateMemberCallable: jest.fn(),
+  updateElectionCallable: jest.fn(),
 }));
 
 jest.mock("../services/firebaseHelpers", () => ({
@@ -125,16 +130,23 @@ import {
   createAdHocChargesCallable,
   createFinancePeriodCallable,
   createMemberAccountCallable,
+  createPollCallable,
+  listElectionVoterReceiptsCallable,
   recordPaymentCallable,
   sendAnnouncementPushCallable,
+  updatePollCallable,
 } from "../services/cloudFunctionsService";
 
 const mockCastElectionBallotCallable = castElectionBallotCallable as jest.Mock;
 const mockCreateAdHocChargesCallable = createAdHocChargesCallable as jest.Mock;
 const mockCreateFinancePeriodCallable = createFinancePeriodCallable as jest.Mock;
 const mockCreateMemberAccountCallable = createMemberAccountCallable as jest.Mock;
+const mockCreatePollCallable = createPollCallable as jest.Mock;
+const mockListElectionVoterReceiptsCallable =
+  listElectionVoterReceiptsCallable as jest.Mock;
 const mockRecordPaymentCallable = recordPaymentCallable as jest.Mock;
 const mockSendAnnouncementPushCallable = sendAnnouncementPushCallable as jest.Mock;
+const mockUpdatePollCallable = updatePollCallable as jest.Mock;
 
 describe("Firebase service contracts", () => {
   beforeEach(() => {
@@ -166,6 +178,13 @@ describe("Firebase service contracts", () => {
       setupLink: "https://example.com/setup",
       uid: "member-1",
     });
+    mockCreatePollCallable.mockResolvedValue({ ok: true, pollId: "poll-1" });
+    mockListElectionVoterReceiptsCallable.mockResolvedValue({
+      electionId: "election-1",
+      ok: true,
+      receipts: [],
+    });
+    mockUpdatePollCallable.mockResolvedValue({ ok: true, pollId: "poll-1" });
     mockSendAnnouncementPushCallable.mockResolvedValue({
       delivered: 1,
       notifId: "notif-1",
@@ -404,7 +423,15 @@ describe("Firebase service contracts", () => {
   });
 
   it("casts election ballots through Cloud Functions", async () => {
-    await castElectionBallot("election-1", { president: "Ada Member" }, "voter-1");
+    mockCastElectionBallotCallable.mockResolvedValueOnce({
+      ballotReceipt: "receipt-1",
+      electionId: "election-1",
+      ok: true,
+    });
+
+    await expect(
+      castElectionBallot("election-1", { president: "Ada Member" }, "voter-1"),
+    ).resolves.toBe("receipt-1");
 
     expect(mockCastElectionBallotCallable).toHaveBeenCalledWith(
       "election-1",
@@ -433,26 +460,20 @@ describe("Firebase service contracts", () => {
     ).rejects.toThrow("Create the poll as draft or open");
   });
 
-  it("rejects direct edits to an open poll", async () => {
-    mockGet.mockResolvedValueOnce({
-      exists: () => true,
-      id: "poll-1",
-      data: () => ({
-        title: "Meeting venue",
-        question: "Where should we meet?",
-        status: "open",
-        resultVisibility: "after_vote",
-        totalVotes: 0,
-        options: [
-          { optionId: "hall", label: "Hall", imageURL: null, voteCount: 0 },
-          { optionId: "garden", label: "Garden", imageURL: null, voteCount: 0 },
-        ],
-      }),
+  it("routes poll edits through Cloud Functions", async () => {
+    await updatePoll("poll-1", {
+      title: "Updated venue",
+      question: "Where should we meet?",
+      status: "open",
+      options: ["Hall", "Garden"],
     });
 
-    await expect(
-      updatePoll("poll-1", { title: "Updated venue" }),
-    ).rejects.toThrow("Only draft polls can be edited");
+    expect(mockUpdatePollCallable).toHaveBeenCalledWith("poll-1", {
+      title: "Updated venue",
+      question: "Where should we meet?",
+      status: "open",
+      options: ["Hall", "Garden"],
+    });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 

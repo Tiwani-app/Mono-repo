@@ -15,6 +15,13 @@ export const visibleUpcomingEvents = (
     .filter((event) => isUpcomingEvent(event, now))
     .sort((left, right) => left.dateTime.getTime() - right.dateTime.getTime());
 
+export const visiblePublishedEvents = (
+  events: TiwaniEvent[],
+): TiwaniEvent[] =>
+  events
+    .filter((event) => event.status === "published")
+    .sort((left, right) => left.dateTime.getTime() - right.dateTime.getTime());
+
 export const getCenteredDateWindow = (
   centerDate = new Date(),
   length = 7,

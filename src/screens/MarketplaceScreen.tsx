@@ -21,7 +21,6 @@ import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import {
   canManageMarketplaceListings,
-  canAddMarketplaceListing,
   marketplaceListingSlotsUsed,
   visibleMarketplaceListings,
 } from "../utils/marketplaceGuards";
@@ -35,13 +34,9 @@ const MarketplaceScreen = ({ navigation }: any) => {
   const visibleListings = visibleMarketplaceListings(listings);
   const displayedListings =
     tab === "manage" && admin ? listings : visibleListings;
-  const maxReached = !canAddMarketplaceListing(listings);
   const listingSlotsUsed = marketplaceListingSlotsUsed(listings);
 
   const handleAddListing = async () => {
-    if (maxReached) {
-      return;
-    }
     navigation.navigate("ListingForm");
   };
 
@@ -52,7 +47,7 @@ const MarketplaceScreen = ({ navigation }: any) => {
         rightElement={
           admin ? (
             <Badge
-              label={`${listingSlotsUsed}/2 ACTIVE`}
+              label={`${listingSlotsUsed} ACTIVE`}
               color={colors.gold.default}
             />
           ) : null
@@ -107,11 +102,8 @@ const MarketplaceScreen = ({ navigation }: any) => {
           ListFooterComponent={
             admin && tab === "manage" ? (
               <GoldButton
-                label={
-                  maxReached ? "Max 2 listings reached" : "Add New Listing"
-                }
+                label="Add New Listing"
                 onPress={handleAddListing}
-                disabled={maxReached}
                 fullWidth
               />
             ) : null

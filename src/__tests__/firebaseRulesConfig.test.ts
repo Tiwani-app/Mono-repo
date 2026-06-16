@@ -24,7 +24,7 @@ describe("Firebase local rules configuration", () => {
     expect(rc.projects.default).toBe("tiwani-backend");
     expect(rc.projects.development).toBe("tiwani-backend");
     expect(rc.projects.staging).toBe("tiwani-staging");
-    expect(rc.projects.production).toBe("tiwani-prod");
+    expect(rc.projects.production).toBe("tiwani-backend");
   });
 
   it("keeps secure voting writes blocked until Cloud Functions exist", () => {

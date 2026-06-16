@@ -1,4 +1,8 @@
-import { requireFirebaseApp, firebaseAuth } from "../config/firebase";
+import {
+  requireFirebaseApp,
+  firebaseAuth,
+  setCrashlyticsUserContext,
+} from "../config/firebase";
 import { User } from "../types/user";
 import { userFromRecord } from "./converters/userConverter";
 import { firestore, getUserRecord } from "./firebaseHelpers";
@@ -14,9 +18,11 @@ const safeSignOut = async (): Promise<void> => {
   try {
     const auth = firebaseAuth();
     if (!auth.currentUser) {
+      await setCrashlyticsUserContext(null);
       return;
     }
     await auth.signOut();
+    await setCrashlyticsUserContext(null);
   } catch (error) {
     if (errorCode(error) !== "auth/no-current-user") {
       throw error;
@@ -75,6 +81,7 @@ export const signIn = async (
   try {
     const profile = await getProfile(credential.user.uid);
     assertActiveAccount(profile);
+    await setCrashlyticsUserContext(profile.uid, profile.role);
     return profile;
   } catch (error) {
     await safeSignOut();
@@ -97,12 +104,14 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
     requireFirebaseApp();
     return firebaseAuth().onAuthStateChanged((authUser) => {
       if (!authUser) {
+        setCrashlyticsUserContext(null).catch(() => {});
         callback(null);
         return;
       }
       getProfile(authUser.uid)
         .then((profile) => {
           assertActiveAccount(profile);
+          setCrashlyticsUserContext(profile.uid, profile.role).catch(() => {});
           callback(profile);
         })
         .catch(async (error) => {

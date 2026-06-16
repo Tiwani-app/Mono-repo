@@ -21,6 +21,10 @@ const duesStatuses: DuesPeriod["status"][] = ["active", "settled", "overdue"];
 export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
   const paymentMethod = asNullableString(record.paymentMethod);
   const reference = asNullableString(record.reference);
+  const recordedBy = asNullableString(record.recordedBy);
+  const recordedByName = asNullableString(record.recordedByName);
+  const recordedByEmail = asNullableString(record.recordedByEmail);
+  const recordedByPhone = asNullableString(record.recordedByPhone);
   const paidStatus = requiredEnum(
     record.paidStatus,
     ledgerPaidStatuses,
@@ -40,16 +44,30 @@ export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
     ...(paymentMethod ? { paymentMethod } : {}),
     ...(reference ? { reference } : {}),
     note: typeof record.note === "string" ? record.note : "",
+    ...(recordedBy ? { recordedBy } : {}),
+    ...(recordedByName ? { recordedByName } : {}),
+    ...(recordedByEmail ? { recordedByEmail } : {}),
+    ...(recordedByPhone ? { recordedByPhone } : {}),
     duesPeriodId: asNullableString(record.duesPeriodId) ?? undefined,
   };
 };
 
-export const duesPeriodFromRecord = (record: RawRecord): DuesPeriod => ({
-  id: requiredString(record, "id"),
-  name: requiredString({ name: record.label }, "name"),
-  amount: requiredNumber(record, "amount"),
-  dueDate: requiredDate(record, "dueDate"),
-  status: requiredEnum(record.status, duesStatuses, "status"),
-  totalMembers: requiredNumber(record, "totalMembers"),
-  paidCount: requiredNumber(record, "paidCount"),
-});
+export const duesPeriodFromRecord = (record: RawRecord): DuesPeriod => {
+  const createdBy = asNullableString(record.createdBy);
+  const createdByName = asNullableString(record.createdByName);
+  const createdByEmail = asNullableString(record.createdByEmail);
+  const createdByPhone = asNullableString(record.createdByPhone);
+  return {
+    id: requiredString(record, "id"),
+    name: requiredString({ name: record.label }, "name"),
+    amount: requiredNumber(record, "amount"),
+    dueDate: requiredDate(record, "dueDate"),
+    status: requiredEnum(record.status, duesStatuses, "status"),
+    totalMembers: requiredNumber(record, "totalMembers"),
+    paidCount: requiredNumber(record, "paidCount"),
+    ...(createdBy ? { createdBy } : {}),
+    ...(createdByName ? { createdByName } : {}),
+    ...(createdByEmail ? { createdByEmail } : {}),
+    ...(createdByPhone ? { createdByPhone } : {}),
+  };
+};

@@ -1,5 +1,10 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
+import {
+  formatNotificationCurrency,
+  formatNotificationDate,
+  publishOrgAnnouncement,
+} from "./activityNotifications";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { db } from "./firebase";
 import { AuthenticatedUser } from "./types";
@@ -204,6 +209,9 @@ export const createFinancePeriod = onCall(async (request) => {
       reference: null,
       note: "",
       recordedBy: user.uid,
+      recordedByName: user.profile.fullName,
+      recordedByEmail: user.profile.email,
+      recordedByPhone: user.profile.phone || null,
       createdAt: FieldValue.serverTimestamp(),
     }),
     amount,
@@ -226,10 +234,30 @@ export const createFinancePeriod = onCall(async (request) => {
         status,
         totalMembers: members.size,
         paidCount: 0,
+        createdBy: user.uid,
+        createdByName: user.profile.fullName,
+        createdByEmail: user.profile.email,
+        createdByPhone: user.profile.phone || null,
         createdAt: FieldValue.serverTimestamp(),
       });
     },
   );
+
+  await publishOrgAnnouncement({
+    audit: {
+      action: "finance_period.notification_sent",
+      actorRole: user.profile.role,
+      actorUid: user.uid,
+      details: { memberCount: members.size, periodId: periodRef.id },
+    },
+    body: `${members.size} active members were charged ${formatNotificationCurrency(amount)}. Due ${formatNotificationDate(dueDate) ?? "soon"}.`,
+    orgId: user.profile.orgId,
+    relatedDocId: periodRef.id,
+    sentBy: user.uid,
+    target: { route: "my_ledger" },
+    title: `New dues period: ${name}`,
+    type: "finance",
+  });
 
   return { ok: true, periodId: periodRef.id, chargedMembers: members.size };
 });
@@ -262,6 +290,9 @@ export const createAdHocCharges = onCall(async (request) => {
       reference: null,
       note,
       recordedBy: user.uid,
+      recordedByName: user.profile.fullName,
+      recordedByEmail: user.profile.email,
+      recordedByPhone: user.profile.phone || null,
       createdAt: FieldValue.serverTimestamp(),
     }),
     amount,
@@ -275,6 +306,22 @@ export const createAdHocCharges = onCall(async (request) => {
       details: { amount, memberCount: memberIds.length, type },
     },
   );
+
+  await publishOrgAnnouncement({
+    audit: {
+      action: "finance_charge.notification_sent",
+      actorRole: user.profile.role,
+      actorUid: user.uid,
+      details: { amount, memberCount: memberIds.length, type },
+    },
+    body: `${memberIds.length} member${memberIds.length === 1 ? "" : "s"} received a ${type} charge of ${formatNotificationCurrency(amount)}${dueDate ? `. Due ${formatNotificationDate(dueDate) ?? "soon"}.` : "."}`,
+    orgId: user.profile.orgId,
+    relatedDocId: null,
+    sentBy: user.uid,
+    target: { route: "my_ledger" },
+    title: `New ${type} charge: ${label}`,
+    type: "finance",
+  });
 
   return { ok: true, chargedMembers: memberIds.length };
 });

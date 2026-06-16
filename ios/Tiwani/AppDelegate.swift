@@ -26,6 +26,8 @@ class AppDelegate: ExpoAppDelegate {
 // @generated begin @react-native-firebase/app-didFinishLaunchingWithOptions - expo prebuild (DO NOT MODIFY) sync-10e8520570672fd76b2403b7e1e27f5198a6349a
 FirebaseApp.configure()
 // @generated end @react-native-firebase/app-didFinishLaunchingWithOptions
+    RNFBAppCheckModule.sharedInstance()
+
     factory.startReactNative(
       withModuleName: "main",
       in: window,

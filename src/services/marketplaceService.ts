@@ -82,17 +82,6 @@ export const createListing = async (data: ListingInput): Promise<void> => {
     getCurrentUserRecord(),
   ]);
   const listingRef = database.collection("marketplace").doc();
-  const activeListings =
-    data.status === "available"
-      ? await database
-          .collection("marketplace")
-          .where("orgId", "==", orgId)
-          .where("status", "==", "available")
-          .get()
-      : null;
-  if (activeListings && activeListings.size >= 2) {
-    throw new Error("Maximum of 2 active listings allowed at a time.");
-  }
   await database.runTransaction(async (transaction) => {
     transaction.set(listingRef, {
       listingId: listingRef.id,
@@ -118,15 +107,8 @@ export const updateListing = async (
 ): Promise<void> => {
   const database = firestore();
   const ref = database.collection("marketplace").doc(id);
-  const [orgId, profile] = await Promise.all([
-    getCurrentOrgId(),
-    getCurrentUserRecord(),
-  ]);
-  const activeListings = await database
-    .collection("marketplace")
-    .where("orgId", "==", orgId)
-    .where("status", "==", "available")
-    .get();
+  await getCurrentOrgId();
+  const profile = await getCurrentUserRecord();
   await database.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists()) {
@@ -135,11 +117,6 @@ export const updateListing = async (
     const current = snapshot.data() as ListingInput;
     const next = { ...current, ...data };
     validateListing(next);
-    if (data.status === "available" && current.status !== "available") {
-      if (activeListings.size >= 2) {
-        throw new Error("Maximum of 2 active listings allowed at a time.");
-      }
-    }
     transaction.update(ref, {
       ...data,
       ...(data.title !== undefined ? { title: data.title.trim() } : {}),

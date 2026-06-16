@@ -22,12 +22,23 @@ export {
   sendAnnouncementPush,
 } from "./notifications";
 export {
+  notifyEventCreated,
+  notifyEventUpdated,
+  notifyMarketplaceCreated,
+  notifyMarketplaceUpdated,
+} from "./activityNotifications";
+export {
   castElectionBallot,
   castPollVote,
   closeElection,
   closePoll,
+  createElection,
+  createPoll,
   generateElectionResults,
+  listElectionVoterReceipts,
   openElection,
   openPoll,
   publishElectionResults,
+  updateElection,
+  updatePoll,
 } from "./voting";

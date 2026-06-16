@@ -18,11 +18,12 @@ import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
-import { isAdmin } from "../../utils/roleGuard";
+import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
 
 const VotingHubScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const canViewResults = canViewElectionResults(user);
   const {
     elections,
     error,
@@ -116,6 +117,12 @@ const VotingHubScreen = ({ navigation }: any) => {
                       electionId: election.id,
                     })
                   }
+                  onResults={() =>
+                    navigation.navigate("ElectionResults", {
+                      electionId: election.id,
+                    })
+                  }
+                  showResults={canViewResults}
                 />
               ))
             )}
@@ -155,7 +162,7 @@ const PollCard = ({
     <Text style={styles.cardMeta}>
       {poll.options.length} options · {poll.totalVotes} recorded votes
     </Text>
-    {admin && poll.status === "draft" && (
+    {admin && poll.status !== "closed" && (
       <OutlineButton label="Edit Poll" onPress={onEdit} fullWidth />
     )}
   </TouchableOpacity>
@@ -166,11 +173,15 @@ const ElectionCard = ({
   election,
   onEdit,
   onOpen,
+  onResults,
+  showResults,
 }: {
   admin: boolean;
   election: Election;
   onEdit: () => void;
   onOpen: () => void;
+  onResults: () => void;
+  showResults: boolean;
 }) => (
   <TouchableOpacity style={styles.card} onPress={onOpen} activeOpacity={0.85}>
     <View style={styles.cardHeader}>
@@ -186,8 +197,15 @@ const ElectionCard = ({
         color={statusColor(election.status)}
       />
     </View>
-    {admin && election.status === "draft" && (
+    {admin && election.status !== "closed" && (
       <OutlineButton label="Edit Election" onPress={onEdit} fullWidth />
+    )}
+    {showResults && (
+      <OutlineButton
+        label="View Results & Voter Receipts"
+        onPress={onResults}
+        fullWidth
+      />
     )}
   </TouchableOpacity>
 );

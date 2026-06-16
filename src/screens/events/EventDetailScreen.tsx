@@ -88,7 +88,8 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   const isRsvped = user ? event.rsvpList.includes(user.uid) : false;
   const isFull =
     event.capacity > 0 && event.rsvpCount >= event.capacity && !isRsvped;
-  const rsvpClosed = event.status !== "published";
+  const hasElapsed = event.dateTime.getTime() < Date.now();
+  const rsvpClosed = event.status !== "published" || hasElapsed;
   const categoryColor = CATEGORY_COLORS[event.category];
 
   const handleToggleRsvp = async () => {
@@ -234,7 +235,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
               }
               fullWidth
             />
-            {event.status !== "cancelled" && (
+            {!hasElapsed && event.status !== "cancelled" && (
               <OutlineButton
                 label="Cancel Event"
                 onPress={handleCancelEvent}
@@ -243,13 +244,15 @@ const EventDetailScreen = ({ navigation, route }: any) => {
                 fullWidth
               />
             )}
-            <GoldButton
-              label="Check In Attendees"
-              onPress={() =>
-                navigation.navigate("EventCheckIn", { eventId: event.id })
-              }
-              fullWidth
-            />
+            {!hasElapsed && (
+              <GoldButton
+                label="Check In Attendees"
+                onPress={() =>
+                  navigation.navigate("EventCheckIn", { eventId: event.id })
+                }
+                fullWidth
+              />
+            )}
           </View>
         )}
       </ScrollView>

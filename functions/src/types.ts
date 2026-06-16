@@ -7,6 +7,7 @@ export interface UserProfile {
   orgId: string;
   fullName: string;
   email: string;
+  phone: string;
   role: Role;
   status: MemberStatus;
 }

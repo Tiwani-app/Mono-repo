@@ -25,6 +25,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="tiwani"/>
+        <data android:scheme="exp+tiwani"/>
       </intent-filter>
     </activity>
   </application>

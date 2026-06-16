@@ -18,7 +18,10 @@ import WeekStrip from "../../components/events/WeekStrip";
 import { useEvents } from "../../hooks/useEvents";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { visibleUpcomingEvents } from "../../utils/eventGuards";
+import {
+  visiblePublishedEvents,
+  visibleUpcomingEvents,
+} from "../../utils/eventGuards";
 import { isAdmin } from "../../utils/roleGuard";
 
 const EventsScreen = ({ navigation }: any) => {
@@ -27,8 +30,9 @@ const EventsScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
 
   const upcomingEvents = visibleUpcomingEvents(events);
+  const publishedEvents = visiblePublishedEvents(events);
   const visibleEvents = selectedDay
-    ? upcomingEvents.filter((event) => isSameDay(event.dateTime, selectedDay))
+    ? publishedEvents.filter((event) => isSameDay(event.dateTime, selectedDay))
     : upcomingEvents;
 
   if (loading) {
@@ -64,11 +68,13 @@ const EventsScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
         <WeekStrip
-          events={upcomingEvents}
+          events={publishedEvents}
           selectedDay={selectedDay}
           onDayPress={setSelectedDay}
         />
-        <Text style={styles.sectionLabel}>UPCOMING</Text>
+        <Text style={styles.sectionLabel}>
+          {selectedDay ? "EVENTS THIS DAY" : "UPCOMING"}
+        </Text>
         {error ? (
           <EmptyState icon="!" title="Something went wrong" message={error} />
         ) : (

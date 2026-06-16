@@ -115,11 +115,53 @@ EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
 EXPO_PUBLIC_DEV_LOGIN_EMAIL=
 EXPO_PUBLIC_DEV_LOGIN_PASSWORD=
 EXPO_PUBLIC_FINANCE_CONTACT_EMAIL=
+EXPO_PUBLIC_FINANCE_CONTACT_PHONE=
 EXPO_PUBLIC_SUPPORT_URL=
 EXPO_PUBLIC_PRIVACY_POLICY_URL=
 EXPO_PUBLIC_TERMS_URL=
 EXPO_PUBLIC_ACCOUNT_DELETION_URL=
+EXPO_PUBLIC_APP_CHECK_ENABLED=false
+EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED=false
+EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER=playIntegrity
+EXPO_PUBLIC_APP_CHECK_APPLE_PROVIDER=appAttestWithDeviceCheckFallback
+EXPO_PUBLIC_APP_CHECK_ANDROID_DEBUG_TOKEN=
+EXPO_PUBLIC_APP_CHECK_APPLE_DEBUG_TOKEN=
+EXPO_PUBLIC_CRASHLYTICS_ENABLED=false
 ```
+
+Production hardening variables:
+
+- `EXPO_PUBLIC_APP_CHECK_ENABLED` turns runtime App Check initialisation on.
+- `EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED` enables automatic token refresh after App Check is active.
+- `EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER` should normally stay `playIntegrity` for production.
+- `EXPO_PUBLIC_APP_CHECK_APPLE_PROVIDER` should normally stay `appAttestWithDeviceCheckFallback` for production.
+- `EXPO_PUBLIC_APP_CHECK_*_DEBUG_TOKEN` values are only for local debug-provider testing.
+- `EXPO_PUBLIC_CRASHLYTICS_ENABLED` enables Crashlytics collection and startup tagging for release builds.
+
+Finance contact resolution is Firestore-first. Configure the treasurer/payment
+support contact on the active organisation document:
+
+```text
+organisations/{orgId}
+  financeContactName: "Treasurer Name"
+  financeContactEmail: "treasurer@example.com"
+  financeContactPhone: "+234..."
+```
+
+The app also accepts a nested map:
+
+```text
+financeContact: {
+  name: "Treasurer Name",
+  email: "treasurer@example.com",
+  phone: "+234..."
+}
+```
+
+`EXPO_PUBLIC_FINANCE_CONTACT_EMAIL` and
+`EXPO_PUBLIC_FINANCE_CONTACT_PHONE` remain optional fallbacks only. Dues creator
+contact details come from the admin profile that created the dues/charge, so
+make sure admin user profiles have a valid `email` and, ideally, `phone`.
 
 Native identity/build overrides:
 

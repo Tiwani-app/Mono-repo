@@ -15,6 +15,10 @@ export interface LedgerEntry {
   paymentMethod?: string;
   reference?: string;
   note: string;
+  recordedBy?: string;
+  recordedByName?: string;
+  recordedByEmail?: string;
+  recordedByPhone?: string;
   duesPeriodId?: string;
 }
 
@@ -26,4 +30,15 @@ export interface DuesPeriod {
   status: 'active' | 'settled' | 'overdue';
   totalMembers: number;
   paidCount: number;
+  createdBy?: string;
+  createdByName?: string;
+  createdByEmail?: string;
+  createdByPhone?: string;
+}
+
+export interface FinanceContact {
+  email?: string;
+  label: string;
+  name: string;
+  phone?: string;
 }

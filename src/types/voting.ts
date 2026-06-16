@@ -47,3 +47,11 @@ export interface ElectionVoterState {
   ballotReceipt: string | null;
   resultsVisible: boolean;
 }
+
+export interface ElectionVoterReceipt {
+  ballotReceipt: string;
+  email: string;
+  fullName: string;
+  uid: string;
+  votedAt: Date | null;
+}
