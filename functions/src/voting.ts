@@ -48,6 +48,49 @@ const pollRef = (pollId: string) => db.collection("polls").doc(pollId);
 const electionRef = (electionId: string) =>
   db.collection("elections").doc(electionId);
 
+const toDate = (value: unknown): Date | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (value && typeof value === "object" && "toDate" in value) {
+    const toDateMethod = (value as { toDate?: unknown }).toDate;
+    if (typeof toDateMethod === "function") {
+      const next = toDateMethod.call(value);
+      return next instanceof Date && !Number.isNaN(next.getTime()) ? next : null;
+    }
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const next = new Date(value);
+    return Number.isNaN(next.getTime()) ? null : next;
+  }
+  return null;
+};
+
+const expiresAtField = (data: unknown) => {
+  const date = toDate(recordFromData(data).expiresAt);
+  if (!date) {
+    throw new HttpsError("invalid-argument", "Field \"expiresAt\" must be a valid date.");
+  }
+  return date;
+};
+
+const isExpired = (record: FirebaseFirestore.DocumentData) => {
+  const expiresAt = toDate(record.expiresAt);
+  return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+};
+
+const assertFutureExpiry = (
+  expiresAt: Date,
+  entityName: "Election" | "Poll",
+) => {
+  if (expiresAt.getTime() <= Date.now()) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${entityName} expiry date must be in the future before voting can open.`,
+    );
+  }
+};
+
 const slug = (value: string, fallback: string) =>
   value
     .trim()
@@ -281,6 +324,10 @@ export const createPoll = onCall(async (request) => {
   const title = stringField(request.data, "title", { maxLength: 120 });
   const question = stringField(request.data, "question", { maxLength: 500 });
   const status = pollStatusField(request.data);
+  const expiresAt = expiresAtField(request.data);
+  if (status === "open") {
+    assertFutureExpiry(expiresAt, "Poll");
+  }
   if (status === "closed") {
     throw new HttpsError(
       "failed-precondition",
@@ -300,6 +347,7 @@ export const createPoll = onCall(async (request) => {
     question,
     status,
     resultVisibility: "after_vote",
+    expiresAt,
     totalVotes: 0,
     options: buildPollOptions(options),
     createdAt: FieldValue.serverTimestamp(),
@@ -344,6 +392,10 @@ export const updatePoll = onCall(async (request) => {
   const title = stringField(request.data, "title", { maxLength: 120 });
   const question = stringField(request.data, "question", { maxLength: 500 });
   const status = pollStatusField(request.data);
+  const expiresAt = expiresAtField(request.data);
+  if (status === "open") {
+    assertFutureExpiry(expiresAt, "Poll");
+  }
   const labels = stringArrayField(request.data, "options", {
     itemMaxLength: 120,
     maxLength: 12,
@@ -379,6 +431,7 @@ export const updatePoll = onCall(async (request) => {
     transaction.update(ref, {
       title,
       question,
+      expiresAt,
       options: buildPollOptions(labels, currentOptions),
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: user.uid,
@@ -501,6 +554,12 @@ export const openPoll = onCall(async (request) => {
     if (poll.status !== "draft") {
       throw new HttpsError("failed-precondition", "Only draft polls can be opened.");
     }
+    if (isExpired(poll)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Update the poll expiry date before opening it.",
+      );
+    }
     transaction.update(ref, {
       status: "open",
       openedAt: FieldValue.serverTimestamp(),
@@ -606,6 +665,9 @@ export const castPollVote = onCall(async (request) => {
     if (poll.status !== "open") {
       throw new HttpsError("failed-precondition", "This poll is not open.");
     }
+    if (isExpired(poll)) {
+      throw new HttpsError("failed-precondition", "This poll has expired.");
+    }
     if (voteSnapshot.exists) {
       throw new HttpsError("already-exists", "You have already voted in this poll.");
     }
@@ -658,6 +720,12 @@ export const openElection = onCall(async (request) => {
     if (election.status !== "draft") {
       throw new HttpsError("failed-precondition", "Only draft elections can be opened.");
     }
+    if (isExpired(election)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Update the election expiry date before opening it.",
+      );
+    }
     transaction.update(ref, {
       status: "open",
       openedAt: FieldValue.serverTimestamp(),
@@ -704,6 +772,10 @@ export const createElection = onCall(async (request) => {
   const title = stringField(request.data, "title", { maxLength: 120 });
   const ballotType = ballotTypeField(request.data);
   const status = electionStatusField(request.data);
+  const expiresAt = expiresAtField(request.data);
+  if (status === "open") {
+    assertFutureExpiry(expiresAt, "Election");
+  }
   if (status === "closed") {
     throw new HttpsError(
       "failed-precondition",
@@ -719,6 +791,7 @@ export const createElection = onCall(async (request) => {
     ballotType,
     status,
     resultVisibility: "after_close",
+    expiresAt,
     races,
     createdAt: FieldValue.serverTimestamp(),
     createdBy: user.uid,
@@ -765,6 +838,10 @@ export const updateElection = onCall(async (request) => {
   const title = stringField(request.data, "title", { maxLength: 120 });
   const ballotType = ballotTypeField(request.data);
   const status = electionStatusField(request.data);
+  const expiresAt = expiresAtField(request.data);
+  if (status === "open") {
+    assertFutureExpiry(expiresAt, "Election");
+  }
   const races = raceInputsField(request.data);
   const ref = electionRef(electionId);
 
@@ -789,6 +866,7 @@ export const updateElection = onCall(async (request) => {
     transaction.update(ref, {
       title,
       ballotType,
+      expiresAt,
       races,
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: user.uid,
@@ -930,6 +1008,9 @@ export const castElectionBallot = onCall(async (request) => {
     const election = assertVotingRecord(user, electionSnapshot, "Election not found.");
     if (election.status !== "open") {
       throw new HttpsError("failed-precondition", "This election is not open.");
+    }
+    if (isExpired(election)) {
+      throw new HttpsError("failed-precondition", "This election has expired.");
     }
     if (registrySnapshot.exists) {
       throw new HttpsError("already-exists", "You have already voted in this election.");

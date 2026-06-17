@@ -11,7 +11,9 @@ import {
   View,
 } from "react-native";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
@@ -38,6 +40,7 @@ import { findFinanciallyBlockedCandidateNames } from "../../utils/votingGuards";
 
 interface FormValues {
   title: string;
+  expiresAt: string;
   office: string;
   candidates: { name: string; manifestoLine: string }[];
 }
@@ -77,6 +80,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   const { control, handleSubmit, reset, formState, watch } = useForm<FormValues>({
     defaultValues: {
       title: "",
+      expiresAt: format(addDays(new Date(), 7), "yyyy-MM-dd"),
       office: "President",
       candidates: [
         { name: "", manifestoLine: "" },
@@ -99,6 +103,10 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         const firstRace = election.races[0];
         reset({
           title: election.title,
+          expiresAt: format(
+            election.expiresAt ?? addDays(new Date(), 7),
+            "yyyy-MM-dd",
+          ),
           office: firstRace?.office ?? "President",
           candidates:
             firstRace?.candidates.map((candidate) => ({
@@ -147,6 +155,19 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       );
       return;
     }
+    const expiryDate = parse(values.expiresAt, "yyyy-MM-dd", new Date());
+    const expiresAt = endOfDay(expiryDate);
+    if (Number.isNaN(expiresAt.getTime())) {
+      Alert.alert("Expiry date required", "Choose a valid expiry date.");
+      return;
+    }
+    if (status === "open" && expiresAt.getTime() <= Date.now()) {
+      Alert.alert(
+        "Expiry date required",
+        "Open elections need an expiry date in the future.",
+      );
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -154,6 +175,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         title: values.title.trim(),
         ballotType,
         status,
+        expiresAt,
         races: [
           {
             office: values.office.trim(),
@@ -269,6 +291,25 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
             options={statusOptions}
             selectedValue={status}
             onChange={setStatus}
+          />
+          <Controller
+            control={control}
+            name="expiresAt"
+            rules={{
+              required: "Expiry date is required.",
+              pattern: {
+                value: /^\d{4}-\d{2}-\d{2}$/,
+                message: "Use YYYY-MM-DD.",
+              },
+            }}
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                value={value}
+                onChange={onChange}
+                label="EXPIRY DATE"
+                error={formState.errors.expiresAt?.message}
+              />
+            )}
           />
           <Field
             control={control}

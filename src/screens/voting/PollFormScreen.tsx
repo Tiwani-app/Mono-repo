@@ -11,7 +11,9 @@ import {
   View,
 } from "react-native";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
@@ -28,6 +30,7 @@ import { isAdmin } from "../../utils/roleGuard";
 interface FormValues {
   title: string;
   question: string;
+  expiresAt: string;
   options: { label: string }[];
 }
 
@@ -48,6 +51,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
     defaultValues: {
       title: "",
       question: "",
+      expiresAt: format(addDays(new Date(), 7), "yyyy-MM-dd"),
       options: [{ label: "" }, { label: "" }],
     },
   });
@@ -65,6 +69,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
         reset({
           title: poll.title,
           question: poll.question,
+          expiresAt: format(poll.expiresAt ?? addDays(new Date(), 7), "yyyy-MM-dd"),
           options: poll.options.map((option) => ({ label: option.label })),
         });
         setStatus(poll.status);
@@ -89,6 +94,19 @@ const PollFormScreen = ({ navigation, route }: any) => {
       Alert.alert("Options required", "Add at least two unique options.");
       return;
     }
+    const expiryDate = parse(values.expiresAt, "yyyy-MM-dd", new Date());
+    const expiresAt = endOfDay(expiryDate);
+    if (Number.isNaN(expiresAt.getTime())) {
+      Alert.alert("Expiry date required", "Choose a valid expiry date.");
+      return;
+    }
+    if (status === "open" && expiresAt.getTime() <= Date.now()) {
+      Alert.alert(
+        "Expiry date required",
+        "Open polls need an expiry date in the future.",
+      );
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -96,6 +114,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
         title: values.title.trim(),
         question: values.question.trim(),
         status,
+        expiresAt,
         options: uniqueOptions,
       };
       if (pollId) {
@@ -219,6 +238,25 @@ const PollFormScreen = ({ navigation, route }: any) => {
             options={statusOptions}
             selectedValue={status}
             onChange={setStatus}
+          />
+          <Controller
+            control={control}
+            name="expiresAt"
+            rules={{
+              required: "Expiry date is required.",
+              pattern: {
+                value: /^\d{4}-\d{2}-\d{2}$/,
+                message: "Use YYYY-MM-DD.",
+              },
+            }}
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                value={value}
+                onChange={onChange}
+                label="EXPIRY DATE"
+                error={formState.errors.expiresAt?.message}
+              />
+            )}
           />
           <GoldButton
             label={pollId ? "Save Poll" : "Create Poll"}

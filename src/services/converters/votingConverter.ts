@@ -7,6 +7,7 @@ import {
 } from "../../types/voting";
 import {
   RawRecord,
+  asNullableDate,
   asNullableString,
   asNumber,
   requiredEnum,
@@ -75,6 +76,7 @@ export const pollFromRecord = (record: RawRecord): Poll => {
       pollResultVisibility,
       "resultVisibility",
     ),
+    expiresAt: asNullableDate(record.expiresAt, "expiresAt"),
   };
 };
 
@@ -91,4 +93,5 @@ export const electionFromRecord = (record: RawRecord): Election => ({
     electionResultVisibility,
     "resultVisibility",
   ),
+  expiresAt: asNullableDate(record.expiresAt, "expiresAt"),
 });

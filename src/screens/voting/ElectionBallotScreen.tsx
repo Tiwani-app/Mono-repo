@@ -16,8 +16,13 @@ import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { User } from "../../types/user";
 import { Election, ElectionVoterState } from "../../types/voting";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin, isElectoralChairman } from "../../utils/roleGuard";
+import {
+  canAcceptVotingInput,
+  isVotingItemExpired,
+} from "../../utils/votingExpiry";
 import { isElectionBallotComplete } from "../../utils/votingGuards";
 
 const secretBallotInstructions = {
@@ -135,7 +140,8 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
     );
   }
 
-  const canVote = election.status === "open" && !voterState.hasVoted;
+  const expired = isVotingItemExpired(election);
+  const canVote = canAcceptVotingInput(election) && !voterState.hasVoted;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -149,6 +155,13 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
           <Text style={styles.title}>{election.title}</Text>
           <Text style={styles.meta}>
             {election.ballotType === "secret" ? "Secret ballot" : "Open ballot"}
+          </Text>
+          <Text style={[styles.meta, expired && styles.expiryMeta]}>
+            {expired
+              ? "Expired"
+              : election.expiresAt
+                ? `Voting expires ${formatDisplayDate(election.expiresAt)}`
+                : "No expiry date set"}
           </Text>
         </View>
         {election.ballotType === "secret" && (
@@ -195,7 +208,9 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
               message={
                 voterState.hasVoted
                   ? "Your ballot has already been recorded."
-                  : "This election is not accepting ballots."
+                  : expired
+                    ? "This election has expired. Results remain available for reference."
+                    : "This election is not accepting ballots."
               }
             />
             {voterState.hasVoted && voterState.ballotReceipt && (
@@ -237,6 +252,9 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.gold.light,
     fontWeight: typography.weight.semibold,
+  },
+  expiryMeta: {
+    color: colors.status.error,
   },
   instructionCard: {
     gap: spacing.xs,

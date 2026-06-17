@@ -9,6 +9,9 @@ import {
   requiredString,
 } from "./shared";
 
+const asBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === "boolean" ? value : fallback;
+
 const categories: EventCategory[] = [
   "meeting",
   "social",
@@ -37,5 +40,7 @@ export const eventFromRecord = (record: RawRecord): TiwaniEvent => {
     rsvpCount: asNumber(record.rsvpCount, rsvpList.length),
     capacity: requiredNumber(record, "capacity"),
     attendees: asStringArray(record.attendeeList),
+    dayReminderEnabled: asBoolean(record.dayReminderEnabled, true),
+    hourReminderEnabled: asBoolean(record.hourReminderEnabled, true),
   };
 };

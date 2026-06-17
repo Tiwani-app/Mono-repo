@@ -15,7 +15,9 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Poll, PollVoterState } from "../../types/voting";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
+import { canAcceptVotingInput, isVotingItemExpired } from "../../utils/votingExpiry";
 
 const PollVoteScreen = ({ navigation, route }: any) => {
   const pollId = route.params?.pollId as string | undefined;
@@ -103,9 +105,10 @@ const PollVoteScreen = ({ navigation, route }: any) => {
     );
   }
 
-  const closed = poll.status === "closed";
+  const expired = isVotingItemExpired(poll);
+  const closed = poll.status === "closed" || expired;
   const voted = voterState.hasVoted;
-  const canVote = poll.status === "open" && !voted;
+  const canVote = canAcceptVotingInput(poll) && !voted;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -119,8 +122,13 @@ const PollVoteScreen = ({ navigation, route }: any) => {
           <Text style={styles.title}>{poll.title}</Text>
           <Text style={styles.question}>{poll.question}</Text>
           <Text style={styles.meta}>
-            {closed ? "Closed" : voted ? "Vote recorded" : "Open for voting"}
+            {expired ? "Expired" : closed ? "Closed" : voted ? "Vote recorded" : "Open for voting"}
           </Text>
+          {poll.expiresAt && (
+            <Text style={styles.expiryMeta}>
+              Voting expires {formatDisplayDate(poll.expiresAt)}
+            </Text>
+          )}
         </View>
         {poll.options.map((option) => (
           <PollOption
@@ -147,7 +155,9 @@ const PollVoteScreen = ({ navigation, route }: any) => {
             message={
               voted
                 ? "Your vote has already been recorded."
-                : "This poll is not accepting votes."
+                : expired
+                  ? "This poll has expired. Results remain available for reference."
+                  : "This poll is not accepting votes."
             }
           />
         )}
@@ -181,6 +191,10 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.gold.light,
     fontWeight: typography.weight.semibold,
+  },
+  expiryMeta: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
   },
 });
 

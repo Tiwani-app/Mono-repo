@@ -2,6 +2,10 @@ import { eventFromRecord } from "../services/converters/eventConverter";
 import { ledgerEntryFromRecord } from "../services/converters/financeConverter";
 import { notificationFromRecord } from "../services/converters/notificationConverter";
 import { userFromRecord } from "../services/converters/userConverter";
+import {
+  electionFromRecord,
+  pollFromRecord,
+} from "../services/converters/votingConverter";
 
 describe("backend converters", () => {
   it("fails fast when required event fields are missing", () => {
@@ -37,6 +41,52 @@ describe("backend converters", () => {
         capacity: 40,
       }),
     ).toThrow('Field "status" has an unsupported value.');
+  });
+
+  it("defaults event reminder settings to enabled for older records", () => {
+    expect(
+      eventFromRecord({
+        id: "event-1",
+        title: "Meeting",
+        description: "Monthly meeting",
+        category: "meeting",
+        startTime: new Date("2026-07-01T10:00:00.000Z"),
+        location: "Clubhouse",
+        createdBy: "admin-1",
+        status: "published",
+        rsvpList: [],
+        rsvpCount: 0,
+        capacity: 40,
+        attendeeList: [],
+      }),
+    ).toMatchObject({
+      dayReminderEnabled: true,
+      hourReminderEnabled: true,
+    });
+  });
+
+  it("preserves explicit event reminder settings from backend records", () => {
+    expect(
+      eventFromRecord({
+        id: "event-2",
+        title: "Meeting",
+        description: "Monthly meeting",
+        category: "meeting",
+        startTime: new Date("2026-07-01T10:00:00.000Z"),
+        location: "Clubhouse",
+        createdBy: "admin-1",
+        status: "published",
+        rsvpList: [],
+        rsvpCount: 0,
+        capacity: 40,
+        attendeeList: [],
+        dayReminderEnabled: false,
+        hourReminderEnabled: true,
+      }),
+    ).toMatchObject({
+      dayReminderEnabled: false,
+      hourReminderEnabled: true,
+    });
   });
 
   it("fails fast on unsupported required enum values", () => {
@@ -148,5 +198,35 @@ describe("backend converters", () => {
       paid: false,
       paidStatus: "partial",
     });
+  });
+
+  it("keeps voting expiry dates nullable for older records", () => {
+    expect(
+      pollFromRecord({
+        id: "poll-1",
+        title: "Theme",
+        question: "Which theme?",
+        options: [],
+        status: "open",
+        totalVotes: 0,
+        resultVisibility: "after_vote",
+      }),
+    ).toMatchObject({ expiresAt: null });
+  });
+
+  it("preserves voting expiry dates when present", () => {
+    const expiresAt = new Date("2026-12-31T23:59:59.000Z");
+
+    expect(
+      electionFromRecord({
+        id: "election-1",
+        title: "Election",
+        ballotType: "secret",
+        races: [],
+        status: "open",
+        resultVisibility: "after_close",
+        expiresAt,
+      }),
+    ).toMatchObject({ expiresAt });
   });
 });

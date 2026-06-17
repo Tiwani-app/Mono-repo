@@ -29,18 +29,21 @@ import {
   snapshotRecords,
   startOrgSubscription,
 } from "./firebaseHelpers";
+import { canAcceptVotingInput, isVotingItemExpired } from "../utils/votingExpiry";
 
 export interface PollInput {
   title: string;
   question: string;
   status: Poll["status"];
   options: string[];
+  expiresAt: Date | null;
 }
 
 export interface ElectionInput {
   title: string;
   ballotType: Election["ballotType"];
   status: Election["status"];
+  expiresAt: Date | null;
   races: {
     office: string;
     candidates: {
@@ -123,6 +126,7 @@ const electionCallablePayload = async (
     title: data.title,
     ballotType: data.ballotType,
     status: data.status,
+    expiresAt: data.expiresAt,
     races: races.map((race) => ({
       office: race.office,
       candidates: race.candidates.map((candidate) => ({
@@ -264,6 +268,7 @@ export const getPollVoterState = async (
     hasVoted,
     resultsVisible:
       poll.status === "closed" ||
+      isVotingItemExpired(poll) ||
       (poll.resultVisibility === "after_vote" && hasVoted),
   };
 };
@@ -303,7 +308,7 @@ export const getElectionVoterState = async (
     hasVoted: voteRecord.hasVoted,
     ballotReceipt: voteRecord.ballotReceipt,
     resultsVisible:
-      election.status === "closed" &&
+      (election.status === "closed" || isVotingItemExpired(election)) &&
       election.resultVisibility === "after_close",
   };
 };
@@ -313,6 +318,10 @@ export const castPollVote = async (
   optionId: string,
   _userId: string,
 ): Promise<void> => {
+  const poll = await getPoll(pollId);
+  if (!canAcceptVotingInput(poll)) {
+    throw new Error("This poll is not accepting votes.");
+  }
   await castPollVoteCallable(pollId, optionId);
 };
 
@@ -321,6 +330,10 @@ export const castElectionBallot = async (
   choices: Record<string, string>,
   _userId: string,
 ): Promise<string> => {
+  const election = await getElection(electionId);
+  if (!canAcceptVotingInput(election)) {
+    throw new Error("This election is not accepting ballots.");
+  }
   const result = await castElectionBallotCallable(electionId, choices);
   return result.ballotReceipt;
 };

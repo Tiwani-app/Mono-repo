@@ -18,6 +18,10 @@ import { Election, ElectionVoterReceipt } from '../../types/voting';
 import { formatDisplayDate } from '../../utils/formatDate';
 import { safeGoBack } from '../../utils/navigation';
 import { canViewElectionResults } from '../../utils/roleGuard';
+import {
+  isVotingItemExpired,
+  votingDisplayStatus,
+} from '../../utils/votingExpiry';
 
 const ElectionResultsScreen = ({ navigation, route }: any) => {
   const electionId = route.params?.electionId as string | undefined;
@@ -80,9 +84,12 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
     );
   }
 
+  const expired = isVotingItemExpired(election);
+  const displayStatus = votingDisplayStatus(election);
   const canViewResults =
     canViewElectionResults(user) ||
-    (election.status === 'closed' && election.resultVisibility === 'after_close');
+    ((election.status === 'closed' || expired) &&
+      election.resultVisibility === 'after_close');
 
   if (!canViewResults) {
     return (
@@ -95,7 +102,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
         <EmptyState
           icon="!"
           title="Results not available"
-          message="Election results will be available after voting closes."
+          message="Election results will be available after voting closes or expires."
           actionLabel="Back to Voting"
           onAction={() => safeGoBack(navigation, 'VotingHub')}
         />
@@ -116,11 +123,23 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.hero}>
-            <Badge label={election.status.toUpperCase()} color={colors.gold.default} />
+            <Badge
+              label={displayStatus.toUpperCase()}
+              color={
+                displayStatus === 'expired'
+                  ? colors.status.error
+                  : colors.gold.default
+              }
+            />
             <Text style={styles.title}>{election.title}</Text>
             <Text style={styles.meta}>
               {election.ballotType === 'secret' ? 'Secret ballot' : 'Open ballot'}
             </Text>
+            {election.expiresAt && (
+              <Text style={[styles.meta, expired && styles.expiryMeta]}>
+                Voting expires {formatDisplayDate(election.expiresAt)}
+              </Text>
+            )}
           </View>
         }
         renderItem={({item}) => {
@@ -207,6 +226,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   meta: {fontSize: typography.size.sm, color: colors.text.secondary},
+  expiryMeta: {color: colors.status.error},
   raceCard: {
     gap: spacing.md,
     padding: spacing.lg,

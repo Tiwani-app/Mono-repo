@@ -23,6 +23,7 @@ export {
 } from "./notifications";
 export {
   notifyEventCreated,
+  sendScheduledEventReminders,
   notifyEventUpdated,
   notifyMarketplaceCreated,
   notifyMarketplaceUpdated,

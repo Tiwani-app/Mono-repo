@@ -18,7 +18,9 @@ import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
+import { isVotingItemExpired, votingDisplayStatus } from "../../utils/votingExpiry";
 
 const VotingHubScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -151,18 +153,30 @@ const PollCard = ({
   onEdit: () => void;
   onOpen: () => void;
 }) => (
-  <TouchableOpacity style={styles.card} onPress={onOpen} activeOpacity={0.85}>
+  <TouchableOpacity
+    style={[styles.card, isVotingItemExpired(poll) && styles.expiredCard]}
+    onPress={onOpen}
+    activeOpacity={0.85}
+  >
     <View style={styles.cardHeader}>
       <View style={styles.cardCopy}>
         <Text style={styles.cardTitle}>{poll.title}</Text>
         <Text style={styles.cardMeta}>{poll.question}</Text>
       </View>
-      <Badge label={poll.status.toUpperCase()} color={statusColor(poll.status)} />
+      <Badge
+        label={votingDisplayStatus(poll).toUpperCase()}
+        color={statusColor(votingDisplayStatus(poll))}
+      />
     </View>
     <Text style={styles.cardMeta}>
       {poll.options.length} options · {poll.totalVotes} recorded votes
     </Text>
-    {admin && poll.status !== "closed" && (
+    {poll.expiresAt && (
+      <Text style={styles.expiryMeta}>
+        Expires {formatDisplayDate(poll.expiresAt)}
+      </Text>
+    )}
+    {admin && poll.status !== "closed" && !isVotingItemExpired(poll) && (
       <OutlineButton label="Edit Poll" onPress={onEdit} fullWidth />
     )}
   </TouchableOpacity>
@@ -183,7 +197,11 @@ const ElectionCard = ({
   onResults: () => void;
   showResults: boolean;
 }) => (
-  <TouchableOpacity style={styles.card} onPress={onOpen} activeOpacity={0.85}>
+  <TouchableOpacity
+    style={[styles.card, isVotingItemExpired(election) && styles.expiredCard]}
+    onPress={onOpen}
+    activeOpacity={0.85}
+  >
     <View style={styles.cardHeader}>
       <View style={styles.cardCopy}>
         <Text style={styles.cardTitle}>{election.title}</Text>
@@ -193,11 +211,16 @@ const ElectionCard = ({
         </Text>
       </View>
       <Badge
-        label={election.status.toUpperCase()}
-        color={statusColor(election.status)}
+        label={votingDisplayStatus(election).toUpperCase()}
+        color={statusColor(votingDisplayStatus(election))}
       />
     </View>
-    {admin && election.status !== "closed" && (
+    {election.expiresAt && (
+      <Text style={styles.expiryMeta}>
+        Expires {formatDisplayDate(election.expiresAt)}
+      </Text>
+    )}
+    {admin && election.status !== "closed" && !isVotingItemExpired(election) && (
       <OutlineButton label="Edit Election" onPress={onEdit} fullWidth />
     )}
     {showResults && (
@@ -210,9 +233,11 @@ const ElectionCard = ({
   </TouchableOpacity>
 );
 
-const statusColor = (status: "draft" | "open" | "closed") =>
+const statusColor = (status: "draft" | "open" | "closed" | "expired") =>
   status === "open"
     ? colors.status.success
+    : status === "expired"
+      ? colors.status.error
     : status === "closed"
       ? colors.text.tertiary
       : colors.gold.default;
@@ -241,6 +266,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.card,
   },
+  expiredCard: {
+    borderColor: colors.status.error,
+    backgroundColor: `${colors.status.error}10`,
+  },
   cardHeader: { flexDirection: "row", gap: spacing.md },
   cardCopy: { flex: 1, gap: spacing.xs },
   cardTitle: {
@@ -252,6 +281,11 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     lineHeight: 20,
     color: colors.text.secondary,
+  },
+  expiryMeta: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.status.error,
   },
 });
 

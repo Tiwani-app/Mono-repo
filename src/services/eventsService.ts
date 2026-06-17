@@ -16,6 +16,8 @@ export interface EventInput {
   location: string;
   capacity: number;
   status: EventStatus;
+  dayReminderEnabled: boolean;
+  hourReminderEnabled: boolean;
 }
 
 const eventData = (data: Partial<EventInput>) => ({
@@ -28,6 +30,12 @@ const eventData = (data: Partial<EventInput>) => ({
   ...(data.location !== undefined ? { location: data.location.trim() } : {}),
   ...(data.capacity !== undefined ? { capacity: data.capacity } : {}),
   ...(data.status !== undefined ? { status: data.status } : {}),
+  ...(data.dayReminderEnabled !== undefined
+    ? { dayReminderEnabled: data.dayReminderEnabled }
+    : {}),
+  ...(data.hourReminderEnabled !== undefined
+    ? { hourReminderEnabled: data.hourReminderEnabled }
+    : {}),
 });
 
 export const subscribeToEvents = (

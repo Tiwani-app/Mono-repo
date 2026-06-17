@@ -159,16 +159,26 @@ export const openPollCallable = (pollId: string) =>
   );
 
 export const createPollCallable = (data: PollInput) =>
-  callCloudFunction<PollInput, { ok: boolean; pollId: string }>(
+  callCloudFunction<
+    Omit<PollInput, "expiresAt"> & { expiresAt: string | null },
+    { ok: boolean; pollId: string }
+  >(
     "createPoll",
-    data,
+    {
+      ...data,
+      expiresAt: data.expiresAt ? data.expiresAt.toISOString() : null,
+    },
   );
 
 export const updatePollCallable = (pollId: string, data: PollInput) =>
   callCloudFunction<
-    PollInput & { pollId: string },
+    Omit<PollInput, "expiresAt"> & { expiresAt: string | null; pollId: string },
     { ok: boolean; pollId: string }
-  >("updatePoll", { ...data, pollId });
+  >("updatePoll", {
+    ...data,
+    expiresAt: data.expiresAt ? data.expiresAt.toISOString() : null,
+    pollId,
+  });
 
 export const closePollCallable = (pollId: string) =>
   callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
@@ -189,9 +199,15 @@ export const openElectionCallable = (electionId: string) =>
   >("openElection", { electionId });
 
 export const createElectionCallable = (data: ElectionInput) =>
-  callCloudFunction<ElectionInput, { electionId: string; ok: boolean }>(
+  callCloudFunction<
+    Omit<ElectionInput, "expiresAt"> & { expiresAt: string | null },
+    { electionId: string; ok: boolean }
+  >(
     "createElection",
-    data,
+    {
+      ...data,
+      expiresAt: data.expiresAt ? data.expiresAt.toISOString() : null,
+    },
   );
 
 export const updateElectionCallable = (
@@ -199,9 +215,16 @@ export const updateElectionCallable = (
   data: ElectionInput,
 ) =>
   callCloudFunction<
-    ElectionInput & { electionId: string },
+    Omit<ElectionInput, "expiresAt"> & {
+      electionId: string;
+      expiresAt: string | null;
+    },
     { electionId: string; ok: boolean }
-  >("updateElection", { ...data, electionId });
+  >("updateElection", {
+    ...data,
+    electionId,
+    expiresAt: data.expiresAt ? data.expiresAt.toISOString() : null,
+  });
 
 export const closeElectionCallable = (electionId: string) =>
   callCloudFunction<

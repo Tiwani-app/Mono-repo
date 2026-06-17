@@ -423,6 +423,31 @@ describe("Firebase service contracts", () => {
   });
 
   it("casts election ballots through Cloud Functions", async () => {
+    mockGet.mockResolvedValueOnce({
+      exists: () => true,
+      id: "election-1",
+      data: () => ({
+        ballotType: "secret",
+        expiresAt: new Date("2026-12-31T23:59:59.000Z"),
+        races: [
+          {
+            candidates: [
+              {
+                manifestoLine: "",
+                name: "Ada Member",
+                photoURL: null,
+                uid: "member-1",
+              },
+            ],
+            raceId: "president",
+            title: "President",
+          },
+        ],
+        resultVisibility: "after_close",
+        status: "open",
+        title: "Executive Election",
+      }),
+    });
     mockCastElectionBallotCallable.mockResolvedValueOnce({
       ballotReceipt: "receipt-1",
       electionId: "election-1",
@@ -455,6 +480,7 @@ describe("Firebase service contracts", () => {
         title: "Meeting venue",
         question: "Where should we meet?",
         status: "closed",
+        expiresAt: new Date("2026-12-31T23:59:59.000Z"),
         options: ["Hall", "Garden"],
       }),
     ).rejects.toThrow("Create the poll as draft or open");
@@ -465,6 +491,7 @@ describe("Firebase service contracts", () => {
       title: "Updated venue",
       question: "Where should we meet?",
       status: "open",
+      expiresAt: new Date("2026-12-31T23:59:59.000Z"),
       options: ["Hall", "Garden"],
     });
 
@@ -472,6 +499,7 @@ describe("Firebase service contracts", () => {
       title: "Updated venue",
       question: "Where should we meet?",
       status: "open",
+      expiresAt: new Date("2026-12-31T23:59:59.000Z"),
       options: ["Hall", "Garden"],
     });
     expect(mockUpdate).not.toHaveBeenCalled();

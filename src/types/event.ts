@@ -21,6 +21,8 @@ export interface TiwaniEvent {
   rsvpCount: number;
   capacity: number;
   attendees: string[];
+  dayReminderEnabled: boolean;
+  hourReminderEnabled: boolean;
 }
 
 export interface EventAttendee {

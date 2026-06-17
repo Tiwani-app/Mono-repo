@@ -5,6 +5,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -113,6 +114,8 @@ const EventFormScreen = ({ navigation, route }: any) => {
   const eventId = route.params?.eventId as string | undefined;
   const [category, setCategory] = useState<EventCategory>("meeting");
   const [status, setStatus] = useState<EventStatus>("published");
+  const [dayReminderEnabled, setDayReminderEnabled] = useState(true);
+  const [hourReminderEnabled, setHourReminderEnabled] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
   const [openTimeMenu, setOpenTimeMenu] = useState<string | null>(null);
@@ -147,6 +150,8 @@ const EventFormScreen = ({ navigation, route }: any) => {
         });
         setCategory(event.category);
         setStatus(event.status);
+        setDayReminderEnabled(event.dayReminderEnabled);
+        setHourReminderEnabled(event.hourReminderEnabled);
       })
       .catch((error) =>
         setLoadError(
@@ -187,6 +192,8 @@ const EventFormScreen = ({ navigation, route }: any) => {
         location: values.location.trim(),
         capacity,
         status,
+        dayReminderEnabled,
+        hourReminderEnabled,
       };
       let savedEvent;
       if (eventId) {
@@ -346,6 +353,19 @@ const EventFormScreen = ({ navigation, route }: any) => {
             selectedValue={status}
             onChange={setStatus}
           />
+          <Text style={styles.sectionLabel}>REMINDERS</Text>
+          <ReminderToggleRow
+            label="Day-before reminder"
+            helper="Notify members 24 hours before the event."
+            value={dayReminderEnabled}
+            onValueChange={setDayReminderEnabled}
+          />
+          <ReminderToggleRow
+            label="One-hour reminder"
+            helper="Notify members about 1 hour before the event."
+            value={hourReminderEnabled}
+            onValueChange={setHourReminderEnabled}
+          />
           <GoldButton
             label={eventId ? "Save Event" : "Create Event"}
             onPress={handleSubmit(onSubmit)}
@@ -418,6 +438,31 @@ const ChipRow = <T extends string>({
         </TouchableOpacity>
       );
     })}
+  </View>
+);
+
+const ReminderToggleRow = ({
+  helper,
+  label,
+  onValueChange,
+  value,
+}: {
+  helper: string;
+  label: string;
+  onValueChange: (value: boolean) => void;
+  value: boolean;
+}) => (
+  <View style={styles.reminderCard}>
+    <View style={styles.reminderTextWrap}>
+      <Text style={styles.reminderLabel}>{label}</Text>
+      <Text style={styles.reminderHelp}>{helper}</Text>
+    </View>
+    <Switch
+      value={value}
+      onValueChange={onValueChange}
+      trackColor={{ false: colors.bg.elevated, true: colors.gold.dark }}
+      thumbColor={colors.bg.secondary}
+    />
   </View>
 );
 
@@ -596,6 +641,29 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   selectedChipText: { color: colors.gold.light },
+  reminderCard: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  reminderTextWrap: { flex: 1, gap: spacing.xs },
+  reminderLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  reminderHelp: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    lineHeight: typography.size.xs * typography.lineHeight.normal,
+  },
   dateTimeStack: { gap: spacing.md },
   timeField: { gap: spacing.xs },
   timeRow: { flexDirection: "row", gap: spacing.sm },

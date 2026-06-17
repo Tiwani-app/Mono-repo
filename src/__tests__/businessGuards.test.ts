@@ -53,6 +53,7 @@ const election: Election = {
   title: "Executive Election",
   ballotType: "secret",
   status: "open",
+  expiresAt: null,
   resultVisibility: "after_close",
   races: [
     {
@@ -101,6 +102,8 @@ const event = (
   rsvpCount: 0,
   capacity: 50,
   attendees: [],
+  dayReminderEnabled: true,
+  hourReminderEnabled: true,
   ...overrides,
 });
 

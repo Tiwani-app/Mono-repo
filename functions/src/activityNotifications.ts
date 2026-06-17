@@ -6,6 +6,7 @@ import {
   onDocumentCreated,
   onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db, messaging } from "./firebase";
 
 type NotificationType =
@@ -264,6 +265,185 @@ const eventBody = (
   return segments.join(" ");
 };
 
+const eventReminderBody = (
+  data: Record<string, unknown>,
+  reminderType: "day" | "hour",
+) => {
+  const dateTime = formatDateTime(data.startTime);
+  const location = stringValue(data.location);
+  const segments = [
+    reminderType === "day"
+      ? "Reminder: this event starts tomorrow."
+      : "Reminder: this event starts in about 1 hour.",
+    dateTime ? `When: ${dateTime}.` : null,
+    location ? `Where: ${location}.` : null,
+  ].filter(Boolean);
+  return segments.join(" ");
+};
+
+const reminderFieldFor = (reminderType: "day" | "hour") =>
+  reminderType === "day" ? "dayReminderSentAt" : "hourReminderSentAt";
+
+const reminderEnabledFor = (
+  data: Record<string, unknown>,
+  reminderType: "day" | "hour",
+) => {
+  const value =
+    reminderType === "day"
+      ? data.dayReminderEnabled
+      : data.hourReminderEnabled;
+  return typeof value === "boolean" ? value : true;
+};
+
+const reminderTitleFor = (
+  title: string,
+  reminderType: "day" | "hour",
+) =>
+  reminderType === "day"
+    ? `Event tomorrow: ${title}`
+    : `Event in 1 hour: ${title}`;
+
+const publishEventReminder = async (
+  eventId: string,
+  data: Record<string, unknown>,
+  reminderType: "day" | "hour",
+) => {
+  const title = stringValue(data.title);
+  const orgId = stringValue(data.orgId);
+  if (!title || !orgId) {
+    return false;
+  }
+
+  await publishOrgAnnouncement({
+    audit: {
+      action:
+        reminderType === "day"
+          ? "event.reminder_day_sent"
+          : "event.reminder_hour_sent",
+      actorUid: stringValue(data.updatedBy) ?? stringValue(data.createdBy),
+      details: { eventId, reminderType, status: stringValue(data.status) },
+    },
+    body: eventReminderBody(data, reminderType),
+    orgId,
+    relatedDocId: eventId,
+    sentBy: stringValue(data.updatedBy) ?? stringValue(data.createdBy),
+    target: eventTarget(eventId, stringValue(data.status)),
+    title: reminderTitleFor(title, reminderType),
+    type: "event",
+  });
+
+  return true;
+};
+
+const dueWithinReminderWindow = (
+  startTime: Date,
+  now: Date,
+  reminderType: "day" | "hour",
+) => {
+  const diffMs = startTime.getTime() - now.getTime();
+  const targetMs =
+    reminderType === "day" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+  const windowMs = 5 * 60 * 1000;
+  return diffMs >= targetMs - windowMs && diffMs <= targetMs;
+};
+
+const sendScheduledEventRemindersFor = async (
+  reminderType: "day" | "hour",
+  now: Date,
+) => {
+  const reminderField = reminderFieldFor(reminderType);
+  const lowerBound = new Date(
+    now.getTime() +
+      (reminderType === "day" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000) -
+      5 * 60 * 1000,
+  );
+  const upperBound = new Date(
+    now.getTime() +
+      (reminderType === "day" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000),
+  );
+  const snapshot = await db
+    .collection("events")
+    .where("startTime", ">=", lowerBound)
+    .where("startTime", "<=", upperBound)
+    .get();
+
+  let sentCount = 0;
+  for (const doc of snapshot.docs) {
+    const data = asRecord(doc.data());
+    if (stringValue(data.status) !== "published") {
+      continue;
+    }
+    if (!reminderEnabledFor(data, reminderType)) {
+      continue;
+    }
+    const startTime = toDate(data.startTime);
+    if (!startTime || !dueWithinReminderWindow(startTime, now, reminderType)) {
+      continue;
+    }
+    const lockRef = db
+      .collection("event_reminder_jobs")
+      .doc(`${doc.id}_${reminderType}`);
+    try {
+      await lockRef.create({
+        createdAt: FieldValue.serverTimestamp(),
+        eventId: doc.id,
+        reminderType,
+      });
+    } catch {
+      continue;
+    }
+
+    try {
+      const freshSnapshot = await doc.ref.get();
+      if (!freshSnapshot.exists) {
+        await lockRef.delete().catch(() => undefined);
+        continue;
+      }
+      const freshData = asRecord(freshSnapshot.data());
+      if (stringValue(freshData.status) !== "published") {
+        await lockRef.delete().catch(() => undefined);
+        continue;
+      }
+      if (!reminderEnabledFor(freshData, reminderType)) {
+        await lockRef.delete().catch(() => undefined);
+        continue;
+      }
+      if (freshData[reminderField]) {
+        await lockRef.delete().catch(() => undefined);
+        continue;
+      }
+      const freshStartTime = toDate(freshData.startTime);
+      if (
+        !freshStartTime ||
+        !dueWithinReminderWindow(freshStartTime, now, reminderType)
+      ) {
+        await lockRef.delete().catch(() => undefined);
+        continue;
+      }
+
+      const published = await publishEventReminder(
+        freshSnapshot.id,
+        freshData,
+        reminderType,
+      );
+      if (!published) {
+        await lockRef.delete();
+        continue;
+      }
+
+      await doc.ref.update({
+        [reminderField]: FieldValue.serverTimestamp(),
+      });
+      sentCount += 1;
+    } catch (error) {
+      await lockRef.delete().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  return sentCount;
+};
+
 const notifyEventChange = async (
   event: FirestoreEvent<QueryDocumentSnapshot | undefined, { eventId: string }>,
   action: "created" | "updated",
@@ -413,6 +593,20 @@ export const notifyMarketplaceUpdated = onDocumentUpdated(
       } as FirestoreEvent<QueryDocumentSnapshot | undefined, { listingId: string }>,
       "updated",
     );
+  },
+);
+
+export const sendScheduledEventReminders = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    timeZone: "Africa/Lagos",
+  },
+  async () => {
+    const now = new Date();
+    await Promise.all([
+      sendScheduledEventRemindersFor("day", now),
+      sendScheduledEventRemindersFor("hour", now),
+    ]);
   },
 );
 

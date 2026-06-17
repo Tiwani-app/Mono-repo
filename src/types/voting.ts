@@ -13,6 +13,7 @@ export interface Poll {
   status: 'draft' | 'open' | 'closed';
   totalVotes: number;
   resultVisibility: 'after_vote' | 'after_close';
+  expiresAt: Date | null;
 }
 
 export interface Candidate {
@@ -35,6 +36,7 @@ export interface Election {
   races: Race[];
   status: 'draft' | 'open' | 'closed';
   resultVisibility: 'after_close' | 'admin_only';
+  expiresAt: Date | null;
 }
 
 export interface PollVoterState {
