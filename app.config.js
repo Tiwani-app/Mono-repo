@@ -1,5 +1,9 @@
 const appEnvironment = process.env.EXPO_PUBLIC_APP_ENV || "development";
 const isProduction = appEnvironment === "production";
+const crashlyticsExplicitlyEnabled =
+  process.env.EXPO_PUBLIC_CRASHLYTICS_ENABLED === "true";
+const includeCrashlyticsNative =
+  crashlyticsExplicitlyEnabled || appEnvironment !== "development";
 
 const appName = process.env.TIWANI_APP_NAME || (isProduction ? "Tiwani" : "Tiwani Dev");
 const appVersion =
@@ -30,7 +34,9 @@ module.exports = {
       "@react-native-firebase/app",
       "@react-native-firebase/app-check",
       "@react-native-firebase/auth",
-      "@react-native-firebase/crashlytics",
+      ...(includeCrashlyticsNative
+        ? ["@react-native-firebase/crashlytics"]
+        : []),
       "@react-native-firebase/messaging",
       [
         "expo-build-properties",
@@ -41,7 +47,7 @@ module.exports = {
               "RNFBApp",
               "RNFBAppCheck",
               "RNFBAuth",
-              "RNFBCrashlytics",
+              ...(includeCrashlyticsNative ? ["RNFBCrashlytics"] : []),
               "RNFBFirestore",
               "RNFBFunctions",
               "RNFBMessaging",

@@ -6,6 +6,7 @@ import {
   PollVoterState,
   Race,
 } from "../types/voting";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import {
   castElectionBallotCallable,
   castPollVoteCallable,
@@ -138,6 +139,7 @@ export const subscribeToPolls = (
   callback: (polls: Poll[]) => void,
   onError?: (error: Error) => void,
   options: { includeDrafts?: boolean } = {},
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "polls",
@@ -147,12 +149,14 @@ export const subscribeToPolls = (
       ? undefined
       : (query) => query.where("status", "in", ["open", "closed"]),
     onError,
+    onSnapshotMeta,
   );
 
 export const subscribeToElections = (
   callback: (elections: Election[]) => void,
   onError?: (error: Error) => void,
   options: { includeDrafts?: boolean } = {},
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "elections",
@@ -162,6 +166,7 @@ export const subscribeToElections = (
       ? undefined
       : (query) => query.where("status", "in", ["open", "closed"]),
     onError,
+    onSnapshotMeta,
   );
 
 export const getPoll = async (pollId: string): Promise<Poll> => {

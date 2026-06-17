@@ -3,15 +3,29 @@ import {subscribeToEvents} from '../services/eventsService';
 import {useAuthStore} from '../store/authStore';
 import {useEventsStore} from '../store/eventsStore';
 import {isAdmin} from '../utils/roleGuard';
-import {getFailureSyncState} from '../utils/syncState';
+import {
+  getFailureSyncState,
+  getSnapshotSyncState,
+  shouldUpdateLastSyncedAt,
+} from '../utils/syncState';
 
 export const useEvents = () => {
   const {user} = useAuthStore();
-  const {events, setEvents, setLastSyncedAt, setLoading, setError, setSyncState} = useEventsStore();
+  const {
+    events,
+    lastSyncedAt,
+    setEvents,
+    setLastSyncedAt,
+    setLoading,
+    setError,
+    setSyncState,
+  } = useEventsStore();
   const includeUnpublished = isAdmin(user);
   const hasCachedDataRef = useRef(false);
+  const lastSyncedAtRef = useRef(lastSyncedAt);
 
   hasCachedDataRef.current = events.length > 0;
+  lastSyncedAtRef.current = lastSyncedAt;
 
   useEffect(() => {
     setLoading(true);
@@ -19,21 +33,24 @@ export const useEvents = () => {
     setSyncState('syncing');
     const handleError = (error: Error) => {
       setError(error.message || 'Could not load events.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToEvents(nextEvents => {
         setEvents(nextEvents);
-        setLastSyncedAt(new Date());
         setError(null);
-        setSyncState('fresh');
         setLoading(false);
-      }, handleError, {includeUnpublished});
+      }, handleError, {includeUnpublished}, meta => {
+        if (shouldUpdateLastSyncedAt(meta)) {
+          setLastSyncedAt(new Date());
+        }
+        setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
+      });
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load events.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     }
   }, [includeUnpublished, setError, setEvents, setLastSyncedAt, setLoading, setSyncState]);

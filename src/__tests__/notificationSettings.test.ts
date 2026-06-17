@@ -175,12 +175,24 @@ describe("settings helpers", () => {
         phone: " 08012345678 ",
         address: " Lagos ",
         photoURL: "   ",
+        maritalStatus: "single",
+        dateOfBirth: " 1990-04-02 ",
+        spouseName: "  ",
+        spouseDateOfBirth: " ",
+        weddingAnniversary: " ",
+        children: [{ name: "  Timi ", dateOfBirth: " 2018-03-01 " }],
       }),
     ).toEqual({
       fullName: "Ada Member",
       phone: "08012345678",
       address: "Lagos",
       photoURL: null,
+      maritalStatus: "single",
+      dateOfBirth: "1990-04-02",
+      spouseName: null,
+      spouseDateOfBirth: null,
+      weddingAnniversary: null,
+      children: [{ name: "Timi", dateOfBirth: "2018-03-01" }],
     });
   });
 
@@ -190,6 +202,12 @@ describe("settings helpers", () => {
       phone: user.phone,
       address: user.address,
       photoURL: user.photoURL,
+      maritalStatus: user.maritalStatus,
+      dateOfBirth: user.dateOfBirth,
+      spouseName: user.spouseName,
+      spouseDateOfBirth: user.spouseDateOfBirth,
+      weddingAnniversary: user.weddingAnniversary,
+      children: user.children,
     });
     expect(
       buildNotificationPreferences(

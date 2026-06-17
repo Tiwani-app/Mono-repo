@@ -4,6 +4,7 @@ import {
   EventStatus,
   TiwaniEvent,
 } from "../types/event";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import { eventFromRecord } from "./converters/eventConverter";
 import { currentUid, firestore, getCurrentOrgId, startOrgSubscription } from "./firebaseHelpers";
 
@@ -33,6 +34,7 @@ export const subscribeToEvents = (
   callback: (events: TiwaniEvent[]) => void,
   onError?: (error: Error) => void,
   options: { includeUnpublished?: boolean } = {},
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "events",
@@ -45,6 +47,7 @@ export const subscribeToEvents = (
       ? undefined
       : (query) => query.where("status", "==", "published"),
     onError,
+    onSnapshotMeta,
   );
 
 export const getEvent = async (eventId: string): Promise<TiwaniEvent> => {

@@ -1,4 +1,5 @@
 import { NotificationType, TiwaniNotification } from "../types/notification";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import {
   firebaseFirestoreModule,
   firebaseMessaging,
@@ -56,11 +57,14 @@ export const sendAnnouncement = async (
 export const subscribeToNotifications = (
   callback: (items: TiwaniNotification[]) => void,
   onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) => {
   const database = firestore();
   const uid = currentUid();
   let allNotifications: TiwaniNotification[] = [];
   let personalNotifications: TiwaniNotification[] = [];
+  let allMeta: DataSyncSnapshotMeta | null = null;
+  let personalMeta: DataSyncSnapshotMeta | null = null;
   let subscriptions: (() => void)[] = [];
   let active = true;
   const handleError = (error: unknown) => {
@@ -77,6 +81,17 @@ export const subscribeToNotifications = (
       return;
     }
     callback([]);
+  };
+
+  const emitSnapshotMeta = () => {
+    if (!onSnapshotMeta || !allMeta || !personalMeta) {
+      return;
+    }
+    onSnapshotMeta({
+      fromCache: allMeta.fromCache || personalMeta.fromCache,
+      hasPendingWrites:
+        allMeta.hasPendingWrites || personalMeta.hasPendingWrites,
+    });
   };
 
   const emit = () => {
@@ -105,8 +120,14 @@ export const subscribeToNotifications = (
       const base = database.collection("announcements").where("orgId", "==", orgId);
       subscriptions = [
         base.where("targetAudience", "==", "all").onSnapshot(
+          { includeMetadataChanges: true },
           (snapshot) => {
             try {
+              allMeta = {
+                fromCache: snapshot.metadata.fromCache,
+                hasPendingWrites: snapshot.metadata.hasPendingWrites,
+              };
+              emitSnapshotMeta();
               allNotifications = snapshotRecords(snapshot).map(notificationFromRecord);
               emit();
             } catch (error) {
@@ -116,8 +137,14 @@ export const subscribeToNotifications = (
           handleError,
         ),
         base.where("targetAudience", "==", uid).onSnapshot(
+          { includeMetadataChanges: true },
           (snapshot) => {
             try {
+              personalMeta = {
+                fromCache: snapshot.metadata.fromCache,
+                hasPendingWrites: snapshot.metadata.hasPendingWrites,
+              };
+              emitSnapshotMeta();
               personalNotifications = snapshotRecords(snapshot).map(notificationFromRecord);
               emit();
             } catch (error) {

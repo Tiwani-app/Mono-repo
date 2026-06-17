@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import {
   FinancialStatus,
   JoinRequest,
@@ -71,7 +72,17 @@ export type CreatedMember = User & MemberProvisioningResult;
 export type MemberProfileUpdateInput = Partial<
   Pick<
     User,
-    "fullName" | "phone" | "address" | "photoURL" | "notificationPreferences"
+    | "fullName"
+    | "phone"
+    | "address"
+    | "photoURL"
+    | "notificationPreferences"
+    | "maritalStatus"
+    | "dateOfBirth"
+    | "spouseName"
+    | "spouseDateOfBirth"
+    | "weddingAnniversary"
+    | "children"
   >
 >;
 
@@ -114,7 +125,16 @@ const memberUpdates = (data: Partial<MemberInput>) => ({
 export const subscribeToMembers = (
   callback: (members: User[]) => void,
   onError?: (error: Error) => void,
-) => startOrgSubscription("users", userFromRecord, callback, undefined, onError);
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
+) =>
+  startOrgSubscription(
+    "users",
+    userFromRecord,
+    callback,
+    undefined,
+    onError,
+    onSnapshotMeta,
+  );
 
 export const subscribeToJoinRequests = (
   callback: (requests: JoinRequest[]) => void,
@@ -177,8 +197,23 @@ export const updateMemberProfile = async (
     ...(data.fullName !== undefined ? { fullName: data.fullName.trim() } : {}),
     ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
     ...(data.address !== undefined ? { address: data.address.trim() } : {}),
+    ...(data.dateOfBirth !== undefined
+      ? { dateOfBirth: data.dateOfBirth.trim() }
+      : {}),
     ...(data.photoURL !== undefined
       ? { photoURL: data.photoURL?.trim() || null }
+      : {}),
+    ...(data.spouseName !== undefined
+      ? { spouseName: data.spouseName?.trim() || null }
+      : {}),
+    ...(data.spouseDateOfBirth !== undefined
+      ? { spouseDateOfBirth: data.spouseDateOfBirth?.trim() || null }
+      : {}),
+    ...(data.weddingAnniversary !== undefined
+      ? { weddingAnniversary: data.weddingAnniversary?.trim() || null }
+      : {}),
+    ...(data.children !== undefined
+      ? { children: normalizeChildren(data.children) }
       : {}),
   };
   await firestore().collection("users").doc(uid).update(update);

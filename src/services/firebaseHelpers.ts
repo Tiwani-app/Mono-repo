@@ -5,6 +5,7 @@ import {
   firebaseFirestoreModule,
   requireFirebaseApp,
 } from "../config/firebase";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import { RawRecord } from "./converters/shared";
 
 export const firestore = () => {
@@ -58,6 +59,7 @@ export const startOrgSubscription = <T>(
     query: FirebaseFirestoreTypes.Query,
   ) => FirebaseFirestoreTypes.Query,
   onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) => {
   const database = firestore();
   let unsubscribe = () => {};
@@ -88,8 +90,13 @@ export const startOrgSubscription = <T>(
         .where("orgId", "==", orgId);
       const query = configure ? configure(baseQuery) : baseQuery;
       unsubscribe = query.onSnapshot(
+        { includeMetadataChanges: true },
         (snapshot) => {
           try {
+            onSnapshotMeta?.({
+              fromCache: snapshot.metadata.fromCache,
+              hasPendingWrites: snapshot.metadata.hasPendingWrites,
+            });
             const records = snapshotRecords(snapshot);
             const mappedRecords = records.flatMap((record) => {
               try {

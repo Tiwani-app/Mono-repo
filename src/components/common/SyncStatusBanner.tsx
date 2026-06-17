@@ -10,14 +10,20 @@ interface Props {
 }
 
 const messageForState = (state: DataSyncState, lastSyncedAt: Date | null) => {
-  const suffix = lastSyncedAt ? ` Last updated ${formatRelativeTime(lastSyncedAt)}.` : '';
+  const suffix = lastSyncedAt
+    ? ` Last server sync ${formatRelativeTime(lastSyncedAt)}.`
+    : '';
   switch (state) {
     case 'syncing':
-      return 'Syncing latest updates...';
+      return 'Checking for the latest updates...';
     case 'stale':
-      return `Showing saved data while updates reconnect.${suffix}`;
+      return `Showing saved data while live updates reconnect.${suffix}`;
     case 'offline':
-      return `You appear to be offline. Showing saved data.${suffix}`;
+      return `You appear to be offline or unreachable. Showing saved data.${suffix}`;
+    case 'blocked':
+      return 'This account does not currently have access to this data.';
+    case 'error':
+      return 'Live data could not be refreshed right now.';
     default:
       return null;
   }
@@ -29,6 +35,9 @@ const colorForState = (state: DataSyncState) => {
   }
   if (state === 'stale') {
     return colors.gold.default;
+  }
+  if (state === 'blocked' || state === 'error') {
+    return colors.status.error;
   }
   return colors.status.info;
 };
@@ -61,4 +70,3 @@ const styles = StyleSheet.create({
 });
 
 export default SyncStatusBanner;
-

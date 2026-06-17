@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  FlatList,
   Modal,
   Pressable,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import {
   addMonths,
+  addYears,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -18,9 +20,12 @@ import {
   isSameMonth,
   isValid,
   parse,
+  setMonth,
+  setYear,
   startOfMonth,
   startOfWeek,
   subMonths,
+  subYears,
 } from "date-fns";
 import Icon from "./FeatherIcon";
 import { colors, spacing, typography } from "../../theme";
@@ -41,6 +46,20 @@ const parseDateValue = (value?: string) => {
 };
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const monthLabels = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 const CalendarDateField = ({
   allowEmpty,
@@ -55,6 +74,7 @@ const CalendarDateField = ({
   const selectedDate = parseDateValue(value);
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(startOfMonth(selectedDate));
+  const [showYearPicker, setShowYearPicker] = useState(false);
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(visibleMonth);
@@ -64,14 +84,32 @@ const CalendarDateField = ({
     });
   }, [visibleMonth]);
 
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const selectedYear = selectedDate.getFullYear();
+    const startYear = Math.min(selectedYear - 100, currentYear - 100);
+    const endYear = Math.max(selectedYear + 20, currentYear + 10);
+    return Array.from(
+      { length: endYear - startYear + 1 },
+      (_, index) => endYear - index,
+    );
+  }, [selectedDate]);
+
   const openCalendar = () => {
     setVisibleMonth(startOfMonth(selectedDate));
+    setShowYearPicker(false);
     setOpen(true);
   };
 
   const selectDate = (date: Date) => {
     onChange(format(date, "yyyy-MM-dd"));
+    setShowYearPicker(false);
     setOpen(false);
+  };
+
+  const handleSelectYear = (year: number) => {
+    setVisibleMonth((current) => startOfMonth(setYear(current, year)));
+    setShowYearPicker(false);
   };
 
   return (
@@ -114,65 +152,194 @@ const CalendarDateField = ({
             <View style={styles.monthRow}>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => setVisibleMonth(subMonths(visibleMonth, 1))}
+                onPress={() =>
+                  setVisibleMonth(
+                    showYearPicker
+                      ? subYears(visibleMonth, 12)
+                      : subYears(visibleMonth, 1),
+                  )
+                }
                 activeOpacity={0.8}
               >
                 <Icon
-                  name="chevron-left"
+                  name={showYearPicker ? "chevrons-left" : "chevron-left"}
                   size={20}
                   color={colors.text.primary}
                 />
               </TouchableOpacity>
-              <Text style={styles.monthTitle}>
-                {format(visibleMonth, "MMMM yyyy")}
-              </Text>
+              <TouchableOpacity
+                style={styles.monthTitleButton}
+                onPress={() => setShowYearPicker((current) => !current)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.monthTitle}>
+                  {showYearPicker
+                    ? `Select Year (${format(visibleMonth, "yyyy")})`
+                    : format(visibleMonth, "MMMM yyyy")}
+                </Text>
+                <Text style={styles.monthSubtitle}>
+                  {showYearPicker
+                    ? "Tap a year, then pick the day"
+                    : "Tap month/year to jump years"}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => setVisibleMonth(addMonths(visibleMonth, 1))}
+                onPress={() =>
+                  setVisibleMonth(
+                    showYearPicker
+                      ? addYears(visibleMonth, 12)
+                      : addYears(visibleMonth, 1),
+                  )
+                }
                 activeOpacity={0.8}
               >
                 <Icon
-                  name="chevron-right"
+                  name={showYearPicker ? "chevrons-right" : "chevron-right"}
                   size={20}
                   color={colors.text.primary}
                 />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.weekRow}>
-              {weekdays.map((day) => (
-                <Text key={day} style={styles.weekday}>
-                  {day}
-                </Text>
-              ))}
-            </View>
-            <View style={styles.daysGrid}>
-              {days.map((day) => {
-                const selected = isSameDay(day, selectedDate);
-                const inMonth = isSameMonth(day, visibleMonth);
-                return (
+            {showYearPicker ? (
+              <>
+                <View style={styles.monthQuickRow}>
+                  {monthLabels.map((monthLabel, index) => {
+                    const selected = visibleMonth.getMonth() === index;
+                    return (
+                      <TouchableOpacity
+                        key={monthLabel}
+                        style={[
+                          styles.monthQuickButton,
+                          selected && styles.selectedMonthQuickButton,
+                        ]}
+                        onPress={() =>
+                          setVisibleMonth((current) =>
+                            startOfMonth(setMonth(current, index)),
+                          )
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.monthQuickText,
+                            selected && styles.selectedMonthQuickText,
+                          ]}
+                        >
+                          {monthLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <FlatList
+                  data={years}
+                  keyExtractor={(item) => String(item)}
+                  numColumns={3}
+                  contentContainerStyle={styles.yearList}
+                  columnWrapperStyle={styles.yearRow}
+                  initialScrollIndex={Math.max(
+                    0,
+                    years.findIndex((item) => item === visibleMonth.getFullYear()),
+                  )}
+                  getItemLayout={(_, index) => ({
+                    length: 52,
+                    offset: 52 * index,
+                    index,
+                  })}
+                  renderItem={({ item }) => {
+                    const selected = item === visibleMonth.getFullYear();
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.yearButton,
+                          selected && styles.selectedYearButton,
+                        ]}
+                        onPress={() => handleSelectYear(item)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.yearText,
+                            selected && styles.selectedYearText,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <View style={styles.yearJumpRow}>
                   <TouchableOpacity
-                    key={day.toISOString()}
-                    style={[
-                      styles.dayButton,
-                      selected && styles.selectedDayButton,
-                    ]}
-                    onPress={() => selectDate(day)}
+                    style={styles.jumpButton}
+                    onPress={() => setVisibleMonth(subYears(visibleMonth, 10))}
                     activeOpacity={0.8}
                   >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        !inMonth && styles.outsideDayText,
-                        selected && styles.selectedDayText,
-                      ]}
-                    >
-                      {format(day, "d")}
-                    </Text>
+                    <Text style={styles.jumpButtonText}>-10Y</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
+                  <TouchableOpacity
+                    style={styles.jumpButton}
+                    onPress={() => setVisibleMonth(subMonths(visibleMonth, 1))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.jumpButtonText}>Prev</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.jumpButton}
+                    onPress={() => setVisibleMonth(addMonths(visibleMonth, 1))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.jumpButtonText}>Next</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.jumpButton}
+                    onPress={() => setVisibleMonth(addYears(visibleMonth, 10))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.jumpButtonText}>+10Y</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.weekRow}>
+                  {weekdays.map((day) => (
+                    <Text key={day} style={styles.weekday}>
+                      {day}
+                    </Text>
+                  ))}
+                </View>
+                <View style={styles.daysGrid}>
+                  {days.map((day) => {
+                    const selected = isSameDay(day, selectedDate);
+                    const inMonth = isSameMonth(day, visibleMonth);
+                    return (
+                      <TouchableOpacity
+                        key={day.toISOString()}
+                        style={[
+                          styles.dayButton,
+                          selected && styles.selectedDayButton,
+                        ]}
+                        onPress={() => selectDate(day)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            !inMonth && styles.outsideDayText,
+                            selected && styles.selectedDayText,
+                          ]}
+                        >
+                          {format(day, "d")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -250,12 +417,40 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.tertiary,
   },
-  monthTitle: {
+  monthTitleButton: {
     flex: 1,
-    textAlign: "center",
+    alignItems: "center",
+    gap: 2,
+  },
+  monthTitle: {
     fontSize: typography.size.lg,
     fontWeight: typography.weight.black,
     color: colors.text.primary,
+    textAlign: "center",
+  },
+  monthSubtitle: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    textAlign: "center",
+  },
+  yearJumpRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  jumpButton: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  jumpButtonText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
   },
   weekRow: {
     flexDirection: "row",
@@ -289,7 +484,67 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   outsideDayText: { color: colors.text.tertiary },
-  selectedDayText: { color: colors.text.onGold },
+  selectedDayText: {
+    color: colors.text.onGold,
+    fontWeight: typography.weight.black,
+  },
+  monthQuickRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  monthQuickButton: {
+    width: "24%",
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  selectedMonthQuickButton: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  monthQuickText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+  },
+  selectedMonthQuickText: {
+    color: colors.gold.light,
+  },
+  yearList: {
+    paddingTop: spacing.xs,
+    maxHeight: 280,
+  },
+  yearRow: {
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  yearButton: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  selectedYearButton: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  yearText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+  },
+  selectedYearText: {
+    color: colors.gold.light,
+  },
 });
 
 export default CalendarDateField;

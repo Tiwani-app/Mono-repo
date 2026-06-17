@@ -37,6 +37,16 @@ interface FormValues {
   note: string;
 }
 
+const defaultPaymentMethod = "Bank transfer";
+
+const paymentMethodForCharge = (charge: LedgerEntry) =>
+  `${defaultPaymentMethod} - ${charge.label}`;
+
+const referenceForCharge = (charge: LedgerEntry) =>
+  charge.dueDate
+    ? `${charge.label} (${formatDisplayDate(charge.dueDate)})`
+    : charge.label;
+
 const RecordPaymentScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
@@ -54,7 +64,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   } = useForm<FormValues>({
     defaultValues: {
       amount: "",
-      paymentMethod: "Bank transfer",
+      paymentMethod: defaultPaymentMethod,
       reference: "",
       note: "",
     },
@@ -102,6 +112,12 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       const [charge] = openCharges;
       setSelectedChargeId(charge.id);
       setValue("amount", String(getChargeOutstanding(charge)), {
+        shouldValidate: true,
+      });
+      setValue("paymentMethod", paymentMethodForCharge(charge), {
+        shouldValidate: true,
+      });
+      setValue("reference", referenceForCharge(charge), {
         shouldValidate: true,
       });
     }
@@ -276,6 +292,12 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
               setSelectedChargeId(charge.id);
               setChargeMenuOpen(false);
               setValue("amount", String(getChargeOutstanding(charge)), {
+                shouldValidate: true,
+              });
+              setValue("paymentMethod", paymentMethodForCharge(charge), {
+                shouldValidate: true,
+              });
+              setValue("reference", referenceForCharge(charge), {
                 shouldValidate: true,
               });
             }}

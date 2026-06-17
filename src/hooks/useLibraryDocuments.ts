@@ -3,7 +3,11 @@ import { subscribeToLibraryDocuments } from "../services/libraryService";
 import { useAuthStore } from "../store/authStore";
 import { useLibraryStore } from "../store/libraryStore";
 import { isAdmin } from "../utils/roleGuard";
-import { getFailureSyncState } from "../utils/syncState";
+import {
+  getFailureSyncState,
+  getSnapshotSyncState,
+  shouldUpdateLastSyncedAt,
+} from "../utils/syncState";
 
 interface UseLibraryDocumentsOptions {
   enabled?: boolean;
@@ -15,6 +19,7 @@ export const useLibraryDocuments = ({
   const { user } = useAuthStore();
   const {
     documents,
+    lastSyncedAt,
     setDocuments,
     setError,
     setLastSyncedAt,
@@ -23,8 +28,10 @@ export const useLibraryDocuments = ({
   } = useLibraryStore();
   const includeAdmin = isAdmin(user);
   const hasCachedDataRef = useRef(false);
+  const lastSyncedAtRef = useRef(lastSyncedAt);
 
   hasCachedDataRef.current = documents.length > 0;
+  lastSyncedAtRef.current = lastSyncedAt;
 
   useEffect(() => {
     if (!enabled) {
@@ -39,17 +46,20 @@ export const useLibraryDocuments = ({
     setSyncState("syncing");
     const handleError = (error: Error) => {
       setError(error.message || "Could not load library documents.");
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToLibraryDocuments((nextDocuments) => {
         setDocuments(nextDocuments);
-        setLastSyncedAt(new Date());
         setError(null);
-        setSyncState("fresh");
         setLoading(false);
-      }, includeAdmin, handleError);
+      }, includeAdmin, handleError, meta => {
+        if (shouldUpdateLastSyncedAt(meta)) {
+          setLastSyncedAt(new Date());
+        }
+        setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
+      });
       return () => unsubscribe();
     } catch (error) {
       setError(
@@ -57,7 +67,7 @@ export const useLibraryDocuments = ({
           ? error.message
           : "Could not load library documents.",
       );
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     }
   }, [

@@ -12,11 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../components/common/AttachmentField";
 import Avatar from "../components/common/Avatar";
 import Badge from "../components/common/Badge";
+import CalendarDateField from "../components/common/CalendarDateField";
+import Icon from "../components/common/FeatherIcon";
 import GoldButton from "../components/common/GoldButton";
 import OutlineButton from "../components/common/OutlineButton";
 import ScreenHeader from "../components/common/ScreenHeader";
@@ -26,7 +28,7 @@ import { updateMemberProfile } from "../services/membersService";
 import { requestPushPermissionAndRegister } from "../services/notificationsService";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
-import { NotificationPreferences } from "../types/user";
+import { NotificationPreferences, User } from "../types/user";
 import { getInitials } from "../utils/getInitials";
 import { formatTimezoneLabel } from "../utils/locale";
 import { safeGoBack } from "../utils/navigation";
@@ -37,6 +39,13 @@ import {
   getPreviousProfile,
 } from "../utils/settingsProfile";
 
+const maritalOptions: { label: string; value: User["maritalStatus"] }[] = [
+  { label: "Single", value: "single" },
+  { label: "Married", value: "married" },
+  { label: "Divorced", value: "divorced" },
+  { label: "Widowed", value: "widowed" },
+];
+
 const SettingsScreen = ({ navigation }: any) => {
   const { updateCurrentUser, user } = useAuthStore();
   const [editingProfile, setEditingProfile] = useState(false);
@@ -46,19 +55,31 @@ const SettingsScreen = ({ navigation }: any) => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [registeringPush, setRegisteringPush] = useState(false);
 
-  const { control, handleSubmit, reset, formState } =
+  const { control, handleSubmit, reset, formState, setValue, watch } =
     useForm<ProfileFormValues>({
       values: {
         fullName: user?.fullName ?? "",
         phone: user?.phone ?? "",
         address: user?.address ?? "",
         photoURL: user?.photoURL ?? "",
+        maritalStatus: user?.maritalStatus ?? "single",
+        dateOfBirth: user?.dateOfBirth ?? "",
+        spouseName: user?.spouseName ?? "",
+        spouseDateOfBirth: user?.spouseDateOfBirth ?? "",
+        weddingAnniversary: user?.weddingAnniversary ?? "",
+        children: user?.children ?? [],
       },
     });
+  const { append, fields, remove } = useFieldArray({
+    control,
+    name: "children",
+  });
 
   if (!user) {
     return null;
   }
+
+  const selectedMaritalStatus = watch("maritalStatus");
 
   const handleToggleNotification = async (
     key: keyof NotificationPreferences,
@@ -91,6 +112,12 @@ const SettingsScreen = ({ navigation }: any) => {
       phone: user.phone,
       address: user.address,
       photoURL: user.photoURL ?? "",
+      maritalStatus: user.maritalStatus,
+      dateOfBirth: user.dateOfBirth ?? "",
+      spouseName: user.spouseName ?? "",
+      spouseDateOfBirth: user.spouseDateOfBirth ?? "",
+      weddingAnniversary: user.weddingAnniversary ?? "",
+      children: user.children,
     });
     setEditingProfile(false);
   };
@@ -99,8 +126,33 @@ const SettingsScreen = ({ navigation }: any) => {
     if (savingProfile) {
       return;
     }
+
+    const children = values.children
+      .map((child) => ({
+        name: child.name.trim(),
+        dateOfBirth: child.dateOfBirth.trim(),
+      }))
+      .filter((child) => child.name || child.dateOfBirth);
+
+    if (children.some((child) => !child.name)) {
+      Alert.alert("Child name required", "Enter a name for each child.");
+      return;
+    }
+
+    const normalizedValues =
+      values.maritalStatus === "married"
+        ? { ...values, children }
+        : {
+            ...values,
+            children,
+            spouseName: "",
+            spouseDateOfBirth: "",
+            weddingAnniversary: "",
+          };
+
     const previousProfile = getPreviousProfile(user);
-    const update = buildProfileUpdate(values);
+    const update = buildProfileUpdate(normalizedValues);
+
     try {
       setSavingProfile(true);
       updateCurrentUser(update);
@@ -220,6 +272,113 @@ const SettingsScreen = ({ navigation }: any) => {
                 multiline
                 name="address"
               />
+              <Controller
+                control={control}
+                name="dateOfBirth"
+                render={({ field: { onChange, value } }) => (
+                  <CalendarDateField
+                    allowEmpty
+                    value={value}
+                    onChange={onChange}
+                    label="DATE OF BIRTH"
+                    placeholder="Choose your birthday"
+                  />
+                )}
+              />
+              <Text style={styles.sectionLabel}>MARITAL STATUS</Text>
+              <ChipRow
+                options={maritalOptions}
+                selectedValue={selectedMaritalStatus}
+                onChange={(value) => setValue("maritalStatus", value)}
+              />
+              {selectedMaritalStatus === "married" ? (
+                <>
+                  <ProfileField
+                    control={control}
+                    error={formState.errors.spouseName?.message}
+                    label="SPOUSE NAME"
+                    name="spouseName"
+                  />
+                  <Controller
+                    control={control}
+                    name="spouseDateOfBirth"
+                    render={({ field: { onChange, value } }) => (
+                      <CalendarDateField
+                        allowEmpty
+                        value={value}
+                        onChange={onChange}
+                        label="SPOUSE DATE OF BIRTH"
+                        placeholder="Choose spouse birthday"
+                      />
+                    )}
+                  />
+                  <Controller
+                    control={control}
+                    name="weddingAnniversary"
+                    render={({ field: { onChange, value } }) => (
+                      <CalendarDateField
+                        allowEmpty
+                        value={value}
+                        onChange={onChange}
+                        label="WEDDING ANNIVERSARY"
+                        placeholder="Choose anniversary"
+                      />
+                    )}
+                  />
+                </>
+              ) : null}
+              <View style={styles.childrenHeader}>
+                <Text style={styles.sectionLabel}>CHILDREN</Text>
+                <OutlineButton
+                  label="Add Child"
+                  onPress={() => append({ name: "", dateOfBirth: "" })}
+                />
+              </View>
+              {fields.length === 0 ? (
+                <View style={styles.emptyFamilyCard}>
+                  <Text style={styles.emptyFamilyText}>
+                    No children added to your profile.
+                  </Text>
+                </View>
+              ) : (
+                fields.map((field, index) => (
+                  <View key={field.id} style={styles.childCard}>
+                    <View style={styles.childHeader}>
+                      <Text style={styles.childTitle}>Child {index + 1}</Text>
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => remove(index)}
+                        activeOpacity={0.8}
+                      >
+                        <Icon
+                          name="trash-2"
+                          size={18}
+                          color={colors.status.error}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <ProfileField
+                      control={control}
+                      error={formState.errors.children?.[index]?.name?.message}
+                      label="CHILD NAME"
+                      name={`children.${index}.name`}
+                    />
+                    <Controller
+                      control={control}
+                      name={`children.${index}.dateOfBirth`}
+                      render={({ field: { onChange, value } }) => (
+                        <CalendarDateField
+                          allowEmpty
+                          value={value}
+                          onChange={onChange}
+                          label="CHILD DATE OF BIRTH"
+                          placeholder="Choose child birthday"
+                        />
+                      )}
+                    />
+                  </View>
+                ))
+              )}
               <Controller
                 control={control}
                 name="photoURL"
@@ -382,6 +541,34 @@ const ProfileField = ({
   </View>
 );
 
+const ChipRow = <T extends string>({
+  onChange,
+  options,
+  selectedValue,
+}: {
+  options: { label: string; value: T }[];
+  selectedValue: T;
+  onChange: (value: T) => void;
+}) => (
+  <View style={styles.chipRow}>
+    {options.map((option) => {
+      const selected = selectedValue === option.value;
+      return (
+        <TouchableOpacity
+          key={option.value}
+          style={[styles.chip, selected && styles.selectedChip]}
+          onPress={() => onChange(option.value)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.chipText, selected && styles.selectedChipText]}>
+            {option.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
 const Row = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.row}>
     <Text style={styles.rowLabel}>{label}</Text>
@@ -398,11 +585,7 @@ const LinkRow = ({
   onPress: () => void;
   value: string;
 }) => (
-  <TouchableOpacity
-    style={styles.row}
-    onPress={onPress}
-    activeOpacity={0.82}
-  >
+  <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.82}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={[styles.rowValue, styles.linkValue]}>{value}</Text>
   </TouchableOpacity>
@@ -475,12 +658,80 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  selectedChip: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  chipText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+  },
+  selectedChipText: { color: colors.gold.light },
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,
     color: colors.text.secondary,
     fontWeight: typography.weight.bold,
     letterSpacing: 0.8,
+  },
+  childrenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  emptyFamilyCard: {
+    minHeight: 56,
+    justifyContent: "center",
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  emptyFamilyText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  childCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  childHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  childTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  removeButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: colors.bg.tertiary,
   },
   row: {
     minHeight: 56,

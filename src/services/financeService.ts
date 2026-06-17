@@ -1,4 +1,5 @@
 import { DuesPeriod, LedgerEntry } from "../types/finance";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import {
   duesPeriodFromRecord,
   ledgerEntryFromRecord,
@@ -51,6 +52,7 @@ export const subscribeToLedger = (
   uid: string | null,
   callback: (entries: LedgerEntry[]) => void,
   onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "finance",
@@ -58,6 +60,7 @@ export const subscribeToLedger = (
     callback,
     (query) => (uid ? query.where("memberId", "==", uid) : query),
     onError,
+    onSnapshotMeta,
   );
 
 export const getDuesPeriods = async (): Promise<DuesPeriod[]> => {

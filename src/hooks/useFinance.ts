@@ -1,11 +1,16 @@
 import {useEffect, useRef} from 'react';
 import {getDuesPeriods, subscribeToLedger} from '../services/financeService';
 import {useFinanceStore} from '../store/financeStore';
-import {getFailureSyncState} from '../utils/syncState';
+import {
+  getFailureSyncState,
+  getSnapshotSyncState,
+  shouldUpdateLastSyncedAt,
+} from '../utils/syncState';
 
 export const useFinance = (uid?: string, includeAll = false) => {
   const {
     ledgerEntries,
+    lastSyncedAt,
     setDuesPeriods,
     setError,
     setLastSyncedAt,
@@ -14,8 +19,10 @@ export const useFinance = (uid?: string, includeAll = false) => {
     setSyncState,
   } = useFinanceStore();
   const hasCachedDataRef = useRef(false);
+  const lastSyncedAtRef = useRef(lastSyncedAt);
 
   hasCachedDataRef.current = ledgerEntries.length > 0;
+  lastSyncedAtRef.current = lastSyncedAt;
 
   useEffect(() => {
     if (!uid && !includeAll) {
@@ -32,17 +39,20 @@ export const useFinance = (uid?: string, includeAll = false) => {
     setSyncState('syncing');
     const handleError = (error: Error) => {
       setError(error.message || 'Could not load finance data.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToLedger(ledgerUid, entries => {
         setLedgerEntries(entries);
-        setLastSyncedAt(new Date());
         setError(null);
-        setSyncState('fresh');
         setLoading(false);
-      }, handleError);
+      }, handleError, meta => {
+        if (shouldUpdateLastSyncedAt(meta)) {
+          setLastSyncedAt(new Date());
+        }
+        setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
+      });
       if (!includeAll) {
         setDuesPeriods([]);
         return () => unsubscribe();
@@ -50,15 +60,13 @@ export const useFinance = (uid?: string, includeAll = false) => {
       getDuesPeriods()
         .then(periods => {
           setDuesPeriods(periods);
-          setLastSyncedAt(new Date());
           setError(null);
-          setSyncState('fresh');
         })
         .catch(handleError);
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load finance data.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     }
   }, [includeAll, setDuesPeriods, setError, setLastSyncedAt, setLedgerEntries, setLoading, setSyncState, uid]);

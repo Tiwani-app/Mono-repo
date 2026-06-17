@@ -81,7 +81,19 @@ service cloud.firestore {
         request.resource.data.status == resource.data.status &&
         request.resource.data.financialStatus == resource.data.financialStatus &&
         request.resource.data.outstandingBalance == resource.data.outstandingBalance &&
-        onlyChanged(["fullName", "phone", "address", "photoURL", "notificationPreferences"])
+        onlyChanged([
+          "fullName",
+          "phone",
+          "address",
+          "photoURL",
+          "notificationPreferences",
+          "maritalStatus",
+          "dateOfBirth",
+          "spouseName",
+          "spouseDateOfBirth",
+          "weddingAnniversary",
+          "children"
+        ])
       );
       allow delete: if false;
 

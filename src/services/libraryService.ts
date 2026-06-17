@@ -2,6 +2,7 @@ import {
   LibraryDocument,
   LibraryDocumentStatus,
 } from "../types/library";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import { firebaseStorage } from "../config/firebase";
 import { libraryDocumentFromRecord } from "./converters/libraryConverter";
 import {
@@ -74,6 +75,7 @@ export const subscribeToLibraryDocuments = (
   callback: (documents: LibraryDocument[]) => void,
   includeAdmin = false,
   onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "library_documents",
@@ -86,6 +88,7 @@ export const subscribeToLibraryDocuments = (
             .where("status", "==", "published")
             .where("visibility", "==", "all_members"),
     onError,
+    onSnapshotMeta,
   );
 
 export const getLibraryDocument = async (

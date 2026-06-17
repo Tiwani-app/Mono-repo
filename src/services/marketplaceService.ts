@@ -1,4 +1,5 @@
 import { Listing } from "../types/marketplace";
+import { DataSyncSnapshotMeta } from "../types/sync";
 import { visibleMarketplaceListings } from "../utils/marketplaceGuards";
 import { listingFromRecord } from "./converters/marketplaceConverter";
 import {
@@ -54,6 +55,7 @@ export const subscribeToListings = (
   callback: (listings: Listing[]) => void,
   includeArchived = false,
   onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
 ) =>
   startOrgSubscription(
     "marketplace",
@@ -62,8 +64,11 @@ export const subscribeToListings = (
       callback(
         includeArchived ? listings : visibleMarketplaceListings(listings),
       ),
-    undefined,
+    includeArchived
+      ? undefined
+      : (query) => query.where("status", "==", "available"),
     onError,
+    onSnapshotMeta,
   );
 
 export const getListing = async (id: string): Promise<Listing> => {

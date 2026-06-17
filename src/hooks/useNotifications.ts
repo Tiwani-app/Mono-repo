@@ -9,13 +9,18 @@ import {
   getAllNotificationIds,
   getNextReadIds,
 } from '../utils/notificationHelpers';
-import {getFailureSyncState} from '../utils/syncState';
+import {
+  getFailureSyncState,
+  getSnapshotSyncState,
+  shouldUpdateLastSyncedAt,
+} from '../utils/syncState';
 
 const STORAGE_KEY = 'tiwani_read_notifications';
 
 export const useNotifications = () => {
   const {
     notifications,
+    lastSyncedAt,
     readIds,
     setError,
     setLastSyncedAt,
@@ -26,8 +31,10 @@ export const useNotifications = () => {
   } =
     useNotificationsStore();
   const hasCachedDataRef = useRef(false);
+  const lastSyncedAtRef = useRef(lastSyncedAt);
 
   hasCachedDataRef.current = notifications.length > 0;
+  lastSyncedAtRef.current = lastSyncedAt;
 
   useEffect(() => {
     setLoading(true);
@@ -43,21 +50,24 @@ export const useNotifications = () => {
       });
     const handleError = (error: Error) => {
       setError(error.message || 'Could not load notifications.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToNotifications(items => {
         setNotifications(items);
-        setLastSyncedAt(new Date());
         setError(null);
-        setSyncState('fresh');
         setLoading(false);
-      }, handleError);
+      }, handleError, meta => {
+        if (shouldUpdateLastSyncedAt(meta)) {
+          setLastSyncedAt(new Date());
+        }
+        setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
+      });
       return () => unsubscribe();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load notifications.');
-      setSyncState(getFailureSyncState(hasCachedDataRef.current));
+      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
       setLoading(false);
     }
   }, [setError, setLastSyncedAt, setNotifications, setReadIds, setLoading, setSyncState]);
