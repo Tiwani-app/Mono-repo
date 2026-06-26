@@ -32,6 +32,7 @@ import { NotificationPreferences, User } from "../types/user";
 import { getInitials } from "../utils/getInitials";
 import { formatTimezoneLabel } from "../utils/locale";
 import { safeGoBack } from "../utils/navigation";
+import { isAdmin } from "../utils/roleGuard";
 import {
   ProfileFormValues,
   buildNotificationPreferences,
@@ -79,6 +80,7 @@ const SettingsScreen = ({ navigation }: any) => {
     return null;
   }
 
+  const admin = isAdmin(user);
   const selectedMaritalStatus = watch("maritalStatus");
 
   const handleToggleNotification = async (
@@ -484,11 +486,28 @@ const SettingsScreen = ({ navigation }: any) => {
             onPress={() => openExternalLink("Help & Support", env.supportUrl)}
           />
           <LinkRow
+            label="Marketplace Rules"
+            value="Open"
+            onPress={() =>
+              openExternalLink("Marketplace Rules", env.marketplaceRulesUrl)
+            }
+          />
+          <LinkRow
             label="Account Deletion"
             value="Request"
             onPress={() => navigation.navigate("AccountDeletion")}
           />
           <Row label="About Tiwani" value={`v${env.appVersion}`} />
+          {admin ? (
+            <>
+              <Text style={styles.sectionLabel}>ADMIN TOOLS</Text>
+              <LinkRow
+                label="Audit Logs"
+                value="Review"
+                onPress={() => navigation.navigate("AuditLogs")}
+              />
+            </>
+          ) : null}
           <OutlineButton
             label="Sign Out"
             onPress={handleSignOut}

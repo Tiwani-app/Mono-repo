@@ -1,10 +1,11 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useMemo, useRef} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   markNotificationRead,
   subscribeToNotifications,
 } from '../services/notificationsService';
 import {useNotificationsStore} from '../store/notificationsStore';
+import {useAuthStore} from '../store/authStore';
 import {
   getAllNotificationIds,
   getNextReadIds,
@@ -17,16 +18,33 @@ import {
 
 const STORAGE_KEY = 'tiwani_read_notifications';
 
+const storageKeyForUser = (uid: string) => `${STORAGE_KEY}:${uid}`;
+
+const parseStoredReadIds = (raw: string | null): string[] => {
+  if (!raw) {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is string => typeof item === 'string')
+    : [];
+};
+
 export const useNotifications = () => {
+  const {user} = useAuthStore();
+  const uid = user?.uid;
   const {
-    notifications,
+    error,
     lastSyncedAt,
+    loading,
+    notifications,
     readIds,
     setError,
     setLastSyncedAt,
     setLoading,
     setNotifications,
     setReadIds,
+    syncState,
     setSyncState,
   } =
     useNotificationsStore();
@@ -36,54 +54,102 @@ export const useNotifications = () => {
   hasCachedDataRef.current = notifications.length > 0;
   lastSyncedAtRef.current = lastSyncedAt;
 
+  const backendReadIds = useMemo(
+    () =>
+      uid
+        ? notifications
+            .filter((notification) => notification.readBy.includes(uid))
+            .map((notification) => notification.id)
+        : [],
+    [notifications, uid],
+  );
+
+  const effectiveReadIds = useMemo(
+    () => Array.from(new Set([...readIds, ...backendReadIds])),
+    [backendReadIds, readIds],
+  );
+
   useEffect(() => {
+    let active = true;
+    if (!uid) {
+      setNotifications([]);
+      setReadIds([]);
+      setError(null);
+      setSyncState('idle');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     setSyncState('syncing');
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then(raw => setReadIds(raw ? JSON.parse(raw) : []))
-      .catch(error => {
+    setNotifications([]);
+    setReadIds([]);
+    AsyncStorage.getItem(storageKeyForUser(uid))
+      .then(raw => {
+        if (active) {
+          setReadIds(parseStoredReadIds(raw));
+        }
+      })
+      .catch(readStateError => {
+        if (!active) {
+          return;
+        }
         setReadIds([]);
         setError(
-          error instanceof Error ? error.message : 'Could not load read state.',
+          readStateError instanceof Error ? readStateError.message : 'Could not load read state.',
         );
       });
-    const handleError = (error: Error) => {
-      setError(error.message || 'Could not load notifications.');
-      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
+    const handleError = (notificationsError: Error) => {
+      if (!active) {
+        return;
+      }
+      setError(notificationsError.message || 'Could not load notifications.');
+      setSyncState(getFailureSyncState(notificationsError, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToNotifications(items => {
+        if (!active) {
+          return;
+        }
         setNotifications(items);
         setError(null);
         setLoading(false);
       }, handleError, meta => {
+        if (!active) {
+          return;
+        }
         if (shouldUpdateLastSyncedAt(meta)) {
           setLastSyncedAt(new Date());
         }
         setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
       });
-      return () => unsubscribe();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not load notifications.');
-      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    } catch (notificationsError) {
+      setError(notificationsError instanceof Error ? notificationsError.message : 'Could not load notifications.');
+      setSyncState(getFailureSyncState(notificationsError, hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [setError, setLastSyncedAt, setNotifications, setReadIds, setLoading, setSyncState]);
+  }, [setError, setLastSyncedAt, setNotifications, setReadIds, setLoading, setSyncState, uid]);
 
   const persistReadIds = async (ids: string[]) => {
+    if (!uid) {
+      return;
+    }
     setReadIds(ids);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not save read state.');
+      await AsyncStorage.setItem(storageKeyForUser(uid), JSON.stringify(ids));
+    } catch (readStateError) {
+      setError(readStateError instanceof Error ? readStateError.message : 'Could not save read state.');
     }
   };
 
   const markRead = async (id: string) => {
     await markNotificationRead(id);
-    await persistReadIds(getNextReadIds(readIds, id));
+    await persistReadIds(getNextReadIds(effectiveReadIds, id));
   };
 
   const markAllRead = async () => {
@@ -91,7 +157,17 @@ export const useNotifications = () => {
     await persistReadIds(getAllNotificationIds(notifications));
   };
 
-  const unreadCount = notifications.filter(item => !readIds.includes(item.id)).length;
+  const unreadCount = notifications.filter(item => !effectiveReadIds.includes(item.id)).length;
 
-  return {...useNotificationsStore(), markAllRead, markRead, unreadCount};
+  return {
+    error,
+    lastSyncedAt,
+    loading,
+    markAllRead,
+    markRead,
+    notifications,
+    readIds: effectiveReadIds,
+    syncState,
+    unreadCount,
+  };
 };

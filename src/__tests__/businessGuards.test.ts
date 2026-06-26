@@ -36,6 +36,8 @@ import {
   visibleMarketplaceListings,
 } from "../utils/marketplaceGuards";
 import {
+  canViewMemberFamilyDetails,
+  canViewMemberFinanceDetails,
   canViewMemberPrivateDetails,
   getVisibleMemberProfileTabs,
   sanitizeMemberProfile,
@@ -271,26 +273,40 @@ describe("business guardrails", () => {
     expect(canViewElectionResults(user("member-1", "member"))).toBe(false);
   });
 
-  it("blocks financially red members from candidacy when matched to directory", () => {
+  it("blocks members with overdue or outstanding balances from candidacy", () => {
     const redMember = {
       ...user("member-1", "member"),
       fullName: "Tiwalade Adebayo",
       financialStatus: "red" as const,
+      outstandingBalance: 200,
     };
     const greenMember = {
       ...user("member-2", "member"),
       fullName: "Nkiru Okafor",
       financialStatus: "green" as const,
+      outstandingBalance: 0,
+    };
+    const owingMember = {
+      ...user("member-3", "member"),
+      fullName: "Owing Member",
+      financialStatus: "green" as const,
+      outstandingBalance: 50,
     };
 
     expect(canStandForElection(greenMember)).toBe(true);
     expect(canStandForElection(redMember)).toBe(false);
+    expect(canStandForElection(owingMember)).toBe(false);
     expect(
       findFinanciallyBlockedCandidateNames(
-        ["Tiwalade Adebayo", "Unknown Candidate", "Nkiru Okafor"],
-        [redMember, greenMember],
+        [
+          "Tiwalade Adebayo",
+          "Unknown Candidate",
+          "Nkiru Okafor",
+          "Owing Member",
+        ],
+        [redMember, greenMember, owingMember],
       ),
-    ).toEqual(["Tiwalade Adebayo"]);
+    ).toEqual(["Tiwalade Adebayo", "Owing Member"]);
   });
 
   it("shows all non-archived marketplace listings without a fixed cap", () => {
@@ -400,21 +416,36 @@ describe("business guardrails", () => {
     );
   });
 
-  it("hides private member tabs from ordinary members viewing others", () => {
+  it("hides member finances while allowing active members to see profile family", () => {
     const member = user("member-1", "member");
 
     expect(canViewMemberPrivateDetails(user("admin-1", "admin"), member)).toBe(
+      true,
+    );
+    expect(canViewMemberFinanceDetails(user("admin-1", "admin"), member)).toBe(
       true,
     );
     expect(
       canViewMemberPrivateDetails(user("member-1", "member"), member),
     ).toBe(true);
     expect(
+      canViewMemberFinanceDetails(user("member-1", "member"), member),
+    ).toBe(true);
+    expect(
       canViewMemberPrivateDetails(user("member-2", "member"), member),
     ).toBe(false);
     expect(
+      canViewMemberFinanceDetails(user("member-2", "member"), member),
+    ).toBe(false);
+    expect(
+      canViewMemberFamilyDetails(user("member-2", "member"), member),
+    ).toBe(true);
+    expect(
       getVisibleMemberProfileTabs(user("member-2", "member"), member),
-    ).toEqual(["info"]);
+    ).toEqual(["info", "family"]);
+    expect(
+      getVisibleMemberProfileTabs(user("chair-1", "electoral_chairman"), member),
+    ).toEqual(["info", "family"]);
     expect(
       getVisibleMemberProfileTabs(user("admin-1", "admin"), member),
     ).toEqual(["info", "family", "finance"]);

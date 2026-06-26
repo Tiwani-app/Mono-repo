@@ -6,6 +6,7 @@ import {
 import {
   RawRecord,
   asDate,
+  asStringArray,
   requiredEnum,
   requiredString,
 } from "./shared";
@@ -59,6 +60,7 @@ export const notificationFromRecord = (
   type: requiredEnum(record.type, notificationTypes, "type"),
   title: requiredString(record, "title"),
   body: requiredString(record, "body"),
+  readBy: asStringArray(record.readBy, "readBy"),
   sentAt: asDate(record.sentAt ?? record.createdAt, new Date()),
   target: targetFromRecord(record.target),
 });

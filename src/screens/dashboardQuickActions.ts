@@ -78,6 +78,11 @@ export const getDashboardQuickActions = (
           onPress: () => openTabRoot(navigation, "Voting"),
         },
         {
+          icon: "users",
+          label: "Members",
+          onPress: () => navigation.navigate("MembersList"),
+        },
+        {
           icon: "credit-card",
           label: "My Ledger",
           onPress: () => navigation.navigate("Finance", { screen: "MyLedger" }),

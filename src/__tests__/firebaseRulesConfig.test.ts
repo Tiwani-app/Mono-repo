@@ -56,6 +56,35 @@ describe("Firebase local rules configuration", () => {
     );
   });
 
+  it("keeps audit logs backend-written and admin-readable only", () => {
+    const rules = readRootFile("firestore.rules");
+
+    expect(rules).toContain("match /audit_logs/{logId}");
+    expect(rules).toMatch(
+      /match \/audit_logs\/\{logId\}[\s\S]*?allow read: if isAdmin\(\) && sameOrgExisting\(\);/,
+    );
+    expect(rules).toMatch(
+      /match \/audit_logs\/\{logId\}[\s\S]*?allow write: if false;/,
+    );
+  });
+
+  it("indexes audit logs by organisation and latest first", () => {
+    const indexes = JSON.parse(readRootFile("firestore.indexes.json"));
+
+    expect(indexes.indexes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          collectionGroup: "audit_logs",
+          fields: [
+            { fieldPath: "orgId", order: "ASCENDING" },
+            { fieldPath: "createdAt", order: "DESCENDING" },
+          ],
+          queryScope: "COLLECTION",
+        }),
+      ]),
+    );
+  });
+
   it("limits library uploads to PDF files at 20MB or smaller", () => {
     const rules = readRootFile("storage.rules");
 

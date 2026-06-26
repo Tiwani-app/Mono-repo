@@ -177,8 +177,24 @@ describe("backend converters", () => {
     const after = Date.now();
 
     expect(notification.sentAt).toBeInstanceOf(Date);
+    expect(notification.readBy).toEqual([]);
     expect(notification.sentAt.getTime()).toBeGreaterThanOrEqual(before);
     expect(notification.sentAt.getTime()).toBeLessThanOrEqual(after);
+  });
+
+  it("preserves notification read receipts per user", () => {
+    expect(
+      notificationFromRecord({
+        id: "notif-2",
+        type: "finance",
+        title: "Dues posted",
+        body: "Q3 dues are ready.",
+        sentAt: new Date("2026-06-01"),
+        readBy: ["member-1", "member-2"],
+      }),
+    ).toMatchObject({
+      readBy: ["member-1", "member-2"],
+    });
   });
 
   it("preserves finance settlement fields from backend records", () => {

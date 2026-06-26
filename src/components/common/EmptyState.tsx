@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     padding: spacing.xxxl,
     gap: spacing.md,
   },
-  icon: {fontSize: 44},
+  icon: {fontSize: 44, color: colors.text.primary},
   title: {
     fontSize: typography.size.xl,
     fontWeight: typography.weight.bold,

@@ -13,6 +13,7 @@ export interface TiwaniNotification {
   type: NotificationType;
   title: string;
   body: string;
+  readBy: string[];
   sentAt: Date;
   target?: NotificationTarget;
 }

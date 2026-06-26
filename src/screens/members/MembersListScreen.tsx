@@ -34,6 +34,7 @@ const statusFilters: { label: string; value: StatusFilter }[] = [
 const MembersListScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const canBrowseMembers = Boolean(user);
   const {
     error,
     lastSyncedAt,
@@ -43,42 +44,29 @@ const MembersListScreen = ({ navigation }: any) => {
     setSearchQuery,
     syncState,
   } = useMembers({
-    enabled: admin,
+    enabled: canBrowseMembers,
+    source: admin ? "users" : "directory",
   });
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
 
   const filteredMembers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return members.filter((member) => {
+      if (!admin && member.status !== "active") {
+        return false;
+      }
       const matchesStatus =
-        statusFilter === "all" || member.status === statusFilter;
+        !admin || statusFilter === "all" || member.status === statusFilter;
       const searchableText = [member.fullName, member.email, member.phone]
         .join(" ")
         .toLowerCase();
       const matchesSearch = !query || searchableText.includes(query);
       return matchesStatus && matchesSearch;
     });
-  }, [members, searchQuery, statusFilter]);
+  }, [admin, members, searchQuery, statusFilter]);
 
   if (loading) {
     return <LoadingSpinner />;
-  }
-
-  if (!admin) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ScreenHeader
-          title="Members"
-          showBack
-          onBack={() => safeGoBack(navigation, "DashboardHome")}
-        />
-        <EmptyState
-          icon="!"
-          title="Admin only"
-          message="Only admins can browse and manage the member directory."
-        />
-      </SafeAreaView>
-    );
   }
 
   if (error) {
@@ -125,36 +113,39 @@ const MembersListScreen = ({ navigation }: any) => {
               placeholderTextColor={colors.text.tertiary}
               style={styles.search}
             />
-            <View style={styles.filterRow}>
-              {statusFilters.map((filter) => {
-                const selected = statusFilter === filter.value;
-                return (
-                  <TouchableOpacity
-                    key={filter.value}
-                    style={[
-                      styles.filterChip,
-                      selected && styles.selectedFilterChip,
-                    ]}
-                    onPress={() => setStatusFilter(filter.value)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
+            {admin && (
+              <View style={styles.filterRow}>
+                {statusFilters.map((filter) => {
+                  const selected = statusFilter === filter.value;
+                  return (
+                    <TouchableOpacity
+                      key={filter.value}
                       style={[
-                        styles.filterText,
-                        selected && styles.selectedFilterText,
+                        styles.filterChip,
+                        selected && styles.selectedFilterChip,
                       ]}
+                      onPress={() => setStatusFilter(filter.value)}
+                      activeOpacity={0.8}
                     >
-                      {filter.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.filterText,
+                          selected && styles.selectedFilterText,
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
         }
         renderItem={({ item }) => (
           <MemberCard
             member={item}
+            showFinance={admin}
             onPress={() =>
               navigation.navigate("MemberProfile", { memberId: item.uid })
             }
@@ -163,11 +154,11 @@ const MembersListScreen = ({ navigation }: any) => {
         ListEmptyComponent={
           <EmptyState
             icon={searchQuery ? "🔍" : "👥"}
-            title={searchQuery ? "No results" : "No members yet"}
+            title={searchQuery ? "No results" : "No members found"}
             message={
               searchQuery || statusFilter !== "all"
                 ? "No members match the current search or filter."
-                : "Members will appear here once they are added."
+                : "Active members will appear here once they are added."
             }
           />
         }

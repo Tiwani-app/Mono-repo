@@ -12,18 +12,34 @@ export interface SanitizedMemberProfile {
   children: {name: string; dateOfBirth: string}[];
 }
 
-export const canViewMemberPrivateDetails = (
+export type MemberProfileTab = "info" | "family" | "finance";
+
+export const canViewMemberFinanceDetails = (
   viewer: User | null,
   member: Pick<User, "uid">,
 ) => isAdmin(viewer) || viewer?.uid === member.uid;
 
-export const getVisibleMemberProfileTabs = (
+export const canViewMemberPrivateDetails = canViewMemberFinanceDetails;
+
+export const canViewMemberFamilyDetails = (
   viewer: User | null,
   member: Pick<User, "uid">,
 ) =>
-  canViewMemberPrivateDetails(viewer, member)
-    ? (["info", "family", "finance"] as const)
-    : (["info"] as const);
+  canViewMemberFinanceDetails(viewer, member) || viewer?.status === "active";
+
+export const getVisibleMemberProfileTabs = (
+  viewer: User | null,
+  member: Pick<User, "uid">,
+) => {
+  const tabs: MemberProfileTab[] = ["info"];
+  if (canViewMemberFamilyDetails(viewer, member)) {
+    tabs.push("family");
+  }
+  if (canViewMemberFinanceDetails(viewer, member)) {
+    tabs.push("finance");
+  }
+  return tabs;
+};
 
 const hasValue = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;

@@ -16,14 +16,58 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_APP_CHECK_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER": "playIntegrity",
+        "EXPO_PUBLIC_APP_CHECK_APPLE_PROVIDER": "appAttestWithDeviceCheckFallback",
+        "EXPO_PUBLIC_SUPPORT_URL": "https://tiwani-backend.web.app/support.html",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://tiwani-backend.web.app/privacy.html",
+        "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
+        "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
+        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
+      }
+    },
+    "productionCandidate": {
+      "extends": "production",
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_CHECK_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER": "playIntegrity",
+        "EXPO_PUBLIC_APP_CHECK_APPLE_PROVIDER": "appAttestWithDeviceCheckFallback",
+        "EXPO_PUBLIC_SUPPORT_URL": "https://tiwani-backend.web.app/support.html",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://tiwani-backend.web.app/privacy.html",
+        "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
+        "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
         "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
       }
     },
     "production": {
       "autoIncrement": true,
+      "distribution": "store",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_CHECK_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER": "playIntegrity",
+        "EXPO_PUBLIC_APP_CHECK_APPLE_PROVIDER": "appAttestWithDeviceCheckFallback",
+        "EXPO_PUBLIC_SUPPORT_URL": "https://tiwani-backend.web.app/support.html",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://tiwani-backend.web.app/privacy.html",
+        "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
+        "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
         "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_CHECK_ENABLED": "true",
+        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true"
       }
     }
   },

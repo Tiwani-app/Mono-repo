@@ -38,6 +38,30 @@ const userRecord = (
   ...overrides,
 });
 
+const directoryRecord = (
+  uid: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> => {
+  const user = userRecord(uid, overrides);
+  return {
+    uid: user.uid,
+    orgId: user.orgId,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    photoURL: user.photoURL,
+    role: user.role,
+    status: user.status,
+    maritalStatus: user.maritalStatus,
+    dateOfBirth: user.dateOfBirth,
+    spouseName: user.spouseName,
+    spouseDateOfBirth: user.spouseDateOfBirth,
+    weddingAnniversary: user.weddingAnniversary,
+    children: user.children,
+    memberSince: user.memberSince,
+  };
+};
+
 const seed = async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
@@ -54,6 +78,17 @@ const seed = async () => {
     );
     await db.doc("users/suspended-1").set(
       userRecord("suspended-1", { status: "suspended" }),
+    );
+    await db.doc("member_directory/member-1").set(directoryRecord("member-1"));
+    await db.doc("member_directory/member-2").set(directoryRecord("member-2"));
+    await db.doc("member_directory/admin-1").set(
+      directoryRecord("admin-1", {
+        email: "admin@example.com",
+        role: "admin",
+      }),
+    );
+    await db.doc("member_directory/other-org-member").set(
+      directoryRecord("other-org-member", { orgId: "org-2" }),
     );
     await db.doc("events/event-1").set({
       eventId: "event-1",
@@ -107,6 +142,24 @@ const seed = async () => {
       createdAt: new Date("2026-06-01T00:00:00.000Z"),
       reviewedAt: null,
       reviewedBy: null,
+    });
+    await db.doc("audit_logs/log-1").set({
+      action: "finance.payment_recorded",
+      actorRole: "admin",
+      actorUid: "admin-1",
+      orgId: "org-1",
+      targetPath: "finance/charge-1",
+      details: { amount: 100 },
+      createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+    await db.doc("audit_logs/other-org-log").set({
+      action: "finance.payment_recorded",
+      actorRole: "admin",
+      actorUid: "other-admin",
+      orgId: "org-2",
+      targetPath: "finance/other-charge",
+      details: { amount: 100 },
+      createdAt: new Date("2026-06-01T00:00:00.000Z"),
     });
     await db.doc("polls/poll-1").set({
       pollId: "poll-1",
@@ -176,12 +229,26 @@ describe("Firestore security rules", () => {
     await assertFails(db.doc("users/member-1").get());
   });
 
-  it("allows active members to read same-org users only", async () => {
+  it("allows active members to read same-org member directory but not private users", async () => {
     const db = testEnv.authenticatedContext("member-1").firestore();
 
     await assertSucceeds(db.doc("users/member-1").get());
-    await assertSucceeds(db.doc("users/member-2").get());
+    await assertFails(db.doc("users/member-2").get());
     await assertFails(db.doc("users/other-org-member").get());
+    await assertSucceeds(db.doc("member_directory/member-2").get());
+    await assertFails(db.doc("member_directory/other-org-member").get());
+  });
+
+  it("allows active members to list active same-org member directory records", async () => {
+    const db = testEnv.authenticatedContext("member-1").firestore();
+
+    await assertSucceeds(
+      db
+        .collection("member_directory")
+        .where("orgId", "==", "org-1")
+        .where("status", "==", "active")
+        .get(),
+    );
   });
 
   it("allows signed-in users to restore their own profile state", async () => {
@@ -213,6 +280,18 @@ describe("Firestore security rules", () => {
     );
     await assertFails(
       memberDb.doc("finance/charge-1").update({ amountPaid: 100 }),
+    );
+  });
+
+  it("allows admins to read same-org audit logs only", async () => {
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+
+    await assertSucceeds(adminDb.doc("audit_logs/log-1").get());
+    await assertFails(adminDb.doc("audit_logs/other-org-log").get());
+    await assertFails(memberDb.doc("audit_logs/log-1").get());
+    await assertFails(
+      adminDb.doc("audit_logs/log-1").update({ action: "tampered" }),
     );
   });
 

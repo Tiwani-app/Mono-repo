@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
-import { subscribeToMembers } from "../services/membersService";
+import {
+  subscribeToMemberDirectory,
+  subscribeToMembers,
+} from "../services/membersService";
 import { useMembersStore } from "../store/membersStore";
 import {
   getFailureSyncState,
@@ -9,9 +12,13 @@ import {
 
 interface UseMembersOptions {
   enabled?: boolean;
+  source?: "directory" | "users";
 }
 
-export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
+export const useMembers = ({
+  enabled = true,
+  source = "users",
+}: UseMembersOptions = {}) => {
   const {
     members,
     lastSyncedAt,
@@ -44,7 +51,9 @@ export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
       setLoading(false);
     };
     try {
-      const unsubscribe = subscribeToMembers((nextMembers) => {
+      const subscribe =
+        source === "directory" ? subscribeToMemberDirectory : subscribeToMembers;
+      const unsubscribe = subscribe((nextMembers) => {
         setMembers(nextMembers);
         setError(null);
         setLoading(false);
@@ -69,6 +78,7 @@ export const useMembers = ({ enabled = true }: UseMembersOptions = {}) => {
     setLoading,
     setMembers,
     setSyncState,
+    source,
   ]);
 
   return useMembersStore();

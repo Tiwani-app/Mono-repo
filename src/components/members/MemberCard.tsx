@@ -16,6 +16,7 @@ import {getInitials} from '../../utils/getInitials';
 interface Props {
   member: User;
   onPress: () => void;
+  showFinance?: boolean;
 }
 
 const memberStatusColors = {
@@ -25,7 +26,7 @@ const memberStatusColors = {
   suspended: colors.status.error,
 };
 
-const MemberCard = ({member, onPress}: Props) => {
+const MemberCard = ({member, onPress, showFinance = true}: Props) => {
   const standing = getFinanceStanding(
     member.financialStatus,
     member.outstandingBalance,
@@ -37,21 +38,23 @@ const MemberCard = ({member, onPress}: Props) => {
         initials={getInitials(member.fullName)}
         photoURL={member.photoURL}
         size={44}
-        statusDot={member.financialStatus}
+        statusDot={showFinance ? member.financialStatus : null}
       />
       <View style={styles.content}>
         <Text style={styles.name}>{member.fullName}</Text>
         <Text style={styles.role}>{member.role.replace('_', ' ')}</Text>
         <View style={styles.badgeRow}>
           <Badge label={member.status.toUpperCase()} color={memberStatusColors[member.status]} />
-          <Badge
-            label={
-              standing === 'clear'
-                ? getFinanceStandingBadgeLabel(standing)
-                : `OWES ${formatCurrency(member.outstandingBalance)}`
-            }
-            color={getFinanceStandingColor(standing)}
-          />
+          {showFinance && (
+            <Badge
+              label={
+                standing === 'clear'
+                  ? getFinanceStandingBadgeLabel(standing)
+                  : `OWES ${formatCurrency(member.outstandingBalance)}`
+              }
+              color={getFinanceStandingColor(standing)}
+            />
+          )}
         </View>
       </View>
       <Icon name="chevron-right" size={18} color={colors.text.tertiary} />

@@ -8,33 +8,18 @@ import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../store/authStore';
 import { colors, spacing, typography } from '../theme';
-import {
-  NotificationType,
-  TiwaniNotification,
-} from '../types/notification';
+import { TiwaniNotification } from '../types/notification';
 import { formatRelativeTime } from '../utils/formatDate';
 import { safeGoBack } from '../utils/navigation';
+import {
+  NOTIFICATION_COLORS,
+  NOTIFICATION_ICONS,
+} from '../utils/notificationPresentation';
 import { isAdmin } from '../utils/roleGuard';
 import {
   getNotificationSections,
   navigateToNotificationTarget,
 } from '../utils/notificationHelpers';
-
-const NOTIFICATION_COLORS: Record<NotificationType, string> = {
-  event: colors.status.info,
-  finance: colors.status.success,
-  vote: colors.gold.default,
-  general: colors.text.secondary,
-  marketplace: colors.status.purple,
-};
-
-const TYPE_ICONS: Record<NotificationType, string> = {
-  event: 'calendar',
-  finance: 'credit-card',
-  vote: 'check-circle',
-  general: 'bell',
-  marketplace: 'shopping-bag',
-};
 
 const NotificationsScreen = ({navigation}: any) => {
   const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
@@ -111,7 +96,7 @@ const NotificationsScreen = ({navigation}: any) => {
               onPress={() => handlePress(item)}
               activeOpacity={0.8}>
               <View style={[styles.iconBox, {backgroundColor: `${color}22`}]}>
-                <Icon name={TYPE_ICONS[item.type]} color={color} size={15} />
+                <Icon name={NOTIFICATION_ICONS[item.type]} color={color} size={15} />
               </View>
               <View style={styles.itemContent}>
                 <View style={styles.titleRow}>

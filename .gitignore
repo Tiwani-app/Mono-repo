@@ -10,6 +10,11 @@ Tiwani_Production_and_App_Store_Launch_Guide.md
 expo/
 .expo/
 .env
+docs/PRODUCTION_MONITORING_RUNBOOK.md
+docs/INCIDENT_RESPONSE_CONTACTS.md
+docs/FIREBASE_PRODUCTION_CONSOLE_CHECKLIST.md
+docs/RELEASE_CANDIDATE_QA_CHECKLIST.md
+docs/STORE_REVIEW_PREP.md
 !.env.example
 hardcut.md
 GoogleService-Info.plist

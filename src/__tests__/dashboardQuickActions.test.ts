@@ -21,6 +21,7 @@ describe("dashboard quick actions", () => {
     expect(labelsFor(false)).toEqual([
       "Events",
       "Vote",
+      "Members",
       "My Ledger",
       "Marketplace",
       "Library",
@@ -70,11 +71,12 @@ describe("dashboard quick actions", () => {
       payload: { index: 4 },
       type: "RESET",
     });
-    expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Finance", {
+    expect(navigation.navigate).toHaveBeenNthCalledWith(1, "MembersList");
+    expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Finance", {
       screen: "MyLedger",
     });
-    expect(navigation.navigate).toHaveBeenNthCalledWith(2, "Library");
-    expect(navigation.navigate).toHaveBeenCalledTimes(2);
+    expect(navigation.navigate).toHaveBeenNthCalledWith(3, "Library");
+    expect(navigation.navigate).toHaveBeenCalledTimes(3);
   });
 
   it("falls back to nested tab root navigation without a parent navigator", () => {
@@ -83,7 +85,7 @@ describe("dashboard quick actions", () => {
 
     actions[0].onPress();
     actions[1].onPress();
-    actions[3].onPress();
+    actions[4].onPress();
 
     expect(navigation.navigate).toHaveBeenNthCalledWith(1, "Events", {
       screen: "EventsList",

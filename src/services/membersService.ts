@@ -9,6 +9,7 @@ import {
 } from "../types/user";
 import {
   joinRequestFromRecord,
+  memberDirectoryFromRecord,
   userFromRecord,
 } from "./converters/userConverter";
 import {
@@ -136,6 +137,20 @@ export const subscribeToMembers = (
     onSnapshotMeta,
   );
 
+export const subscribeToMemberDirectory = (
+  callback: (members: User[]) => void,
+  onError?: (error: Error) => void,
+  onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
+) =>
+  startOrgSubscription(
+    "member_directory",
+    memberDirectoryFromRecord,
+    callback,
+    (query) => query.where("status", "==", "active"),
+    onError,
+    onSnapshotMeta,
+  );
+
 export const subscribeToJoinRequests = (
   callback: (requests: JoinRequest[]) => void,
   onError?: (error: Error) => void,
@@ -153,6 +168,14 @@ export const subscribeToJoinRequests = (
 
 export const getMember = async (uid: string): Promise<User> =>
   userFromRecord(await getUserRecord(uid));
+
+export const getMemberDirectoryProfile = async (uid: string): Promise<User> => {
+  const snapshot = await firestore().collection("member_directory").doc(uid).get();
+  if (!snapshot.exists()) {
+    throw new Error("Member profile not found.");
+  }
+  return memberDirectoryFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
+};
 
 export const createMember = async (data: MemberInput): Promise<CreatedMember> => {
   const result = await createMemberAccountCallable(data);

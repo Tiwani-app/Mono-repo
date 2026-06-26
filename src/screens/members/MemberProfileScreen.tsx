@@ -14,7 +14,10 @@ import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import BalanceBanner from "../../components/finance/BalanceBanner";
-import { getMember } from "../../services/membersService";
+import {
+  getMember,
+  getMemberDirectoryProfile,
+} from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import {
@@ -26,6 +29,8 @@ import { User } from "../../types/user";
 import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
 import {
+  canViewMemberFamilyDetails,
+  canViewMemberFinanceDetails,
   canViewMemberPrivateDetails,
   getVisibleMemberProfileTabs,
   sanitizeMemberProfile,
@@ -76,7 +81,9 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
       setLoadError("This profile could not be found.");
       return;
     }
-    getMember(memberId)
+    const canLoadFullProfile = isAdmin(user) || user?.uid === memberId;
+    const loadMember = canLoadFullProfile ? getMember : getMemberDirectoryProfile;
+    loadMember(memberId)
       .then(setMember)
       .catch((error) =>
         setLoadError(
@@ -85,7 +92,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             : "Could not load this profile.",
         ),
       );
-  }, [memberId]);
+  }, [memberId, user]);
 
   if (loadError) {
     return (
@@ -111,6 +118,8 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
   }
 
   const canViewPrivate = canViewMemberPrivateDetails(user, member);
+  const canViewFinance = canViewMemberFinanceDetails(user, member);
+  const canViewFamily = canViewMemberFamilyDetails(user, member);
   const financeStanding = getFinanceStanding(
     member.financialStatus,
     member.outstandingBalance,
@@ -146,7 +155,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             initials={getInitials(profile.displayName)}
             photoURL={member.photoURL}
             size={64}
-            statusDot={member.financialStatus}
+            statusDot={canViewFinance ? member.financialStatus : null}
           />
           <Text style={styles.name}>{profile.displayName}</Text>
           <View style={styles.badgeRow}>
@@ -163,23 +172,25 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
               color={colors.text.secondary}
             />
           </View>
-          <View
-            style={[
-              styles.statusBanner,
-              {
-                backgroundColor: `${financeStandingColor}18`,
-              },
-            ]}
-          >
-            <Text
+          {canViewFinance && (
+            <View
               style={[
-                styles.statusText,
-                { color: financeStandingColor },
+                styles.statusBanner,
+                {
+                  backgroundColor: `${financeStandingColor}18`,
+                },
               ]}
             >
-              {getFinanceStandingBannerLabel(financeStanding)}
-            </Text>
-          </View>
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: financeStandingColor },
+                ]}
+              >
+                {getFinanceStandingBannerLabel(financeStanding)}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.tabs}>
           {tabs.map((tab) => (
@@ -204,7 +215,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             <Info label="Phone" value={profile.phone} />
             <Info label="Email" value={profile.email} />
             {canViewPrivate && <Info label="Address" value={profile.address} />}
-            {canViewPrivate && (
+            {canViewFamily && (
               <Info label="Marital Status" value={profile.maritalStatus} />
             )}
             <Info
@@ -217,7 +228,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             />
           </View>
         )}
-        {activeTab === "family" && canViewPrivate && (
+        {activeTab === "family" && canViewFamily && (
           <View style={styles.card}>
             {member.maritalStatus === "married" && profile.spouseName && (
               <Info label="Spouse" value={profile.spouseName} />
@@ -239,7 +250,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
           </View>
         )}
         {activeTab === "finance" &&
-          (canViewPrivate ? (
+          (canViewFinance ? (
             <BalanceBanner
               outstanding={member.outstandingBalance}
               financialStatus={member.financialStatus}

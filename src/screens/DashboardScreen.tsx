@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import Icon from "../components/common/FeatherIcon";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Badge from "../components/common/Badge";
 import EmptyState from "../components/common/EmptyState";
 import EventCard from "../components/events/EventCard";
 import LoadingSpinner from "../components/common/LoadingSpinner";
@@ -33,6 +32,10 @@ import {
 import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
 import { getDashboardQuickActions } from "./dashboardQuickActions";
+import {
+  NOTIFICATION_COLORS,
+  NOTIFICATION_ICONS,
+} from "../utils/notificationPresentation";
 
 const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
   <TouchableOpacity
@@ -296,20 +299,34 @@ const DashboardScreen = ({ navigation }: any) => {
             message="Updates will appear here."
           />
         ) : (
-          notifications.slice(0, 3).map((item) => (
-            <View key={item.id} style={styles.activityRow}>
-              <Badge
-                label={item.type.toUpperCase()}
-                color={colors.gold.default}
-              />
-              <View style={styles.activityText}>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activityTime}>
-                  {formatRelativeTime(item.sentAt)}
-                </Text>
+          notifications.slice(0, 3).map((item) => {
+            const color = NOTIFICATION_COLORS[item.type];
+            return (
+              <View
+                key={item.id}
+                style={[styles.activityRow, { borderLeftColor: color }]}
+              >
+                <View
+                  style={[
+                    styles.activityIconBox,
+                    { backgroundColor: `${color}22` },
+                  ]}
+                >
+                  <Icon
+                    name={NOTIFICATION_ICONS[item.type]}
+                    size={15}
+                    color={color}
+                  />
+                </View>
+                <View style={styles.activityText}>
+                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <Text style={styles.activityTime}>
+                    {formatRelativeTime(item.sentAt)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -429,7 +446,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: 8,
+    borderLeftWidth: 4,
     backgroundColor: colors.bg.card,
+  },
+  activityIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
   activityText: { flex: 1, gap: spacing.xs },
   activityTitle: { fontSize: typography.size.base, color: colors.text.primary },

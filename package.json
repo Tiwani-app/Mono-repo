@@ -4,6 +4,7 @@
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
+    "postinstall": "node scripts/patch-react-native-gradle-plugin.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "start": "expo start --dev-client",

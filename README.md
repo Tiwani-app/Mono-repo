@@ -90,6 +90,11 @@ Install dependencies:
 npm install
 ```
 
+`npm install` also runs `scripts/patch-react-native-gradle-plugin.js`. Keep this
+hook until React Native/Expo ship the same fix upstream. It updates React
+Native's bundled Foojay Java toolchain resolver so the generated Android Gradle
+`9.0.0` wrapper can run without the `JvmVendorSpec IBM_SEMERU` crash.
+
 Install Functions dependencies when working on backend callables:
 
 ```bash
@@ -116,10 +121,11 @@ EXPO_PUBLIC_DEV_LOGIN_EMAIL=
 EXPO_PUBLIC_DEV_LOGIN_PASSWORD=
 EXPO_PUBLIC_FINANCE_CONTACT_EMAIL=
 EXPO_PUBLIC_FINANCE_CONTACT_PHONE=
-EXPO_PUBLIC_SUPPORT_URL=
-EXPO_PUBLIC_PRIVACY_POLICY_URL=
-EXPO_PUBLIC_TERMS_URL=
-EXPO_PUBLIC_ACCOUNT_DELETION_URL=
+EXPO_PUBLIC_SUPPORT_URL=https://tiwani-backend.web.app/support.html
+EXPO_PUBLIC_PRIVACY_POLICY_URL=https://tiwani-backend.web.app/privacy.html
+EXPO_PUBLIC_TERMS_URL=https://tiwani-backend.web.app/terms.html
+EXPO_PUBLIC_ACCOUNT_DELETION_URL=https://tiwani-backend.web.app/account-deletion.html
+EXPO_PUBLIC_MARKETPLACE_RULES_URL=https://tiwani-backend.web.app/marketplace-rules.html
 EXPO_PUBLIC_APP_CHECK_ENABLED=false
 EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED=false
 EXPO_PUBLIC_APP_CHECK_ANDROID_PROVIDER=playIntegrity
@@ -191,16 +197,18 @@ Production builds clear `EXPO_PUBLIC_DEV_LOGIN_EMAIL` and `EXPO_PUBLIC_DEV_LOGIN
 The app uses native Firebase platform configuration files:
 
 ```text
-ios/Tiwani/GoogleService-Info.plist
-android/app/google-services.json
+GoogleService-Info.plist
+google-services.json
 ```
 
-These files are intentionally gitignored and are not part of this repo. To run the app against a real backend you need your own Firebase project with iOS/Android apps registered under matching bundle/package identifiers.
+These root files are the default source files read by `app.config.js`. Generated native copies may appear under `ios/Tiwani/GoogleService-Info.plist` and `android/app/google-services.json` after native generation or rebuilds.
+
+The Firebase platform files are intentionally gitignored and are not part of this repo. To run the app against a real backend you need your own Firebase project with iOS/Android apps registered under matching bundle/package identifiers.
 
 To set up or change Firebase projects:
 
 1. Download your project's `GoogleService-Info.plist` and `google-services.json` from Firebase Console.
-2. Place them at the paths above, or set `TIWANI_IOS_GOOGLE_SERVICES_FILE` and `TIWANI_ANDROID_GOOGLE_SERVICES_FILE`.
+2. Place them at the frontend root paths above, or set `TIWANI_IOS_GOOGLE_SERVICES_FILE` and `TIWANI_ANDROID_GOOGLE_SERVICES_FILE`.
 3. Confirm `app.config.js` bundle/package values match the Firebase apps.
 4. Rebuild the native app. Metro reload alone is not enough after native Firebase file changes.
 
@@ -573,7 +581,7 @@ Production note: deployed Cloud Functions require Firebase Blaze. The frontend k
 
 - Admin dashboard shows member, event, collection, and overdue summaries.
 - Admin quick actions include Add Member, New Event, New Poll, Record Pay, Library, and Upload Doc.
-- Member quick actions include Events, Vote, My Ledger, Marketplace, and Library.
+- Member quick actions include Events, Vote, Members, My Ledger, Marketplace, and Library.
 
 ### Members
 
@@ -625,6 +633,7 @@ EAS profiles are defined in `eas.json`:
 ```text
 development: dev client, internal distribution
 staging: internal distribution, EXPO_PUBLIC_APP_ENV=staging
+productionCandidate: internal distribution using production Firebase/App Check/Crashlytics settings
 production: store-ready profile, EXPO_PUBLIC_APP_ENV=production
 ```
 
@@ -633,9 +642,11 @@ Build with EAS:
 ```bash
 eas build --platform ios --profile development
 eas build --platform ios --profile staging
+eas build --platform ios --profile productionCandidate
 eas build --platform ios --profile production
 eas build --platform android --profile development
 eas build --platform android --profile staging
+eas build --platform android --profile productionCandidate
 eas build --platform android --profile production
 ```
 
@@ -662,10 +673,16 @@ Before public release:
 - Configure branded Firebase Auth email templates and authorized domains.
 - Configure App Check in monitoring mode, then enforce after validation.
 - Add Crashlytics or equivalent production crash monitoring.
-- Publish Privacy Policy, Terms, Support, and Account Deletion URLs.
+- Publish Privacy Policy, Terms, Support, Account Deletion, and Marketplace Rules URLs.
 - Configure iOS signing and Android upload signing.
 - Run real-device QA, not only simulator QA.
 - Prepare admin/member reviewer accounts for App Store and Play review.
+
+Monitoring and App Check release-candidate instructions live in:
+
+```text
+docs/PRODUCTION_MONITORING_RUNBOOK.md
+```
 
 
 ## Troubleshooting

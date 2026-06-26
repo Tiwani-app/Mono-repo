@@ -23,6 +23,7 @@ export interface ClientEnv {
   firebaseEmulatorHost: string;
   financeContactEmail: string;
   financeContactPhone: string;
+  marketplaceRulesUrl: string;
   privacyPolicyUrl: string;
   supportUrl: string;
   termsUrl: string;
@@ -122,6 +123,7 @@ export const env: ClientEnv = {
     process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ?? "127.0.0.1",
   financeContactEmail: process.env.EXPO_PUBLIC_FINANCE_CONTACT_EMAIL ?? "",
   financeContactPhone: process.env.EXPO_PUBLIC_FINANCE_CONTACT_PHONE ?? "",
+  marketplaceRulesUrl: process.env.EXPO_PUBLIC_MARKETPLACE_RULES_URL ?? "",
   privacyPolicyUrl: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL ?? "",
   supportUrl: process.env.EXPO_PUBLIC_SUPPORT_URL ?? "",
   termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? "",

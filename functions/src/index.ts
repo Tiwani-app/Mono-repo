@@ -17,6 +17,11 @@ export {
   updateMemberRole,
 } from "./members";
 export {
+  backfillMemberDirectory,
+  syncMemberDirectoryOnUserWrite,
+} from "./memberDirectory";
+export {
+  cleanupDisabledPushTokens,
   cleanupInvalidPushTokens,
   registerDeviceToken,
   sendAnnouncementPush,

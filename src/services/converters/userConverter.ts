@@ -127,6 +127,49 @@ export const userFromRecord = (record: RawRecord): User => ({
       : getLocalTimezone(),
 });
 
+export const memberDirectoryFromRecord = (record: RawRecord): User => ({
+  uid:
+    typeof record.uid === "string" && record.uid.trim()
+      ? record.uid
+      : requiredString(record, "id"),
+  fullName: requiredString(record, "fullName"),
+  email: requiredString(record, "email"),
+  phone: typeof record.phone === "string" ? record.phone : "",
+  photoURL: asNullableString(record.photoURL, "photoURL"),
+  role: requiredEnum(record.role, roles, "role"),
+  status: requiredEnum(record.status, memberStatuses, "status"),
+  financialStatus: "green",
+  outstandingBalance: 0,
+  address: "",
+  maritalStatus: requiredEnum(
+    record.maritalStatus,
+    maritalStatuses,
+    "maritalStatus",
+  ),
+  dateOfBirth: typeof record.dateOfBirth === "string" ? record.dateOfBirth : "",
+  spouseName: asNullableString(record.spouseName, "spouseName"),
+  spouseDateOfBirth: asNullableString(
+    record.spouseDateOfBirth,
+    "spouseDateOfBirth",
+  ),
+  weddingAnniversary: asNullableString(
+    record.weddingAnniversary,
+    "weddingAnniversary",
+  ),
+  children: childrenFromRecord(record.children),
+  memberSince:
+    typeof record.memberSince === "string" && record.memberSince.trim()
+      ? record.memberSince
+      : "",
+  notificationPreferences: {
+    events: true,
+    finance: true,
+    voting: true,
+  },
+  currencySymbol: DEFAULT_CURRENCY_SYMBOL,
+  timezone: getLocalTimezone(),
+});
+
 export const joinRequestFromRecord = (record: RawRecord): JoinRequest => ({
   id: requiredString(record, "id"),
   fullName: requiredString(record, "fullName"),

@@ -1,6 +1,7 @@
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {getDuesPeriods, subscribeToLedger} from '../services/financeService';
-import {useFinanceStore} from '../store/financeStore';
+import {DuesPeriod, LedgerEntry} from '../types/finance';
+import {DataSyncState} from '../types/sync';
 import {
   getFailureSyncState,
   getSnapshotSyncState,
@@ -8,16 +9,14 @@ import {
 } from '../utils/syncState';
 
 export const useFinance = (uid?: string, includeAll = false) => {
-  const {
-    ledgerEntries,
-    lastSyncedAt,
-    setDuesPeriods,
-    setError,
-    setLastSyncedAt,
-    setLedgerEntries,
-    setLoading,
-    setSyncState,
-  } = useFinanceStore();
+  // Finance screens can stay mounted together in the stack, so each subscription
+  // keeps local data instead of overwriting one shared ledger/dues cache.
+  const [duesPeriods, setDuesPeriods] = useState<DuesPeriod[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [syncState, setSyncState] = useState<DataSyncState>('idle');
   const hasCachedDataRef = useRef(false);
   const lastSyncedAtRef = useRef(lastSyncedAt);
 
@@ -25,6 +24,7 @@ export const useFinance = (uid?: string, includeAll = false) => {
   lastSyncedAtRef.current = lastSyncedAt;
 
   useEffect(() => {
+    let active = true;
     if (!uid && !includeAll) {
       setLedgerEntries([]);
       setDuesPeriods([]);
@@ -37,17 +37,26 @@ export const useFinance = (uid?: string, includeAll = false) => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
-    const handleError = (error: Error) => {
-      setError(error.message || 'Could not load finance data.');
-      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
+    const handleError = (financeError: Error) => {
+      if (!active) {
+        return;
+      }
+      setError(financeError.message || 'Could not load finance data.');
+      setSyncState(getFailureSyncState(financeError, hasCachedDataRef.current));
       setLoading(false);
     };
     try {
       const unsubscribe = subscribeToLedger(ledgerUid, entries => {
+        if (!active) {
+          return;
+        }
         setLedgerEntries(entries);
         setError(null);
         setLoading(false);
       }, handleError, meta => {
+        if (!active) {
+          return;
+        }
         if (shouldUpdateLastSyncedAt(meta)) {
           setLastSyncedAt(new Date());
         }
@@ -55,21 +64,37 @@ export const useFinance = (uid?: string, includeAll = false) => {
       });
       if (!includeAll) {
         setDuesPeriods([]);
-        return () => unsubscribe();
+        return () => {
+          active = false;
+          unsubscribe();
+        };
       }
       getDuesPeriods()
         .then(periods => {
+          if (!active) {
+            return;
+          }
           setDuesPeriods(periods);
           setError(null);
         })
         .catch(handleError);
-      return () => unsubscribe();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not load finance data.');
-      setSyncState(getFailureSyncState(error, hasCachedDataRef.current));
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    } catch (financeError) {
+      setError(financeError instanceof Error ? financeError.message : 'Could not load finance data.');
+      setSyncState(getFailureSyncState(financeError, hasCachedDataRef.current));
       setLoading(false);
     }
   }, [includeAll, setDuesPeriods, setError, setLastSyncedAt, setLedgerEntries, setLoading, setSyncState, uid]);
 
-  return useFinanceStore();
+  return {
+    duesPeriods,
+    error,
+    lastSyncedAt,
+    ledgerEntries,
+    loading,
+    syncState,
+  };
 };

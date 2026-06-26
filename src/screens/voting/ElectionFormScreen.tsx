@@ -36,7 +36,10 @@ import {
 } from "../../utils/financeStanding";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
-import { findFinanciallyBlockedCandidateNames } from "../../utils/votingGuards";
+import {
+  canStandForElection,
+  findFinanciallyBlockedCandidateNames,
+} from "../../utils/votingGuards";
 
 interface FormValues {
   title: string;
@@ -70,10 +73,13 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     loading: membersLoading,
     members,
   } = useMembers({ enabled: admin });
-  const activeMembers = useMemo(
+  const eligibleActiveMembers = useMemo(
     () =>
       members
-        .filter((member) => member.status === "active")
+        .filter(
+          (member) =>
+            member.status === "active" && canStandForElection(member),
+        )
         .sort((left, right) => left.fullName.localeCompare(right.fullName)),
     [members],
   );
@@ -239,7 +245,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
     );
   }
 
-  if (activeMembers.length < 2) {
+  if (eligibleActiveMembers.length < 2) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
@@ -249,8 +255,8 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         />
         <EmptyState
           icon="!"
-          title="Not enough active members"
-          message="At least two active member profiles are required before an election can be created."
+          title="Not enough eligible members"
+          message="At least two active members in good financial standing are required before an election can be created."
           actionLabel="Back to Voting"
           onAction={() => safeGoBack(navigation, "VotingHub")}
         />
@@ -359,7 +365,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
                   );
                   return (
                     <CandidateDropdown
-                      members={activeMembers.filter(
+                      members={eligibleActiveMembers.filter(
                         (member) =>
                           member.fullName === value ||
                           !selectedElsewhere.has(member.fullName),
@@ -462,7 +468,7 @@ const CandidateDropdown = ({
               !selectedMember && styles.memberSelectPlaceholder,
             ]}
           >
-            {selectedMember?.fullName ?? "Select an active member"}
+            {selectedMember?.fullName ?? "Select an eligible active member"}
           </Text>
           {selectedMember && (
             <Text style={styles.memberSelectMeta}>

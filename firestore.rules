@@ -69,7 +69,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if ownUserDoc(userId) || sameOrgExisting();
+      allow read: if ownUserDoc(userId) || (isAdmin() && sameOrgExisting());
       allow create: if isAdmin() && sameOrgIncoming();
       allow update: if (
         isAdmin() && sameOrgExisting() && sameOrgIncoming()
@@ -105,7 +105,7 @@ service cloud.firestore {
     }
 
     match /member_directory/{userId} {
-      allow read: if isActive() && exists(userPath(userId)) && sameOrgRecord(get(userPath(userId)).data);
+      allow read: if sameOrgExisting() && resource.data.status == "active";
       allow write: if false;
     }
 
@@ -206,6 +206,11 @@ service cloud.firestore {
 
     match /device_tokens/{tokenId} {
       allow read, write: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin() && sameOrgExisting();
+      allow write: if false;
     }
 
     match /polls/{pollId} {

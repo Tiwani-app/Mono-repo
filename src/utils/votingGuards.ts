@@ -8,12 +8,13 @@ export const isElectionBallotComplete = (
 
 const normalizeName = (value: string) => value.trim().toLowerCase();
 
-export const canStandForElection = (member: Pick<User, "financialStatus">) =>
-  member.financialStatus === "green";
+export const canStandForElection = (
+  member: Pick<User, "financialStatus" | "outstandingBalance">,
+) => member.financialStatus === "green" && member.outstandingBalance <= 0;
 
 export const findFinanciallyBlockedCandidateNames = (
   candidateNames: string[],
-  members: Pick<User, "fullName" | "financialStatus">[],
+  members: Pick<User, "fullName" | "financialStatus" | "outstandingBalance">[],
 ) => {
   const membersByName = new Map(
     members.map(member => [normalizeName(member.fullName), member]),

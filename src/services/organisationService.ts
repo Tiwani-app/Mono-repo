@@ -1,7 +1,7 @@
 import { env } from "../config/env";
 import { FinanceContact, LedgerEntry } from "../types/finance";
 import { RawRecord } from "./converters/shared";
-import { firestore, getCurrentOrgId, getUserRecord } from "./firebaseHelpers";
+import { firestore, getCurrentOrgId } from "./firebaseHelpers";
 
 const trimmedString = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -89,14 +89,21 @@ const creatorContactFromPeriodRecord = (
     phone: record.createdByPhone,
   });
 
-const creatorContactFromUserRecord = async (
+const creatorContactFromDirectoryRecord = async (
   uid: string | undefined,
 ): Promise<FinanceContact | null> => {
   if (!uid?.trim()) {
     return null;
   }
   try {
-    const record = await getUserRecord(uid.trim());
+    const snapshot = await firestore()
+      .collection("member_directory")
+      .doc(uid.trim())
+      .get();
+    if (!snapshot.exists()) {
+      return null;
+    }
+    const record = snapshot.data() ?? {};
     return contactFromValues({
       email: record.email,
       name: record.fullName ?? "Dues Creator",
@@ -166,7 +173,7 @@ export const getLedgerCreatorContact = async (
           return periodContact;
         }
         const createdBy = trimmedString(period.createdBy);
-        const createdByContact = await creatorContactFromUserRecord(
+        const createdByContact = await creatorContactFromDirectoryRecord(
           createdBy ?? undefined,
         );
         if (createdByContact) {
@@ -178,5 +185,5 @@ export const getLedgerCreatorContact = async (
     }
   }
 
-  return creatorContactFromUserRecord(entry.recordedBy);
+  return creatorContactFromDirectoryRecord(entry.recordedBy);
 };

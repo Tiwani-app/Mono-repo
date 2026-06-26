@@ -131,7 +131,15 @@ const FinanceAdminScreen = ({ navigation }: any) => {
               DUES PERIODS
             </Text>
             {duesPeriods.map((period) => (
-              <DuesPeriodCard key={period.id} period={period} />
+              <DuesPeriodCard
+                key={period.id}
+                period={period}
+                onPress={() =>
+                  navigation.navigate("DuesPeriodMembers", {
+                    duesPeriodId: period.id,
+                  })
+                }
+              />
             ))}
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
           </>
