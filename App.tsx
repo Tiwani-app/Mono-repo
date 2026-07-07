@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import './src/config/scrollIndicators';
 import LoadingSpinner from './src/components/common/LoadingSpinner';
 import {
   initializeFirebaseRuntimeServices,

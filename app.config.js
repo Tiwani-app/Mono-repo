@@ -5,7 +5,7 @@ const crashlyticsExplicitlyEnabled =
 const includeCrashlyticsNative =
   crashlyticsExplicitlyEnabled || appEnvironment !== "development";
 
-const appName = process.env.TIWANI_APP_NAME || (isProduction ? "Tiwani" : "Tiwani Dev");
+const appName = process.env.TIWANI_APP_NAME || "Tiwani";
 const appVersion =
   process.env.TIWANI_APP_VERSION ||
   process.env.EXPO_PUBLIC_APP_VERSION ||
@@ -38,6 +38,13 @@ module.exports = {
         ? ["@react-native-firebase/crashlytics"]
         : []),
       "@react-native-firebase/messaging",
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Tiwani uses your photo library so you can choose a profile photo.",
+        },
+      ],
       [
         "expo-build-properties",
         {

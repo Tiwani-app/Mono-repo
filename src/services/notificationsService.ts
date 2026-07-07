@@ -58,6 +58,7 @@ export const subscribeToNotifications = (
   callback: (items: TiwaniNotification[]) => void,
   onError?: (error: Error) => void,
   onSnapshotMeta?: (meta: DataSyncSnapshotMeta) => void,
+  visibleAfter: Date = new Date(0),
 ) => {
   const database = firestore();
   const uid = currentUid();
@@ -117,7 +118,11 @@ export const subscribeToNotifications = (
       if (!active) {
         return;
       }
-      const base = database.collection("announcements").where("orgId", "==", orgId);
+      const base = database
+        .collection("announcements")
+        .where("orgId", "==", orgId)
+        .where("sentAt", ">=", visibleAfter)
+        .orderBy("sentAt", "desc");
       subscriptions = [
         base.where("targetAudience", "==", "all").onSnapshot(
           { includeMetadataChanges: true },

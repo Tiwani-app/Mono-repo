@@ -31,6 +31,9 @@ export interface User {
   weddingAnniversary: string | null;
   children: Child[];
   memberSince: string;
+  joinedAt?: Date | null;
+  deletedAt?: Date | null;
+  deletionRequestId?: string | null;
   notificationPreferences: NotificationPreferences;
   currencySymbol: string;
   timezone: string;
@@ -46,4 +49,25 @@ export interface JoinRequest {
   createdAt: Date;
   reviewedAt: Date | null;
   reviewedBy: string | null;
+}
+
+export type AccountDeletionRequestStatus =
+  | 'requested'
+  | 'completed'
+  | 'declined';
+
+export interface AccountDeletionRequest {
+  id: string;
+  requestId: string;
+  uid: string;
+  fullName: string;
+  email: string;
+  reason: string;
+  status: AccountDeletionRequestStatus;
+  requestedAt: Date;
+  reviewedAt: Date | null;
+  reviewedBy: string | null;
+  completedAt: Date | null;
+  completedBy: string | null;
+  declinedAt: Date | null;
 }

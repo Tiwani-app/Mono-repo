@@ -7,6 +7,7 @@ export const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   vote: colors.gold.default,
   general: colors.text.secondary,
   marketplace: colors.status.purple,
+  library: colors.gold.default,
 };
 
 export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
@@ -15,4 +16,5 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   vote: "check-circle",
   general: "bell",
   marketplace: "shopping-bag",
+  library: "book-open",
 };

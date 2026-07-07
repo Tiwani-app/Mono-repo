@@ -1,4 +1,10 @@
-export type NotificationType = 'event' | 'finance' | 'vote' | 'general' | 'marketplace';
+export type NotificationType =
+  | 'event'
+  | 'finance'
+  | 'vote'
+  | 'general'
+  | 'marketplace'
+  | 'library';
 
 export type NotificationTarget =
   | {route: 'event_detail'; eventId: string}

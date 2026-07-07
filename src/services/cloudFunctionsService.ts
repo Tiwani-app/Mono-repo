@@ -1,4 +1,9 @@
-import { firebaseFunctions, requireFirebaseApp } from "../config/firebase";
+import { env } from "../config/env";
+import {
+  firebaseAuth,
+  firebaseFunctions,
+  requireFirebaseApp,
+} from "../config/firebase";
 import type { Role } from "../types/user";
 import type {
   MemberInput,
@@ -29,14 +34,111 @@ export interface CallableResult<TResponse> {
   data: TResponse;
 }
 
+interface CallableHttpResponse<TResponse> {
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
+  result?: TResponse;
+}
+
+const isUnauthenticatedCallableError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const maybeCode =
+    "code" in error && typeof error.code === "string" ? error.code : "";
+  const message = error.message.toLowerCase();
+  return (
+    maybeCode.includes("unauthenticated") ||
+    message.includes("unauthenticated")
+  );
+};
+
+const messageForCallableError = (status: string | undefined, message = "") => {
+  if (status === "UNAUTHENTICATED") {
+    return "Your session expired. Please sign in again.";
+  }
+  if (message) {
+    return message;
+  }
+  return "The server could not complete this request.";
+};
+
+const messageForUnexpectedHttpResponse = (name: string, status: number) => {
+  if (status === 401 || status === 403) {
+    return `The server rejected the ${name} request before it reached Firebase Auth. Please try again after the latest backend deployment.`;
+  }
+  if (status === 404) {
+    return `The server endpoint for ${name} was not found. Please redeploy Cloud Functions and try again.`;
+  }
+  return `The server returned an unexpected response while running ${name}.`;
+};
+
+const callCloudFunctionWithToken = async <TRequest, TResponse>(
+  name: string,
+  payload: TRequest,
+  idToken: string,
+): Promise<TResponse> => {
+  const endpoint = `https://${env.firebaseFunctionsRegion}-${env.firebaseProjectId}.cloudfunctions.net/${name}`;
+  const response = await fetch(endpoint, {
+    body: JSON.stringify({ data: payload }),
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseText = await response.text();
+  let body: CallableHttpResponse<TResponse> | null = null;
+  try {
+    body = responseText
+      ? (JSON.parse(responseText) as CallableHttpResponse<TResponse>)
+      : null;
+  } catch {
+    throw new Error(messageForUnexpectedHttpResponse(name, response.status));
+  }
+  if (!body) {
+    throw new Error(messageForUnexpectedHttpResponse(name, response.status));
+  }
+  if (!response.ok || body.error) {
+    throw new Error(
+      messageForCallableError(body.error?.status, body.error?.message),
+    );
+  }
+  if (!("result" in body)) {
+    throw new Error("The server returned an empty response.");
+  }
+  return body.result as TResponse;
+};
+
 export const callCloudFunction = async <TRequest, TResponse>(
   name: string,
   payload: TRequest,
 ): Promise<TResponse> => {
   requireFirebaseApp();
-  const callable = firebaseFunctions().httpsCallable<TRequest, TResponse>(name);
-  const result = (await callable(payload)) as CallableResult<TResponse>;
-  return result.data;
+  const currentUser = firebaseAuth().currentUser;
+  const idToken = currentUser ? await currentUser.getIdToken(true) : null;
+  try {
+    const callable =
+      firebaseFunctions().httpsCallable<TRequest, TResponse>(name);
+    const result = (await callable(payload)) as CallableResult<TResponse>;
+    return result.data;
+  } catch (error) {
+    if (isUnauthenticatedCallableError(error)) {
+      if (idToken) {
+        return callCloudFunctionWithToken<TRequest, TResponse>(
+          name,
+          payload,
+          idToken,
+        );
+      }
+      throw new Error("Your session expired. Please sign in again.");
+    }
+    throw error;
+  }
 };
 
 export const requestAccountDeletionCallable = (reason: string) =>
@@ -52,10 +154,17 @@ export const completeAccountDeletionCallable = (requestId: string) =>
       authDeleted: boolean;
       ok: boolean;
       profileAnonymized: boolean;
+      profileDeleted?: boolean;
       requestId: string;
       tokenCount: number;
     }
   >("completeAccountDeletion", { requestId });
+
+export const declineAccountDeletionCallable = (requestId: string) =>
+  callCloudFunction<{ requestId: string }, { ok: boolean; requestId: string }>(
+    "declineAccountDeletion",
+    { requestId },
+  );
 
 export const declineJoinRequestCallable = (requestId: string) =>
   callCloudFunction<{ requestId: string }, { ok: boolean; requestId: string }>(

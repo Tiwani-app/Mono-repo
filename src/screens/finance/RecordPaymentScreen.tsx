@@ -23,8 +23,10 @@ import { recordPayment } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { LedgerEntry } from "../../types/finance";
+import { User } from "../../types/user";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDisplayDate } from "../../utils/formatDate";
+import { getChargeDisplayStatus } from "../../utils/financeChargeStatus";
 import { getInitials } from "../../utils/getInitials";
 import { getChargeOutstanding } from "../../utils/financeTotals";
 import { safeGoBack } from "../../utils/navigation";
@@ -38,6 +40,14 @@ interface FormValues {
 }
 
 const defaultPaymentMethod = "Bank transfer";
+type MemberPaymentFilter = "all" | "paid" | "unpaid" | "overdue";
+
+const memberPaymentFilters: { label: string; value: MemberPaymentFilter }[] = [
+  { label: "All", value: "all" },
+  { label: "Paid", value: "paid" },
+  { label: "Unpaid", value: "unpaid" },
+  { label: "Overdue", value: "overdue" },
+];
 
 const paymentMethodForCharge = (charge: LedgerEntry) =>
   `${defaultPaymentMethod} - ${charge.label}`;
@@ -47,11 +57,40 @@ const referenceForCharge = (charge: LedgerEntry) =>
     ? `${charge.label} (${formatDisplayDate(charge.dueDate)})`
     : charge.label;
 
+const searchableMemberText = (member: User) =>
+  `${member.fullName} ${member.email} ${member.phone}`.toLowerCase();
+
+const paymentFilterForMember = (
+  member: User,
+  entries: LedgerEntry[],
+): Exclude<MemberPaymentFilter, "all"> => {
+  const charges = entries.filter(
+    (entry) => entry.uid === member.uid && entry.type !== "payment",
+  );
+  const outstanding = charges.reduce(
+    (sum, entry) => sum + getChargeOutstanding(entry),
+    0,
+  );
+  if (outstanding <= 0) {
+    return "paid";
+  }
+  return charges.some(
+    (entry) =>
+      getChargeOutstanding(entry) > 0 &&
+      getChargeDisplayStatus(entry) === "overdue",
+  )
+    ? "overdue"
+    : "unpaid";
+};
+
 const RecordPaymentScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { members, error, loading } = useMembers({ enabled: admin });
+  const [memberFilter, setMemberFilter] =
+    useState<MemberPaymentFilter>("all");
+  const [memberQuery, setMemberQuery] = useState("");
   const [selectedUid, setSelectedUid] = useState(routeMemberId ?? "");
   const [selectedChargeId, setSelectedChargeId] = useState("");
   const [chargeMenuOpen, setChargeMenuOpen] = useState(false);
@@ -69,6 +108,11 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       note: "",
     },
   });
+  const {
+    error: allChargesError,
+    ledgerEntries: allLedgerEntries,
+    loading: allChargesLoading,
+  } = useFinance(undefined, admin);
   const {
     error: chargesError,
     ledgerEntries,
@@ -98,6 +142,15 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   const selectedCharge = openCharges.find(
     (charge) => charge.id === selectedChargeId,
   );
+  const filteredMembers = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    return members.filter((member) => {
+      const status = paymentFilterForMember(member, allLedgerEntries);
+      const matchesFilter = memberFilter === "all" || status === memberFilter;
+      const matchesSearch = !query || searchableMemberText(member).includes(query);
+      return matchesFilter && matchesSearch;
+    });
+  }, [allLedgerEntries, memberFilter, memberQuery, members]);
 
   useEffect(() => {
     setSelectedChargeId("");
@@ -194,7 +247,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
     );
   }
 
-  if (loading) {
+  if (loading || allChargesLoading) {
     return <LoadingSpinner />;
   }
 
@@ -233,9 +286,34 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.sectionLabel}>MEMBER</Text>
+          {allChargesError && (
+            <View style={styles.noticeCard}>
+              <Text style={styles.errorText}>{allChargesError}</Text>
+            </View>
+          )}
+          <TextInput
+            value={memberQuery}
+            onChangeText={setMemberQuery}
+            autoCapitalize="none"
+            placeholder="Search member name, email, or phone"
+            placeholderTextColor={colors.text.tertiary}
+            style={styles.searchInput}
+          />
+          <ChipRow
+            options={memberPaymentFilters}
+            selectedValue={memberFilter}
+            onChange={setMemberFilter}
+          />
           <View style={styles.memberList}>
-            {members.map((member) => {
+            {filteredMembers.length === 0 ? (
+              <View style={styles.noticeCard}>
+                <Text style={styles.noticeText}>
+                  No members match this search or filter.
+                </Text>
+              </View>
+            ) : filteredMembers.map((member) => {
               const selected = selectedUid === member.uid;
+              const status = paymentFilterForMember(member, allLedgerEntries);
               return (
                 <TouchableOpacity
                   key={member.uid}
@@ -255,6 +333,15 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
                       Outstanding {formatCurrency(member.outstandingBalance)}
                     </Text>
                   </View>
+                  <Text
+                    style={[
+                      styles.memberStatus,
+                      status === "paid" && styles.memberStatusPaid,
+                      status === "overdue" && styles.memberStatusOverdue,
+                    ]}
+                  >
+                    {status.toUpperCase()}
+                  </Text>
                   <View
                     style={[styles.radio, selected && styles.radioSelected]}
                   />
@@ -338,6 +425,34 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
     </SafeAreaView>
   );
 };
+
+const ChipRow = <T extends string>({
+  onChange,
+  options,
+  selectedValue,
+}: {
+  options: { label: string; value: T }[];
+  selectedValue: T;
+  onChange: (value: T) => void;
+}) => (
+  <View style={styles.chipRow}>
+    {options.map((option) => {
+      const selected = selectedValue === option.value;
+      return (
+        <TouchableOpacity
+          key={option.value}
+          style={[styles.chip, selected && styles.selectedChip]}
+          onPress={() => onChange(option.value)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.chipText, selected && styles.selectedChipText]}>
+            {option.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
 
 const Field = ({
   control,
@@ -507,6 +622,36 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  chip: {
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  selectedChip: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  chipText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+  },
+  selectedChipText: { color: colors.gold.light },
+  searchInput: {
+    minHeight: 48,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    color: colors.text.primary,
+  },
   memberList: { gap: spacing.sm },
   memberRow: {
     minHeight: 70,
@@ -530,6 +675,13 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   memberMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
+  memberStatus: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+  },
+  memberStatusPaid: { color: colors.status.success },
+  memberStatusOverdue: { color: colors.status.error },
   radio: {
     width: 18,
     height: 18,

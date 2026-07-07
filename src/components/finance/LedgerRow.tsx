@@ -4,6 +4,11 @@ import Icon from '../common/FeatherIcon';
 import Badge from '../common/Badge';
 import {colors, spacing, typography} from '../../theme';
 import {LedgerEntry, LedgerType} from '../../types/finance';
+import {
+  chargeStatusColor,
+  chargeStatusLabel,
+  getChargeDisplayStatus,
+} from '../../utils/financeChargeStatus';
 import {formatCurrency} from '../../utils/formatCurrency';
 import {formatDisplayDate} from '../../utils/formatDate';
 
@@ -22,17 +27,9 @@ interface Props {
 const LedgerRow = ({entry}: Props) => {
   const isPayment = entry.type === 'payment';
   const date = entry.paidAt ?? entry.dueDate;
-  const badgeLabel =
-    entry.paidStatus === 'partial'
-      ? 'PARTIAL'
-      : entry.paid
-        ? 'PAID'
-        : 'UNPAID';
-  const badgeColor = entry.paid
-    ? colors.status.success
-    : entry.paidStatus === 'partial'
-      ? colors.gold.default
-      : colors.status.error;
+  const displayStatus = getChargeDisplayStatus(entry);
+  const badgeLabel = chargeStatusLabel(displayStatus);
+  const badgeColor = chargeStatusColor(displayStatus);
 
   return (
     <View style={styles.row}>

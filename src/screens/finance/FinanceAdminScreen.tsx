@@ -26,9 +26,16 @@ import {
   getFinanceStandingColor,
 } from "../../utils/financeStanding";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { getFinanceTotals } from "../../utils/financeTotals";
+import { getChargeOutstanding, getFinanceTotals } from "../../utils/financeTotals";
 import { getInitials } from "../../utils/getInitials";
 import { isAdmin } from "../../utils/roleGuard";
+
+type ArchivedBalance = {
+  chargeCount: number;
+  labels: string[];
+  outstanding: number;
+  uid: string;
+};
 
 const SummaryTile = ({ label, value }: any) => (
   <View style={styles.summaryTile}>
@@ -36,6 +43,9 @@ const SummaryTile = ({ label, value }: any) => (
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
 );
+
+const shortUid = (uid: string) =>
+  uid.length > 8 ? `${uid.slice(0, 4)}...${uid.slice(-4)}` : uid;
 
 const FinanceAdminScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -88,6 +98,37 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     totalCharged,
     totalPaid: totalCollected,
   } = getFinanceTotals(ledgerEntries);
+  const activeMemberIds = new Set(members.map((member) => member.uid));
+  const archivedBalances = ledgerEntries
+    .filter(
+      (entry) =>
+        entry.type !== "payment" &&
+        !activeMemberIds.has(entry.uid) &&
+        getChargeOutstanding(entry) > 0,
+    )
+    .reduce<ArchivedBalance[]>((balances, entry) => {
+      const existing = balances.find((balance) => balance.uid === entry.uid);
+      const amount = getChargeOutstanding(entry);
+      if (existing) {
+        existing.outstanding += amount;
+        existing.chargeCount += 1;
+        if (!existing.labels.includes(entry.label)) {
+          existing.labels.push(entry.label);
+        }
+        return balances;
+      }
+      balances.push({
+        chargeCount: 1,
+        labels: [entry.label],
+        outstanding: amount,
+        uid: entry.uid,
+      });
+      return balances;
+    }, []);
+  const archivedOutstanding = archivedBalances.reduce(
+    (sum, balance) => sum + balance.outstanding,
+    0,
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -141,6 +182,21 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 }
               />
             ))}
+            <TouchableOpacity
+              activeOpacity={0.84}
+              onPress={() => navigation.navigate("ChargeLedger")}
+              style={styles.chargeLedgerButton}
+            >
+              <View style={styles.chargeLedgerCopy}>
+                <Text style={styles.chargeLedgerTitle}>All Charges Ledger</Text>
+                <Text style={styles.chargeLedgerMeta}>
+                  Monthly totals, all-time totals, payments, and outstanding charges.
+                </Text>
+              </View>
+              <View style={styles.chargeLedgerBadge}>
+                <Badge label="OPEN" color={colors.gold.default} />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
           </>
         }
@@ -180,6 +236,46 @@ const FinanceAdminScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           );
         }}
+        ListFooterComponent={
+          archivedBalances.length > 0 ? (
+            <View style={styles.archivedSection}>
+              <View style={styles.archivedHeader}>
+                <View style={styles.archivedTitleGroup}>
+                  <Text style={styles.sectionLabel}>ARCHIVED MEMBER BALANCES</Text>
+                  <Text style={styles.archivedHelp}>
+                    Preserved for accounting after account deletion.
+                  </Text>
+                </View>
+                <Badge
+                  label={formatCurrency(archivedOutstanding)}
+                  color={colors.gold.default}
+                />
+              </View>
+              {archivedBalances.map((balance) => (
+                <View key={balance.uid} style={styles.archivedRow}>
+                  <View style={styles.archivedIcon}>
+                    <Text style={styles.archivedIconText}>AM</Text>
+                  </View>
+                  <View style={styles.memberContent}>
+                    <Text style={styles.memberName}>Archived member</Text>
+                    <Text style={styles.memberMeta}>
+                      {balance.chargeCount} retained charge
+                      {balance.chargeCount === 1 ? "" : "s"} · ID{" "}
+                      {shortUid(balance.uid)}
+                    </Text>
+                    <Text style={styles.archivedLabels}>
+                      {balance.labels.join(", ")}
+                    </Text>
+                  </View>
+                  <Badge
+                    label={`OWING ${formatCurrency(balance.outstanding)}`}
+                    color={colors.gold.default}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -226,6 +322,75 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   memberMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
+  chargeLedgerButton: {
+    minHeight: 96,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold.default,
+    backgroundColor: colors.bg.card,
+  },
+  chargeLedgerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  chargeLedgerBadge: {
+    flexShrink: 0,
+  },
+  chargeLedgerTitle: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.black,
+    color: colors.text.primary,
+  },
+  chargeLedgerMeta: {
+    marginTop: spacing.xs,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  archivedSection: { gap: spacing.md },
+  archivedHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  archivedTitleGroup: { flex: 1, gap: spacing.xs },
+  archivedHelp: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  archivedRow: {
+    minHeight: 84,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  archivedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg.elevated,
+  },
+  archivedIconText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.black,
+    color: colors.gold.default,
+  },
+  archivedLabels: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+  },
 });
 
 export default FinanceAdminScreen;

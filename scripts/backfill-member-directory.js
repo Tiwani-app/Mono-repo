@@ -44,6 +44,18 @@ const childrenValue = (value) =>
         .filter(Boolean)
     : [];
 
+const isDeletedProfile = (uid, profile) => {
+  const fullName = stringValue(profile.fullName).toLowerCase();
+  const email = stringValue(profile.email).toLowerCase();
+  const deletionRequestId = stringValue(profile.deletionRequestId);
+  return (
+    Boolean(profile.deletedAt) ||
+    Boolean(deletionRequestId) ||
+    fullName === "deleted member" ||
+    email === `deleted-${uid.toLowerCase()}@tiwani.local`
+  );
+};
+
 const directoryProfileFromUser = (uid, profile) => ({
   children: childrenValue(profile.children),
   dateOfBirth: stringValue(profile.dateOfBirth),
@@ -75,9 +87,23 @@ const run = async () => {
   let batch = db.batch();
   let pendingWrites = 0;
   let written = 0;
+  let deleted = 0;
 
   for (const userDoc of usersSnapshot.docs) {
-    const directoryProfile = directoryProfileFromUser(userDoc.id, userDoc.data());
+    const profile = userDoc.data();
+    if (isDeletedProfile(userDoc.id, profile)) {
+      batch.delete(db.collection("member_directory").doc(userDoc.id));
+      pendingWrites += 1;
+      deleted += 1;
+      if (pendingWrites === 450) {
+        await batch.commit();
+        batch = db.batch();
+        pendingWrites = 0;
+      }
+      continue;
+    }
+
+    const directoryProfile = directoryProfileFromUser(userDoc.id, profile);
     if (!directoryProfile.orgId) {
       console.warn(`Skipping ${userDoc.id}: missing orgId.`);
       continue;
@@ -100,7 +126,9 @@ const run = async () => {
     await batch.commit();
   }
 
-  console.log(`Backfill complete. Wrote ${written} member_directory document(s).`);
+  console.log(
+    `Backfill complete. Wrote ${written} member_directory document(s), deleted ${deleted} legacy deleted member mirror(s).`,
+  );
 };
 
 run()

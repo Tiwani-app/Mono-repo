@@ -20,6 +20,22 @@ const STORAGE_KEY = 'tiwani_read_notifications';
 
 const storageKeyForUser = (uid: string) => `${STORAGE_KEY}:${uid}`;
 
+const membershipStartForNotifications = (
+  joinedAt: Date | null | undefined,
+  memberSince: string | undefined,
+) => {
+  if (joinedAt instanceof Date && !Number.isNaN(joinedAt.getTime())) {
+    return joinedAt;
+  }
+  if (memberSince) {
+    const parsed = new Date(`${memberSince}T00:00:00.000Z`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return new Date(0);
+};
+
 const parseStoredReadIds = (raw: string | null): string[] => {
   if (!raw) {
     return [];
@@ -33,6 +49,10 @@ const parseStoredReadIds = (raw: string | null): string[] => {
 export const useNotifications = () => {
   const {user} = useAuthStore();
   const uid = user?.uid;
+  const visibleAfter = useMemo(
+    () => membershipStartForNotifications(user?.joinedAt, user?.memberSince),
+    [user?.joinedAt, user?.memberSince],
+  );
   const {
     error,
     lastSyncedAt,
@@ -123,7 +143,7 @@ export const useNotifications = () => {
           setLastSyncedAt(new Date());
         }
         setSyncState(getSnapshotSyncState(meta, lastSyncedAtRef.current));
-      });
+      }, visibleAfter);
       return () => {
         active = false;
         unsubscribe();
@@ -133,7 +153,7 @@ export const useNotifications = () => {
       setSyncState(getFailureSyncState(notificationsError, hasCachedDataRef.current));
       setLoading(false);
     }
-  }, [setError, setLastSyncedAt, setNotifications, setReadIds, setLoading, setSyncState, uid]);
+  }, [setError, setLastSyncedAt, setNotifications, setReadIds, setLoading, setSyncState, uid, visibleAfter]);
 
   const persistReadIds = async (ids: string[]) => {
     if (!uid) {

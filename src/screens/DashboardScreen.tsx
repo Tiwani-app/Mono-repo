@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../components/common/EmptyState";
 import EventCard from "../components/events/EventCard";
 import LoadingSpinner from "../components/common/LoadingSpinner";
+import { useAccountDeletionRequests } from "../hooks/useAccountDeletionRequests";
 import { useEvents } from "../hooks/useEvents";
 import { useFinance } from "../hooks/useFinance";
 import { useJoinRequests } from "../hooks/useJoinRequests";
@@ -68,18 +69,31 @@ const QuickAction = ({ icon, label, onPress }: any) => (
   </TouchableOpacity>
 );
 
-const RequestReviewAction = ({ count, onPress }: any) => (
+const formatPendingDeletionCount = (count: number) =>
+  `${count} pending deletion ${count === 1 ? "request" : "requests"}`;
+
+const RequestReviewAction = ({
+  icon,
+  meta,
+  onPress,
+  title,
+}: {
+  icon: string;
+  meta: string;
+  onPress: () => void;
+  title: string;
+}) => (
   <TouchableOpacity
     style={styles.requestReview}
     onPress={onPress}
     activeOpacity={0.85}
   >
     <View style={styles.requestIcon}>
-      <Icon name="inbox" size={18} color={colors.gold.default} />
+      <Icon name={icon} size={18} color={colors.gold.default} />
     </View>
     <View style={styles.requestCopy}>
-      <Text style={styles.requestTitle}>Join Requests</Text>
-      <Text style={styles.requestMeta}>{formatPendingReviewCount(count)}</Text>
+      <Text style={styles.requestTitle}>{title}</Text>
+      <Text style={styles.requestMeta}>{meta}</Text>
     </View>
     <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
   </TouchableOpacity>
@@ -108,6 +122,11 @@ const DashboardScreen = ({ navigation }: any) => {
     requests,
   } = useJoinRequests({ enabled: admin });
   const {
+    error: deletionRequestsError,
+    loading: deletionRequestsLoading,
+    requests: deletionRequests,
+  } = useAccountDeletionRequests({ enabled: admin });
+  const {
     error: notificationsError,
     loading: notificationsLoading,
     notifications,
@@ -116,6 +135,9 @@ const DashboardScreen = ({ navigation }: any) => {
   const firstName = user?.fullName.split(" ")[0] ?? "there";
   const quickActions = getDashboardQuickActions(admin, navigation);
   const pendingRequests = getPendingJoinRequests(requests);
+  const pendingDeletionRequests = deletionRequests.filter(
+    (request) => request.status === "requested",
+  );
   const upcomingEvents = visibleUpcomingEvents(events);
   const activeMembers = members.filter((member) => member.status === "active");
   const overdueMembers = members.filter(
@@ -135,6 +157,7 @@ const DashboardScreen = ({ navigation }: any) => {
     membersLoading ||
     notificationsLoading ||
     requestsLoading ||
+    deletionRequestsLoading ||
     (admin && financeLoading);
 
   if (loading) {
@@ -143,10 +166,13 @@ const DashboardScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.greetingRow}>
           <View>
-            <Text style={styles.kicker}>Good morning,</Text>
+            <Text style={styles.kicker}>Hello,</Text>
             <Text style={styles.name}>{firstName}</Text>
           </View>
           <View style={styles.headerActions}>
@@ -227,23 +253,39 @@ const DashboardScreen = ({ navigation }: any) => {
 
         {admin && pendingRequests.length > 0 && (
           <RequestReviewAction
-            count={pendingRequests.length}
+            icon="inbox"
+            meta={formatPendingReviewCount(pendingRequests.length)}
             onPress={() => navigation.navigate("JoinRequests")}
+            title="Join Requests"
           />
         )}
 
-        {admin && (membersError || requestsError || financeError) && (
+        {admin && pendingDeletionRequests.length > 0 && (
+          <RequestReviewAction
+            icon="user-x"
+            meta={formatPendingDeletionCount(pendingDeletionRequests.length)}
+            onPress={() => navigation.navigate("AccountDeletionRequests")}
+            title="Deletion Requests"
+          />
+        )}
+
+        {admin &&
+        (membersError ||
+          requestsError ||
+          deletionRequestsError ||
+          financeError) ? (
           <EmptyState
             icon="!"
             title="Admin summary unavailable"
             message={
               membersError ??
               requestsError ??
+              deletionRequestsError ??
               financeError ??
               "Please try again."
             }
           />
-        )}
+        ) : null}
 
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.quickGrid}>

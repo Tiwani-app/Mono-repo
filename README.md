@@ -4,6 +4,17 @@ Tiwani is a mobile membership management app for associations and cooperatives. 
 
 The current app uses native React Native Firebase modules, Firebase Auth, Firestore realtime subscriptions, Firebase Storage uploads, Firebase Cloud Functions callables, and Expo dev-client/native builds.
 
+## Active Workspace Notice
+
+This `frontend/` folder is currently the active mobile app workspace and the
+active Firebase backend workspace. The trusted Cloud Functions backend used in
+production lives in `frontend/functions/`.
+
+The top-level `../backend/` folder is legacy/stale right now. Do not deploy from
+`../backend/` unless the monorepo migration has been deliberately completed and
+verified. Until then, Firebase deploys and rules tests should run from this
+folder.
+
 ## Current Baseline
 
 - App version: `2.1.0`

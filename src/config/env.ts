@@ -21,6 +21,8 @@ export interface ClientEnv {
   devLoginPassword: string;
   defaultOrgId: string;
   firebaseEmulatorHost: string;
+  firebaseFunctionsRegion: string;
+  firebaseProjectId: string;
   financeContactEmail: string;
   financeContactPhone: string;
   marketplaceRulesUrl: string;
@@ -121,6 +123,10 @@ export const env: ClientEnv = {
   defaultOrgId: process.env.EXPO_PUBLIC_DEFAULT_ORG_ID ?? "tiwani-org-v1",
   firebaseEmulatorHost:
     process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST ?? "127.0.0.1",
+  firebaseFunctionsRegion:
+    process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "us-central1",
+  firebaseProjectId:
+    process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "tiwani-backend",
   financeContactEmail: process.env.EXPO_PUBLIC_FINANCE_CONTACT_EMAIL ?? "",
   financeContactPhone: process.env.EXPO_PUBLIC_FINANCE_CONTACT_PHONE ?? "",
   marketplaceRulesUrl: process.env.EXPO_PUBLIC_MARKETPLACE_RULES_URL ?? "",

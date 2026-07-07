@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
@@ -8,6 +8,7 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { useMembers } from "../../hooks/useMembers";
 import {
   checkInAttendee,
   getEvent,
@@ -30,6 +31,18 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(true);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
   const admin = isAdmin(user);
+  const { members } = useMembers({
+    enabled: admin,
+    source: "directory",
+  });
+
+  const memberPhotoByUid = useMemo(() => {
+    const photos = new Map<string, string | null>();
+    members.forEach((member) => {
+      photos.set(member.uid, member.photoURL);
+    });
+    return photos;
+  }, [members]);
 
   useEffect(() => {
     let active = true;
@@ -174,7 +187,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
           <View style={styles.attendeeRow}>
             <Avatar
               initials={getInitials(item.fullName)}
-              photoURL={item.photoURL}
+              photoURL={memberPhotoByUid.get(item.uid) ?? item.photoURL}
               size={42}
             />
             <View style={styles.attendeeText}>

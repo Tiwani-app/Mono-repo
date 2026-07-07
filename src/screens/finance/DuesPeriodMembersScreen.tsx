@@ -10,7 +10,14 @@ import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
-import { LedgerPaidStatus } from "../../types/finance";
+import { LedgerEntry, LedgerPaidStatus } from "../../types/finance";
+import { formatDueOverdueLabel } from "../../utils/dateStatus";
+import {
+  ChargeDisplayStatus,
+  chargeStatusColor,
+  chargeStatusLabel,
+  getChargeDisplayStatus,
+} from "../../utils/financeChargeStatus";
 import { formatCurrency } from "../../utils/formatCurrency";
 import {
   getChargeAmountPaid,
@@ -26,26 +33,34 @@ type MemberDuesRow = {
   dueDate: Date | null;
   fullName: string;
   outstanding: number;
-  paidStatus: LedgerPaidStatus;
+  paidStatus: ChargeDisplayStatus;
   photoURL?: string | null;
   uid: string;
 };
-
-const statusColor = (status: LedgerPaidStatus) =>
-  status === "paid"
-    ? colors.status.success
-    : status === "partial"
-      ? colors.gold.default
-      : colors.status.error;
-
-const statusLabel = (status: LedgerPaidStatus) =>
-  status === "paid" ? "PAID" : status === "partial" ? "PARTIAL" : "UNPAID";
 
 const resolveStatus = (amount: number, amountPaid: number): LedgerPaidStatus => {
   if (amountPaid >= amount && amount > 0) {
     return "paid";
   }
   return amountPaid > 0 ? "partial" : "unpaid";
+};
+
+const rowStatus = ({
+  amount,
+  amountPaid,
+  dueDate,
+}: {
+  amount: number;
+  amountPaid: number;
+  dueDate: Date | null;
+}): ChargeDisplayStatus => {
+  const paidStatus = resolveStatus(amount, amountPaid);
+  return getChargeDisplayStatus({
+    dueDate,
+    paid: paidStatus === "paid",
+    paidStatus,
+    type: "dues",
+  } satisfies Pick<LedgerEntry, "dueDate" | "paid" | "paidStatus" | "type">);
 };
 
 const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
@@ -98,13 +113,18 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
         dueDate: existing?.dueDate ?? entry.dueDate,
         fullName: member?.fullName ?? entry.uid,
         outstanding,
-        paidStatus: resolveStatus(nextAmount, nextPaid),
+        paidStatus: rowStatus({
+          amount: nextAmount,
+          amountPaid: nextPaid,
+          dueDate: existing?.dueDate ?? entry.dueDate,
+        }),
         photoURL: member?.photoURL,
         uid: entry.uid,
       });
     });
 
-    const statusRank: Record<LedgerPaidStatus, number> = {
+    const statusRank: Record<ChargeDisplayStatus, number> = {
+      overdue: 0,
       unpaid: 0,
       partial: 1,
       paid: 2,
@@ -145,7 +165,9 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
 
   const paidCount = rows.filter((row) => row.paidStatus === "paid").length;
   const partialCount = rows.filter((row) => row.paidStatus === "partial").length;
-  const unpaidCount = rows.filter((row) => row.paidStatus === "unpaid").length;
+  const unpaidCount = rows.filter(
+    (row) => row.paidStatus === "unpaid" || row.paidStatus === "overdue",
+  ).length;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -163,6 +185,9 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
             <Text style={styles.periodName}>{period.name}</Text>
             <Text style={styles.periodMeta}>
               {formatCurrency(period.amount)} per member
+            </Text>
+            <Text style={styles.periodMeta}>
+              {formatDueOverdueLabel(period.dueDate)}
             </Text>
             <View style={styles.countRow}>
               <SummaryPill label="Paid" value={paidCount} color={colors.status.success} />
@@ -182,7 +207,7 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
           <TouchableOpacity
             activeOpacity={0.84}
             onPress={() => navigation.navigate("MyLedger", { memberId: item.uid })}
-            style={[styles.memberRow, { borderLeftColor: statusColor(item.paidStatus) }]}
+            style={[styles.memberRow, { borderLeftColor: chargeStatusColor(item.paidStatus) }]}
           >
             <Avatar
               initials={getInitials(item.fullName)}
@@ -201,8 +226,8 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
               )}
             </View>
             <Badge
-              label={statusLabel(item.paidStatus)}
-              color={statusColor(item.paidStatus)}
+              label={chargeStatusLabel(item.paidStatus)}
+              color={chargeStatusColor(item.paidStatus)}
             />
           </TouchableOpacity>
         )}

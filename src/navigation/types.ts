@@ -25,6 +25,7 @@ export type VotingStackParamList = {
 export type FinanceStackParamList = {
   FinanceAdmin: undefined;
   MyLedger: { memberId?: string } | undefined;
+  ChargeLedger: undefined;
   DuesPeriodForm: { duesPeriodId?: string } | undefined;
   DuesPeriodMembers: { duesPeriodId: string };
   RecordPayment: { memberId?: string } | undefined;
@@ -38,6 +39,7 @@ export type DashboardStackParamList = {
   Settings: undefined;
   AuditLogs: undefined;
   AccountDeletion: undefined;
+  AccountDeletionRequests: undefined;
   MembersList: undefined;
   MemberProfile: { memberId: string };
   MemberForm: { memberId?: string } | undefined;

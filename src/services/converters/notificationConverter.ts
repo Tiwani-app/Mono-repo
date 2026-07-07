@@ -17,6 +17,7 @@ const notificationTypes: NotificationType[] = [
   "vote",
   "general",
   "marketplace",
+  "library",
 ];
 const targetRoutes: NotificationTarget["route"][] = [
   "event_detail",

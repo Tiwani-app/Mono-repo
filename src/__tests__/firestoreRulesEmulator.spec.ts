@@ -32,6 +32,7 @@ const userRecord = (
   weddingAnniversary: null,
   children: [],
   memberSince: "2026-01-01",
+  joinedAt: new Date("2026-01-01T00:00:00.000Z"),
   notificationPreferences: { events: true, finance: true, voting: true },
   currencySymbol: "$",
   timezone: "Africa/Lagos",
@@ -160,6 +161,26 @@ const seed = async () => {
       targetPath: "finance/other-charge",
       details: { amount: 100 },
       createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+    await db.doc("announcements/old-announcement").set({
+      notifId: "old-announcement",
+      orgId: "org-1",
+      title: "Before membership",
+      body: "This should not be visible to future members.",
+      type: "general",
+      targetAudience: "all",
+      readBy: [],
+      sentAt: new Date("2025-12-31T23:59:00.000Z"),
+    });
+    await db.doc("announcements/current-announcement").set({
+      notifId: "current-announcement",
+      orgId: "org-1",
+      title: "After membership",
+      body: "This is visible to existing members.",
+      type: "general",
+      targetAudience: "all",
+      readBy: [],
+      sentAt: new Date("2026-01-01T00:01:00.000Z"),
     });
     await db.doc("polls/poll-1").set({
       pollId: "poll-1",
@@ -295,6 +316,32 @@ describe("Firestore security rules", () => {
     );
   });
 
+  it("hides announcements sent before the member joined", async () => {
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+
+    await assertFails(memberDb.doc("announcements/old-announcement").get());
+    await assertSucceeds(
+      memberDb.doc("announcements/current-announcement").get(),
+    );
+    await assertSucceeds(
+      memberDb
+        .collection("announcements")
+        .where("orgId", "==", "org-1")
+        .where("targetAudience", "==", "all")
+        .where("sentAt", ">=", new Date("2026-01-01T00:00:00.000Z"))
+        .orderBy("sentAt", "desc")
+        .get(),
+    );
+    await assertFails(
+      memberDb
+        .collection("announcements")
+        .where("orgId", "==", "org-1")
+        .where("targetAudience", "==", "all")
+        .orderBy("sentAt", "desc")
+        .get(),
+    );
+  });
+
   it("requires member list queries to match published event visibility", async () => {
     const memberDb = testEnv.authenticatedContext("member-1").firestore();
     const adminDb = testEnv.authenticatedContext("admin-1").firestore();
@@ -371,6 +418,8 @@ describe("Firestore security rules", () => {
 
   it("allows members to request their own account deletion only", async () => {
     const memberDb = testEnv.authenticatedContext("member-1").firestore();
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+    const otherMemberDb = testEnv.authenticatedContext("member-2").firestore();
 
     await assertSucceeds(
       memberDb.doc("account_deletion_requests/member-1").set({
@@ -388,6 +437,15 @@ describe("Firestore security rules", () => {
       }),
     );
 
+    await assertSucceeds(
+      adminDb
+        .collection("account_deletion_requests")
+        .where("orgId", "==", "org-1")
+        .get(),
+    );
+    await assertFails(
+      otherMemberDb.doc("account_deletion_requests/member-1").get(),
+    );
     await assertFails(
       memberDb.doc("account_deletion_requests/member-2").set({
         requestId: "member-2",

@@ -14,27 +14,81 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import MemberCard from "../../components/members/MemberCard";
+import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing } from "../../theme";
-import { MemberStatus } from "../../types/user";
+import { MemberStatus, User } from "../../types/user";
+import { isPastCalendarDay } from "../../utils/dateStatus";
+import { getFinanceStanding } from "../../utils/financeStanding";
+import { getChargeOutstanding } from "../../utils/financeTotals";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
-type StatusFilter = "all" | MemberStatus;
+type MemberListFilter =
+  | "all"
+  | MemberStatus
+  | "paid"
+  | "owing"
+  | "overdue";
 
-const statusFilters: { label: string; value: StatusFilter }[] = [
+const memberFilters: { label: string; value: MemberListFilter }[] = [
   { label: "All", value: "all" },
   { label: "Active", value: "active" },
   { label: "Pending", value: "pending" },
   { label: "Inactive", value: "inactive" },
   { label: "Suspended", value: "suspended" },
+  { label: "Paid", value: "paid" },
+  { label: "Owing", value: "owing" },
+  { label: "Overdue", value: "overdue" },
 ];
+
+const statusFilterValues: MemberStatus[] = [
+  "active",
+  "pending",
+  "inactive",
+  "suspended",
+];
+
+type MemberFinanceSummary = {
+  outstanding: number;
+  overdue: number;
+};
+
+const matchesMemberFilter = (
+  member: User,
+  filter: MemberListFilter,
+  financeSummary?: MemberFinanceSummary,
+) => {
+  if (filter === "all") {
+    return true;
+  }
+  if (statusFilterValues.includes(filter as MemberStatus)) {
+    return member.status === filter;
+  }
+  const standing = getFinanceStanding(
+    member.financialStatus,
+      member.outstandingBalance,
+  );
+  const outstanding = financeSummary?.outstanding ?? member.outstandingBalance;
+  const overdue = financeSummary?.overdue ?? 0;
+  if (filter === "paid") {
+    return outstanding <= 0;
+  }
+  if (filter === "owing") {
+    return outstanding > overdue;
+  }
+  return overdue > 0 || standing === "overdue";
+};
 
 const MembersListScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const canBrowseMembers = Boolean(user);
+  const {
+    ledgerEntries,
+    loading: financeLoading,
+  } = useFinance(undefined, admin);
   const {
     error,
     lastSyncedAt,
@@ -47,7 +101,31 @@ const MembersListScreen = ({ navigation }: any) => {
     enabled: canBrowseMembers,
     source: admin ? "users" : "directory",
   });
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
+  const [memberFilter, setMemberFilter] =
+    React.useState<MemberListFilter>("all");
+
+  const financeSummaryByMember = useMemo(() => {
+    const summary = new Map<string, MemberFinanceSummary>();
+    ledgerEntries.forEach((entry) => {
+      if (entry.type === "payment") {
+        return;
+      }
+      const outstanding = getChargeOutstanding(entry);
+      if (outstanding <= 0) {
+        return;
+      }
+      const current = summary.get(entry.uid) ?? { outstanding: 0, overdue: 0 };
+      summary.set(entry.uid, {
+        outstanding: current.outstanding + outstanding,
+        overdue:
+          current.overdue +
+          (entry.dueDate && isPastCalendarDay(entry.dueDate)
+            ? outstanding
+            : 0),
+      });
+    });
+    return summary;
+  }, [ledgerEntries]);
 
   const filteredMembers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -55,17 +133,22 @@ const MembersListScreen = ({ navigation }: any) => {
       if (!admin && member.status !== "active") {
         return false;
       }
-      const matchesStatus =
-        !admin || statusFilter === "all" || member.status === statusFilter;
+      const matchesFilter =
+        !admin ||
+        matchesMemberFilter(
+          member,
+          memberFilter,
+          financeSummaryByMember.get(member.uid),
+        );
       const searchableText = [member.fullName, member.email, member.phone]
         .join(" ")
         .toLowerCase();
       const matchesSearch = !query || searchableText.includes(query);
-      return matchesStatus && matchesSearch;
+      return matchesFilter && matchesSearch;
     });
-  }, [admin, members, searchQuery, statusFilter]);
+  }, [admin, financeSummaryByMember, memberFilter, members, searchQuery]);
 
-  if (loading) {
+  if (loading || (admin && financeLoading)) {
     return <LoadingSpinner />;
   }
 
@@ -115,8 +198,8 @@ const MembersListScreen = ({ navigation }: any) => {
             />
             {admin && (
               <View style={styles.filterRow}>
-                {statusFilters.map((filter) => {
-                  const selected = statusFilter === filter.value;
+                {memberFilters.map((filter) => {
+                  const selected = memberFilter === filter.value;
                   return (
                     <TouchableOpacity
                       key={filter.value}
@@ -124,7 +207,7 @@ const MembersListScreen = ({ navigation }: any) => {
                         styles.filterChip,
                         selected && styles.selectedFilterChip,
                       ]}
-                      onPress={() => setStatusFilter(filter.value)}
+                      onPress={() => setMemberFilter(filter.value)}
                       activeOpacity={0.8}
                     >
                       <Text
@@ -144,6 +227,12 @@ const MembersListScreen = ({ navigation }: any) => {
         }
         renderItem={({ item }) => (
           <MemberCard
+            financeSummary={
+              admin ? financeSummaryByMember.get(item.uid) ?? {
+                outstanding: 0,
+                overdue: 0,
+              } : undefined
+            }
             member={item}
             showFinance={admin}
             onPress={() =>
@@ -156,7 +245,7 @@ const MembersListScreen = ({ navigation }: any) => {
             icon={searchQuery ? "🔍" : "👥"}
             title={searchQuery ? "No results" : "No members found"}
             message={
-              searchQuery || statusFilter !== "all"
+              searchQuery || memberFilter !== "all"
                 ? "No members match the current search or filter."
                 : "Active members will appear here once they are added."
             }

@@ -1,5 +1,6 @@
 export {
   completeAccountDeletion,
+  declineAccountDeletion,
   requestAccountDeletion,
 } from "./accountDeletion";
 export {
@@ -28,6 +29,8 @@ export {
 } from "./notifications";
 export {
   notifyEventCreated,
+  notifyLibraryDocumentCreated,
+  notifyLibraryDocumentUpdated,
   sendScheduledEventReminders,
   notifyEventUpdated,
   notifyMarketplaceCreated,

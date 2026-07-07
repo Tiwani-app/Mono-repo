@@ -1,4 +1,4 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { DocumentReference, FieldValue } from "firebase-admin/firestore";
 import { BatchResponse, SendResponse } from "firebase-admin/messaging";
 import {
   FirestoreEvent,
@@ -14,7 +14,8 @@ type NotificationType =
   | "finance"
   | "vote"
   | "general"
-  | "marketplace";
+  | "marketplace"
+  | "library";
 
 type NotificationTarget =
   | { route: "event_detail"; eventId: string }
@@ -113,6 +114,58 @@ const recordChanged = (
   afterRecord: Record<string, unknown>,
   fields: readonly string[],
 ) => fields.some((field) => meaningfulFieldChanged(beforeRecord[field], afterRecord[field]));
+
+const reminderStateFields = [
+  "dayReminderSentAt",
+  "hourReminderSentAt",
+] as const;
+
+const reminderLockId = (
+  eventId: string,
+  reminderType: "day" | "hour",
+  startTime: Date,
+) => `${eventId}_${reminderType}_${startTime.getTime()}`;
+
+const legacyReminderLockId = (
+  eventId: string,
+  reminderType: "day" | "hour",
+) => `${eventId}_${reminderType}`;
+
+const resetEventReminderStateAfterStartTimeChange = async (
+  eventId: string,
+  eventRef: DocumentReference,
+  beforeRecord: Record<string, unknown>,
+  afterRecord: Record<string, unknown>,
+) => {
+  if (!meaningfulFieldChanged(beforeRecord.startTime, afterRecord.startTime)) {
+    return;
+  }
+
+  await eventRef.update(
+    Object.fromEntries(
+      reminderStateFields.map((field) => [field, FieldValue.delete()]),
+    ),
+  );
+
+  const beforeStartTime = toDate(beforeRecord.startTime);
+  const afterStartTime = toDate(afterRecord.startTime);
+  const locks = new Set<string>();
+  (["day", "hour"] as const).forEach((reminderType) => {
+    locks.add(legacyReminderLockId(eventId, reminderType));
+    if (beforeStartTime) {
+      locks.add(reminderLockId(eventId, reminderType, beforeStartTime));
+    }
+    if (afterStartTime) {
+      locks.add(reminderLockId(eventId, reminderType, afterStartTime));
+    }
+  });
+
+  await Promise.all(
+    [...locks].map((lockId) =>
+      db.collection("event_reminder_jobs").doc(lockId).delete().catch(() => undefined),
+    ),
+  );
+};
 
 const serializeTarget = (target: NotificationTarget | null | undefined) => {
   if (!target) {
@@ -382,7 +435,7 @@ const sendScheduledEventRemindersFor = async (
     }
     const lockRef = db
       .collection("event_reminder_jobs")
-      .doc(`${doc.id}_${reminderType}`);
+      .doc(reminderLockId(doc.id, reminderType, startTime));
     try {
       await lockRef.create({
         createdAt: FieldValue.serverTimestamp(),
@@ -528,6 +581,66 @@ const notifyMarketplaceChange = async (
   });
 };
 
+const libraryDocumentIsMemberVisible = (data: Record<string, unknown>) =>
+  stringValue(data.status) === "published" &&
+  stringValue(data.visibility) === "all_members";
+
+const libraryDocumentBody = (
+  data: Record<string, unknown>,
+  action: "created" | "updated",
+) => {
+  const category = stringValue(data.category)?.replace(/_/g, " ");
+  const type = stringValue(data.type)?.replace(/_/g, " ");
+  const documentDate = formatDateOnly(data.documentDate);
+  const segments = [
+    action === "created"
+      ? "A new library document is available."
+      : "A library document was updated.",
+    category ? `Category: ${category}.` : null,
+    type ? `Type: ${type}.` : null,
+    documentDate ? `Date: ${documentDate}.` : null,
+  ].filter(Boolean);
+  return segments.join(" ");
+};
+
+const notifyLibraryDocumentChange = async (
+  event: FirestoreEvent<QueryDocumentSnapshot | undefined, { documentId: string }>,
+  action: "created" | "updated",
+) => {
+  const snapshot = event.data;
+  if (!snapshot?.exists) {
+    return;
+  }
+  const data = snapshot.data();
+  const title = stringValue(data.title);
+  const orgId = stringValue(data.orgId);
+  if (!title || !orgId || !libraryDocumentIsMemberVisible(data)) {
+    return;
+  }
+  const documentId = event.params.documentId;
+  await publishOrgAnnouncement({
+    audit: {
+      action: `library.notification_${action}`,
+      actorUid: stringValue(data.uploadedBy),
+      details: {
+        documentId,
+        status: stringValue(data.status),
+        visibility: stringValue(data.visibility),
+      },
+    },
+    body: libraryDocumentBody(data, action),
+    orgId,
+    relatedDocId: documentId,
+    sentBy: stringValue(data.uploadedBy),
+    target: { route: "library" },
+    title:
+      action === "created"
+        ? `New library document: ${title}`
+        : `Library document updated: ${title}`,
+    type: "library",
+  });
+};
+
 export const notifyEventCreated = onDocumentCreated(
   "events/{eventId}",
   async (event) => notifyEventChange(event, "created"),
@@ -538,6 +651,14 @@ export const notifyEventUpdated = onDocumentUpdated(
   async (event) => {
     const before = asRecord(event.data?.before.data());
     const after = asRecord(event.data?.after.data());
+    if (event.data?.after.ref) {
+      await resetEventReminderStateAfterStartTimeChange(
+        event.params.eventId,
+        event.data.after.ref,
+        before,
+        after,
+      );
+    }
     if (
       !recordChanged(before, after, [
         "title",
@@ -591,6 +712,42 @@ export const notifyMarketplaceUpdated = onDocumentUpdated(
         ...event,
         data: event.data?.after,
       } as FirestoreEvent<QueryDocumentSnapshot | undefined, { listingId: string }>,
+      "updated",
+    );
+  },
+);
+
+export const notifyLibraryDocumentCreated = onDocumentCreated(
+  "library_documents/{documentId}",
+  async (event) => notifyLibraryDocumentChange(event, "created"),
+);
+
+export const notifyLibraryDocumentUpdated = onDocumentUpdated(
+  "library_documents/{documentId}",
+  async (event) => {
+    const before = asRecord(event.data?.before.data());
+    const after = asRecord(event.data?.after.data());
+    if (
+      !recordChanged(before, after, [
+        "title",
+        "description",
+        "category",
+        "type",
+        "documentDate",
+        "status",
+        "visibility",
+        "fileName",
+        "fileURL",
+        "storagePath",
+      ])
+    ) {
+      return;
+    }
+    await notifyLibraryDocumentChange(
+      {
+        ...event,
+        data: event.data?.after,
+      } as FirestoreEvent<QueryDocumentSnapshot | undefined, { documentId: string }>,
       "updated",
     );
   },

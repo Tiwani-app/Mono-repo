@@ -116,7 +116,8 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
 
   const date = document.documentDate ?? document.uploadedAt;
   const previewSupported =
-    document.fileType === "pdf" && Boolean(document.fileURL);
+    document.fileType === "pdf" && Boolean(document.fileURL || document.storagePath);
+  const hasFile = Boolean(document.fileURL || document.storagePath);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -160,7 +161,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
           }
           onPress={handleOpen}
           loading={opening}
-          disabled={!document.fileURL}
+          disabled={!hasFile}
           fullWidth
         />
         <OutlineButton

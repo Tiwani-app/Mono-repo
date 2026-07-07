@@ -61,7 +61,12 @@ const uploadLibraryFile = async (
   const storagePath = `organisations/${orgId}/library/${documentId}/${sanitizeStorageFileName(file.name)}`;
   const ref = firebaseStorage().ref(storagePath);
   await ref.putFile(file.uri, { contentType: "application/pdf" });
-  const fileURL = await ref.getDownloadURL();
+  let fileURL: string | null = null;
+  try {
+    fileURL = await ref.getDownloadURL();
+  } catch (error) {
+    console.warn("Library file uploaded, but download URL was unavailable.", error);
+  }
   return {
     fileName: file.name.trim(),
     fileURL,

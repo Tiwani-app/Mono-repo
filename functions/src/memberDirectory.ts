@@ -32,6 +32,18 @@ const childrenValue = (value: unknown) =>
         .filter((child): child is { dateOfBirth: string; name: string } => Boolean(child))
     : [];
 
+const isDeletedProfile = (uid: string, profile: Record<string, unknown>) => {
+  const fullName = stringValue(profile.fullName).toLowerCase();
+  const email = stringValue(profile.email).toLowerCase();
+  const deletionRequestId = stringValue(profile.deletionRequestId);
+  return (
+    Boolean(profile.deletedAt) ||
+    Boolean(deletionRequestId) ||
+    fullName === "deleted member" ||
+    email === `deleted-${uid.toLowerCase()}@tiwani.local`
+  );
+};
+
 const directoryProfileFromUser = (
   uid: string,
   profile: Record<string, unknown>,
@@ -64,6 +76,10 @@ const syncDirectorySnapshot = async (
     return;
   }
   const profile = snapshot.data() ?? {};
+  if (isDeletedProfile(uid, profile)) {
+    await directoryRef.delete();
+    return;
+  }
   const directoryProfile = directoryProfileFromUser(uid, profile);
   if (!directoryProfile.orgId) {
     throw new HttpsError(
@@ -94,9 +110,20 @@ export const backfillMemberDirectory = onCall(async (request) => {
   let written = 0;
 
   for (const userDoc of usersSnapshot.docs) {
+    const profile = userDoc.data();
+    if (isDeletedProfile(userDoc.id, profile)) {
+      batch.delete(db.collection("member_directory").doc(userDoc.id));
+      pendingWrites += 1;
+      if (pendingWrites === 450) {
+        await batch.commit();
+        batch = db.batch();
+        pendingWrites = 0;
+      }
+      continue;
+    }
     batch.set(
       db.collection("member_directory").doc(userDoc.id),
-      directoryProfileFromUser(userDoc.id, userDoc.data()),
+      directoryProfileFromUser(userDoc.id, profile),
       { merge: true },
     );
     pendingWrites += 1;

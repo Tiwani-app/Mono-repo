@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { colors, spacing, typography } from '../../theme';
 import { Election, ElectionVoterReceipt } from '../../types/voting';
+import { formatVotingExpiryLabel } from '../../utils/dateStatus';
 import { formatDisplayDate } from '../../utils/formatDate';
 import { safeGoBack } from '../../utils/navigation';
 import { canViewElectionResults } from '../../utils/roleGuard';
@@ -137,7 +138,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
             </Text>
             {election.expiresAt && (
               <Text style={[styles.meta, expired && styles.expiryMeta]}>
-                Voting expires {formatDisplayDate(election.expiresAt)}
+                {formatVotingExpiryLabel(election.expiresAt)}
               </Text>
             )}
           </View>

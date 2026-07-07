@@ -12,7 +12,17 @@ interface SetupEmailInput {
   setupLink: string | null;
 }
 
+type FetchLike = typeof fetch;
+
 const boolEnv = (value: string | undefined): boolean => value === "true";
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const emailConfig = () => ({
   appName: process.env.TIWANI_APP_DISPLAY_NAME || "Tiwani",
@@ -29,6 +39,58 @@ const emailConfig = () => ({
   user: process.env.TIWANI_SMTP_USER || "",
 });
 
+const apiKeyFromSetupLink = (setupLink: string): string | null => {
+  try {
+    return new URL(setupLink).searchParams.get("apiKey");
+  } catch {
+    return null;
+  }
+};
+
+const firebaseAuthSetupEmail = async (
+  email: string,
+  setupLink: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<SetupEmailResult | null> => {
+  const apiKey = apiKeyFromSetupLink(setupLink);
+  if (!apiKey) {
+    return null;
+  }
+
+  const response = await fetchImpl(
+    `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(apiKey)}`,
+    {
+      body: JSON.stringify({
+        email,
+        requestType: "PASSWORD_RESET",
+      }),
+      headers: {"Content-Type": "application/json"},
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    let message = "Firebase Auth setup email was not sent.";
+    try {
+      const payload = (await response.json()) as {
+        error?: {message?: string};
+      };
+      if (payload.error?.message) {
+        message = payload.error.message;
+      }
+    } catch {
+      // Keep the generic message if Firebase returns a non-JSON response.
+    }
+    return {
+      setupEmailError: message,
+      setupEmailSent: false,
+      setupLink,
+    };
+  }
+
+  return {setupEmailError: null, setupEmailSent: true, setupLink};
+};
+
 export const sendPasswordSetupEmail = async ({
   email,
   fullName,
@@ -44,19 +106,23 @@ export const sendPasswordSetupEmail = async ({
 
   const config = emailConfig();
   if (!config.enabled) {
-    return {
-      setupEmailError: "Backend email delivery is not enabled.",
-      setupEmailSent: false,
-      setupLink,
-    };
+    return (
+      (await firebaseAuthSetupEmail(email, setupLink)) ?? {
+        setupEmailError: "Backend email delivery is not enabled.",
+        setupEmailSent: false,
+        setupLink,
+      }
+    );
   }
 
   if (!config.host || !config.user || !config.password) {
-    return {
-      setupEmailError: "Backend email delivery is missing SMTP configuration.",
-      setupEmailSent: false,
-      setupLink,
-    };
+    return (
+      (await firebaseAuthSetupEmail(email, setupLink)) ?? {
+        setupEmailError: "Backend email delivery is missing SMTP configuration.",
+        setupEmailSent: false,
+        setupLink,
+      }
+    );
   }
 
   try {
@@ -66,17 +132,22 @@ export const sendPasswordSetupEmail = async ({
       port: config.port,
       secure: config.secure,
     });
+    const safeAppName = escapeHtml(config.appName);
+    const safeFullName = escapeHtml(fullName || "there");
+    const safeSetupLink = escapeHtml(setupLink);
+    const safeSupportEmail = escapeHtml(config.supportEmail);
     await transporter.sendMail({
       from: config.from,
+      replyTo: config.supportEmail || config.from,
       html: `
-        <p>Hello ${fullName},</p>
-        <p>Your ${config.appName} member account has been created.</p>
-        <p><a href="${setupLink}">Set your password</a> to finish account setup.</p>
+        <p>Hello ${safeFullName},</p>
+        <p>Your ${safeAppName} member account has been created.</p>
+        <p><a href="${safeSetupLink}">Set your password</a> to finish account setup.</p>
         <p>If the button does not work, copy this link into your browser:</p>
-        <p>${setupLink}</p>
+        <p>${safeSetupLink}</p>
         ${
           config.supportEmail
-            ? `<p>Need help? Contact ${config.supportEmail}.</p>`
+            ? `<p>Need help? Contact ${safeSupportEmail}.</p>`
             : ""
         }
       `,
@@ -95,11 +166,13 @@ export const sendPasswordSetupEmail = async ({
     });
     return { setupEmailError: null, setupEmailSent: true, setupLink };
   } catch (error) {
-    return {
-      setupEmailError:
-        error instanceof Error ? error.message : "Setup email was not sent.",
-      setupEmailSent: false,
-      setupLink,
-    };
+    return (
+      (await firebaseAuthSetupEmail(email, setupLink)) ?? {
+        setupEmailError:
+          error instanceof Error ? error.message : "Setup email was not sent.",
+        setupEmailSent: false,
+        setupLink,
+      }
+    );
   }
 };

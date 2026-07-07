@@ -6,6 +6,7 @@ import {
 import { User } from "../types/user";
 import { userFromRecord } from "./converters/userConverter";
 import { firestore, getUserRecord } from "./firebaseHelpers";
+import { clearSessionActivity, markSessionActive } from "./sessionService";
 
 const authError = (code: string) => ({ code });
 
@@ -15,17 +16,23 @@ const errorCode = (error: unknown): string =>
     : "";
 
 const safeSignOut = async (): Promise<void> => {
+  let uid: string | null = null;
   try {
     const auth = firebaseAuth();
     if (!auth.currentUser) {
       await setCrashlyticsUserContext(null);
       return;
     }
+    uid = auth.currentUser.uid;
     await auth.signOut();
     await setCrashlyticsUserContext(null);
   } catch (error) {
     if (errorCode(error) !== "auth/no-current-user") {
       throw error;
+    }
+  } finally {
+    if (uid) {
+      await clearSessionActivity(uid);
     }
   }
 };
@@ -81,6 +88,7 @@ export const signIn = async (
   try {
     const profile = await getProfile(credential.user.uid);
     assertActiveAccount(profile);
+    await markSessionActive(profile.uid);
     await setCrashlyticsUserContext(profile.uid, profile.role);
     return profile;
   } catch (error) {

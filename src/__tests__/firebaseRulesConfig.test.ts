@@ -18,6 +18,12 @@ describe("Firebase local rules configuration", () => {
     expect(config.emulators.ui.enabled).toBe(true);
   });
 
+  it("keeps React Native Firebase native-only config out of deploy config", () => {
+    const config = JSON.parse(readRootFile("firebase.json"));
+
+    expect(config).not.toHaveProperty("react-native");
+  });
+
   it("keeps project aliases separated by environment", () => {
     const rc = JSON.parse(readRootFile(".firebaserc"));
 
@@ -89,9 +95,38 @@ describe("Firebase local rules configuration", () => {
     const rules = readRootFile("storage.rules");
 
     expect(rules).toContain('request.resource.contentType == "application/pdf"');
+    expect(rules).toContain('fileName.matches(".*\\\\.[pP][dD][fF]$")');
     expect(rules).toContain("request.resource.size <= 20 * 1024 * 1024");
     expect(rules).toContain(
       "match /organisations/{orgId}/library/{documentId}/{fileName}",
     );
+    expect(rules).toContain(
+      "allow write: if isAdmin() && sameOrg(orgId) && pdfUpload(fileName);",
+    );
+  });
+
+  it("allows admins to delete library document records", () => {
+    const rules = readRootFile("firestore.rules");
+
+    expect(rules).toMatch(
+      /match \/library_documents\/\{documentId\}[\s\S]*?allow delete: if isAdmin\(\) && sameOrgExisting\(\);/,
+    );
+  });
+
+  it("limits profile photo access to active members in the same organisation", () => {
+    const rules = readRootFile("storage.rules");
+
+    expect(rules).toContain("allow read: if sameOrg(orgId);");
+    expect(rules).toContain("request.auth.uid == userId");
+    expect(rules).toContain("sameOrg(orgId) &&");
+  });
+
+  it("limits marketplace listing images to active members in the same organisation", () => {
+    const rules = readRootFile("storage.rules");
+
+    expect(rules).toContain(
+      "match /organisations/{orgId}/marketplace/{listingId}/{fileName}",
+    );
+    expect(rules).toContain("allow write: if sameOrg(orgId) && imageUpload(fileName);");
   });
 });

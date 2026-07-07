@@ -7,13 +7,17 @@ import {colors, spacing, typography} from '../../theme';
 import {User} from '../../types/user';
 import {
   getFinanceStanding,
-  getFinanceStandingBadgeLabel,
   getFinanceStandingColor,
+  FinanceStanding,
 } from '../../utils/financeStanding';
 import {formatCurrency} from '../../utils/formatCurrency';
 import {getInitials} from '../../utils/getInitials';
 
 interface Props {
+  financeSummary?: {
+    outstanding: number;
+    overdue: number;
+  };
   member: User;
   onPress: () => void;
   showFinance?: boolean;
@@ -26,11 +30,30 @@ const memberStatusColors = {
   suspended: colors.status.error,
 };
 
-const MemberCard = ({member, onPress, showFinance = true}: Props) => {
+const memberFinanceLabel = (
+  standing: FinanceStanding,
+  outstandingBalance: number,
+) => {
+  if (standing === 'clear') {
+    return 'PAID';
+  }
+  const balance = formatCurrency(outstandingBalance);
+  return standing === 'overdue' ? `OVERDUE ${balance}` : `OWING ${balance}`;
+};
+
+const MemberCard = ({
+  financeSummary,
+  member,
+  onPress,
+  showFinance = true,
+}: Props) => {
   const standing = getFinanceStanding(
     member.financialStatus,
     member.outstandingBalance,
   );
+  const overdue = financeSummary?.overdue ?? 0;
+  const outstanding = financeSummary?.outstanding ?? member.outstandingBalance;
+  const owing = Math.max(0, outstanding - overdue);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -45,13 +68,24 @@ const MemberCard = ({member, onPress, showFinance = true}: Props) => {
         <Text style={styles.role}>{member.role.replace('_', ' ')}</Text>
         <View style={styles.badgeRow}>
           <Badge label={member.status.toUpperCase()} color={memberStatusColors[member.status]} />
-          {showFinance && (
+          {showFinance && financeSummary && outstanding <= 0 && (
+            <Badge label="PAID" color={colors.status.success} />
+          )}
+          {showFinance && financeSummary && overdue > 0 && (
             <Badge
-              label={
-                standing === 'clear'
-                  ? getFinanceStandingBadgeLabel(standing)
-                  : `OWES ${formatCurrency(member.outstandingBalance)}`
-              }
+              label={`OVERDUE ${formatCurrency(overdue)}`}
+              color={colors.status.error}
+            />
+          )}
+          {showFinance && financeSummary && owing > 0 && (
+            <Badge
+              label={`OWING ${formatCurrency(owing)}`}
+              color={colors.gold.default}
+            />
+          )}
+          {showFinance && !financeSummary && (
+            <Badge
+              label={memberFinanceLabel(standing, member.outstandingBalance)}
               color={getFinanceStandingColor(standing)}
             />
           )}

@@ -1,6 +1,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AccountDeletionRequestScreen from "../screens/account/AccountDeletionRequestScreen";
+import AccountDeletionRequestsScreen from "../screens/account/AccountDeletionRequestsScreen";
 import AnnouncementFormScreen from "../screens/notifications/AnnouncementFormScreen";
 import AuditLogsScreen from "../screens/AuditLogsScreen";
 import DashboardScreen from "../screens/DashboardScreen";
@@ -29,6 +30,10 @@ const DashboardStack = () => (
     <Stack.Screen
       name="AccountDeletion"
       component={AccountDeletionRequestScreen}
+    />
+    <Stack.Screen
+      name="AccountDeletionRequests"
+      component={AccountDeletionRequestsScreen}
     />
     <Stack.Screen name="MembersList" component={MembersListScreen} />
     <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />

@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "TIWANI_APP_NAME": "Tiwani Dev",
         "EXPO_PUBLIC_APP_ENV": "development",
         "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "false"
       }
@@ -72,6 +73,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6785173850"
+      }
+    }
   }
 }

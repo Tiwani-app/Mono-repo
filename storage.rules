@@ -22,33 +22,45 @@ service firebase.storage {
       return isActive() && userDoc().orgId == orgId;
     }
 
-    function pdfUpload() {
+    function pdfUpload(fileName) {
       return request.resource != null &&
-        request.resource.contentType == "application/pdf" &&
+        (
+          request.resource.contentType == "application/pdf" ||
+          request.resource.contentType == "application/octet-stream" ||
+          fileName.matches(".*\\.[pP][dD][fF]$")
+        ) &&
         request.resource.size <= 20 * 1024 * 1024;
     }
 
-    function imageUpload() {
+    function imageUpload(fileName) {
       return request.resource != null &&
-        request.resource.contentType.matches("image/.*") &&
+        (
+          request.resource.contentType.matches("image/.*") ||
+          fileName.matches(".*\\.[jJ][pP][gG]$") ||
+          fileName.matches(".*\\.[jJ][pP][eE][gG]$") ||
+          fileName.matches(".*\\.[pP][nN][gG]$") ||
+          fileName.matches(".*\\.[wW][eE][bB][pP]$") ||
+          fileName.matches(".*\\.[hH][eE][iI][cC]$")
+        ) &&
         request.resource.size <= 5 * 1024 * 1024;
     }
 
     match /organisations/{orgId}/library/{documentId}/{fileName} {
       allow read: if sameOrg(orgId);
-      allow write: if isAdmin() && sameOrg(orgId) && pdfUpload();
+      allow write: if isAdmin() && sameOrg(orgId) && pdfUpload(fileName);
     }
 
     match /organisations/{orgId}/profiles/{userId}/{fileName} {
       allow read: if sameOrg(orgId);
-      allow write: if sameOrg(orgId) &&
-        (isAdmin() || request.auth.uid == userId) &&
-        imageUpload();
+      allow write: if signedIn() &&
+        request.auth.uid == userId &&
+        sameOrg(orgId) &&
+        imageUpload(fileName);
     }
 
     match /organisations/{orgId}/marketplace/{listingId}/{fileName} {
       allow read: if sameOrg(orgId);
-      allow write: if sameOrg(orgId) && imageUpload();
+      allow write: if sameOrg(orgId) && imageUpload(fileName);
     }
 
     match /{path=**} {

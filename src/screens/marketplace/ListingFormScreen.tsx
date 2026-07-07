@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../../components/common/AttachmentField";
 import EmptyState from "../../components/common/EmptyState";
@@ -20,6 +21,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import {
   createListing,
   getListing,
+  ListingImageUploadFile,
   updateListing,
 } from "../../services/marketplaceService";
 import { useAuthStore } from "../../store/authStore";
@@ -56,10 +58,12 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   const [status, setStatus] = useState<ListingStatus>("available");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(listingId));
+  const [selectedImage, setSelectedImage] =
+    useState<ListingImageUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const { control, handleSubmit, reset, formState, watch } =
+  const { control, handleSubmit, reset, setValue, formState, watch } =
     useForm<FormValues>({
       defaultValues: {
         title: "",
@@ -97,6 +101,41 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       .finally(() => setLoading(false));
   }, [admin, listingId, reset]);
 
+  const handlePickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Photo access needed",
+        "Allow photo library access to choose a listing image.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      mediaTypes: ["images"],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setSelectedImage({
+      uri: asset.uri,
+      fileName: asset.fileName ?? null,
+      fileSize: asset.fileSize ?? null,
+      mimeType: asset.mimeType ?? null,
+    });
+    setValue("imageURL", "", {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
@@ -115,7 +154,8 @@ const ListingFormScreen = ({ navigation, route }: any) => {
         description: values.description.trim(),
         condition,
         status,
-        imageURL: values.imageURL.trim() || null,
+        imageURL: selectedImage ? null : values.imageURL.trim() || null,
+        uploadImage: selectedImage,
         contactInstruction: values.contactInstruction.trim(),
       };
       if (listingId) {
@@ -253,17 +293,19 @@ const ListingFormScreen = ({ navigation, route }: any) => {
                 label="LISTING IMAGE"
                 mode="image"
                 fileName={titleValue.trim() || "Marketplace listing"}
-                value={value}
-                onChangeText={onChange}
+                value={selectedImage?.uri ?? value}
+                onChangeText={(nextValue) => {
+                  setSelectedImage(null);
+                  onChange(nextValue);
+                }}
                 error={formState.errors.imageURL?.message}
                 placeholder="https://example.com/listing-image.jpg"
-                helperText="Attach a listing photo or paste an image URL."
-                onPick={() =>
-                  Alert.alert(
-                    "Image picker",
-                    "Marketplace image selection will use the storage-backed picker when backend storage is connected.",
-                  )
+                helperText={
+                  selectedImage
+                    ? "Image selected. It will upload to Firebase Storage when you save."
+                    : "Attach a listing photo or paste an image URL."
                 }
+                onPick={handlePickImage}
               />
             )}
           />

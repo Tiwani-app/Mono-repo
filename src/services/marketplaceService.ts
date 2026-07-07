@@ -1,4 +1,5 @@
 import { Listing } from "../types/marketplace";
+import { firebaseStorage } from "../config/firebase";
 import { DataSyncSnapshotMeta } from "../types/sync";
 import { visibleMarketplaceListings } from "../utils/marketplaceGuards";
 import { listingFromRecord } from "./converters/marketplaceConverter";
@@ -20,7 +21,68 @@ export type ListingInput = Omit<
   | "contactEmail"
   | "createdAt"
   | "updatedAt"
->;
+> & {
+  uploadImage?: ListingImageUploadFile | null;
+};
+
+export interface ListingImageUploadFile {
+  uri: string;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+}
+
+const MAX_LISTING_IMAGE_BYTES = 5 * 1024 * 1024;
+
+const sanitizeStorageFileName = (name: string) =>
+  name
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || "listing-image.jpg";
+
+const extensionForImage = (file: ListingImageUploadFile) => {
+  if (file.mimeType === "image/png") {
+    return "png";
+  }
+  if (file.mimeType === "image/webp") {
+    return "webp";
+  }
+  if (file.mimeType === "image/heic") {
+    return "heic";
+  }
+  const extension = file.fileName?.split(".").pop()?.toLowerCase();
+  return extension && ["jpg", "jpeg", "png", "webp", "heic"].includes(extension)
+    ? extension
+    : "jpg";
+};
+
+const assertListingImageUpload = (file: ListingImageUploadFile) => {
+  if (file.mimeType && !file.mimeType.startsWith("image/")) {
+    throw new Error("Choose an image file for this listing.");
+  }
+  if (file.fileSize !== null && file.fileSize > MAX_LISTING_IMAGE_BYTES) {
+    throw new Error("Listing images must be 5MB or smaller.");
+  }
+};
+
+const uploadListingImage = async (
+  orgId: string,
+  listingId: string,
+  file: ListingImageUploadFile,
+): Promise<string> => {
+  assertListingImageUpload(file);
+  const extension = extensionForImage(file);
+  const fileName = sanitizeStorageFileName(
+    file.fileName ?? `listing-image-${Date.now()}.${extension}`,
+  );
+  const storagePath = `organisations/${orgId}/marketplace/${listingId}/${Date.now()}-${fileName}`;
+  const ref = firebaseStorage().ref(storagePath);
+  await ref.putFile(file.uri, {
+    contentType: file.mimeType ?? `image/${extension === "jpg" ? "jpeg" : extension}`,
+  });
+  return ref.getDownloadURL();
+};
 
 const contactFromProfile = (profile: Record<string, unknown>) => ({
   contactPhone:
@@ -87,14 +149,19 @@ export const createListing = async (data: ListingInput): Promise<void> => {
     getCurrentUserRecord(),
   ]);
   const listingRef = database.collection("marketplace").doc();
+  const imageURL = data.uploadImage
+    ? await uploadListingImage(orgId, listingRef.id, data.uploadImage)
+    : data.imageURL?.trim() || null;
+  const listingData = { ...data };
+  delete listingData.uploadImage;
   await database.runTransaction(async (transaction) => {
     transaction.set(listingRef, {
       listingId: listingRef.id,
       orgId,
-      ...data,
+      ...listingData,
       title: data.title.trim(),
       description: data.description.trim(),
-      imageURL: data.imageURL?.trim() || null,
+      imageURL,
       contactInstruction: data.contactInstruction.trim(),
       postedBy: currentUid(),
       postedByName:
@@ -108,28 +175,37 @@ export const createListing = async (data: ListingInput): Promise<void> => {
 
 export const updateListing = async (
   id: string,
-  data: Partial<Listing>,
+  data: Partial<Listing> & { uploadImage?: ListingImageUploadFile | null },
 ): Promise<void> => {
   const database = firestore();
   const ref = database.collection("marketplace").doc(id);
-  await getCurrentOrgId();
+  const orgId = await getCurrentOrgId();
   const profile = await getCurrentUserRecord();
+  const imageURL = data.uploadImage
+    ? await uploadListingImage(orgId, id, data.uploadImage)
+    : data.imageURL;
+  const listingData = { ...data };
+  delete listingData.uploadImage;
   await database.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists()) {
       throw new Error("Listing not found.");
     }
     const current = snapshot.data() as ListingInput;
-    const next = { ...current, ...data };
+    const next = {
+      ...current,
+      ...listingData,
+      ...(imageURL !== undefined ? { imageURL } : {}),
+    };
     validateListing(next);
     transaction.update(ref, {
-      ...data,
+      ...listingData,
       ...(data.title !== undefined ? { title: data.title.trim() } : {}),
       ...(data.description !== undefined
         ? { description: data.description.trim() }
         : {}),
-      ...(data.imageURL !== undefined
-        ? { imageURL: data.imageURL?.trim() || null }
+      ...(imageURL !== undefined
+        ? { imageURL: imageURL?.trim() || null }
         : {}),
       ...(data.contactInstruction !== undefined
         ? { contactInstruction: data.contactInstruction.trim() }

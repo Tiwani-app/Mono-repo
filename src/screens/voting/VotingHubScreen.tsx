@@ -18,7 +18,7 @@ import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
-import { formatDisplayDate } from "../../utils/formatDate";
+import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
 import { isVotingItemExpired, votingDisplayStatus } from "../../utils/votingExpiry";
 
@@ -66,32 +66,6 @@ const VotingHubScreen = ({ navigation }: any) => {
           />
         ) : (
           <>
-            <SectionHeader title="POLLS" count={polls.length} />
-            {polls.length === 0 ? (
-              <EmptyState
-                icon="?"
-                title="No polls"
-                message={
-                  admin
-                    ? "Create a poll to publish association questions."
-                    : "Polls will appear here when the admins publish them."
-                }
-              />
-            ) : (
-              polls.map((poll) => (
-                <PollCard
-                  key={poll.id}
-                  admin={admin}
-                  poll={poll}
-                  onEdit={() =>
-                    navigation.navigate("PollForm", { pollId: poll.id })
-                  }
-                  onOpen={() =>
-                    navigation.navigate("PollVote", { pollId: poll.id })
-                  }
-                />
-              ))
-            )}
             <SectionHeader title="ELECTIONS" count={elections.length} />
             {elections.length === 0 ? (
               <EmptyState
@@ -125,6 +99,32 @@ const VotingHubScreen = ({ navigation }: any) => {
                     })
                   }
                   showResults={canViewResults}
+                />
+              ))
+            )}
+            <SectionHeader title="POLLS" count={polls.length} />
+            {polls.length === 0 ? (
+              <EmptyState
+                icon="?"
+                title="No polls"
+                message={
+                  admin
+                    ? "Create a poll to publish association questions."
+                    : "Polls will appear here when the admins publish them."
+                }
+              />
+            ) : (
+              polls.map((poll) => (
+                <PollCard
+                  key={poll.id}
+                  admin={admin}
+                  poll={poll}
+                  onEdit={() =>
+                    navigation.navigate("PollForm", { pollId: poll.id })
+                  }
+                  onOpen={() =>
+                    navigation.navigate("PollVote", { pollId: poll.id })
+                  }
                 />
               ))
             )}
@@ -173,7 +173,7 @@ const PollCard = ({
     </Text>
     {poll.expiresAt && (
       <Text style={styles.expiryMeta}>
-        Expires {formatDisplayDate(poll.expiresAt)}
+        {formatVotingExpiryLabel(poll.expiresAt)}
       </Text>
     )}
     {admin && poll.status !== "closed" && !isVotingItemExpired(poll) && (
@@ -217,7 +217,7 @@ const ElectionCard = ({
     </View>
     {election.expiresAt && (
       <Text style={styles.expiryMeta}>
-        Expires {formatDisplayDate(election.expiresAt)}
+        {formatVotingExpiryLabel(election.expiresAt)}
       </Text>
     )}
     {admin && election.status !== "closed" && !isVotingItemExpired(election) && (

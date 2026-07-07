@@ -1,14 +1,14 @@
 node_modules/
 .DS_Store
-Tiwani_Frontend_Guide.md
-Tiwani_Frontend_Implementation_Guide.md
-Tiwani_Second_Phase_v1.md
-Tiwani_Project_Document_Deji.html
-instruction.md
-Instruction.md
-Tiwani_Production_and_App_Store_Launch_Guide.md
 expo/
 .expo/
+/functions/.env.tiwani-backend.save
+/functions/.env.example
+docs/ANDROID_GOOGLE_PLAY_HANDOFF.md
+docs/RELEASE_CANDIDATE_QA_RUN_2026-06-28.md
+docs/planning/
+docs/release
+docs/guides
 .env
 docs/PRODUCTION_MONITORING_RUNBOOK.md
 docs/INCIDENT_RESPONSE_CONTACTS.md
@@ -23,10 +23,10 @@ docs/CLOUD_FUNCTIONS_DEPLOYMENT.md
 docs/FIRESTORE_SCHEMA.md
 docs/MEMBER_USER_GUIDE.md
 docs/PRODUCTION_CHECKBOX_ACTION_PACK.md
+docs/INSTRUCTIONS.md
 !.env.example
-hardcut.md
-GoogleService-Info.plist
-google-services.json
+# GoogleService-Info.plist
+# google-services.json
 firestore-debug.log
 firebase-debug.log
 functions/lib/

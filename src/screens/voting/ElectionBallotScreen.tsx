@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
@@ -7,6 +7,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import CandidateCard from "../../components/voting/CandidateCard";
 import FinancialGate from "../../components/voting/FinancialGate";
+import { useMembers } from "../../hooks/useMembers";
 import {
   castElectionBallot,
   getElection,
@@ -15,8 +16,8 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { User } from "../../types/user";
-import { Election, ElectionVoterState } from "../../types/voting";
-import { formatDisplayDate } from "../../utils/formatDate";
+import { Candidate, Election, ElectionVoterState } from "../../types/voting";
+import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin, isElectoralChairman } from "../../utils/roleGuard";
 import {
@@ -53,6 +54,25 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { members } = useMembers({
+    enabled: Boolean(user?.uid),
+    source: "directory",
+  });
+
+  const memberPhotoByUid = useMemo(() => {
+    const photos = new Map<string, string | null>();
+    members.forEach((member) => {
+      photos.set(member.uid, member.photoURL);
+    });
+    return photos;
+  }, [members]);
+
+  const withCurrentCandidatePhoto = (candidate: Candidate): Candidate => ({
+    ...candidate,
+    photoURL: candidate.uid
+      ? memberPhotoByUid.get(candidate.uid) ?? candidate.photoURL
+      : candidate.photoURL,
+  });
 
   useEffect(() => {
     if (!electionId || !user?.uid) {
@@ -158,9 +178,11 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
           </Text>
           <Text style={[styles.meta, expired && styles.expiryMeta]}>
             {expired
-              ? "Expired"
+              ? election.expiresAt
+                ? formatVotingExpiryLabel(election.expiresAt)
+                : "Expired"
               : election.expiresAt
-                ? `Voting expires ${formatDisplayDate(election.expiresAt)}`
+                ? formatVotingExpiryLabel(election.expiresAt)
                 : "No expiry date set"}
           </Text>
         </View>
@@ -180,7 +202,7 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
             {race.candidates.map((candidate) => (
               <CandidateCard
                 key={candidate.uid ?? candidate.name}
-                candidate={candidate}
+                candidate={withCurrentCandidatePhoto(candidate)}
                 selected={choices[race.raceId] === (candidate.uid ?? candidate.name)}
                 onPress={() =>
                   canVote &&

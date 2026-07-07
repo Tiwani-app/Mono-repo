@@ -13,6 +13,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import GoldButton from "../../components/common/GoldButton";
+import Icon from "../../components/common/FeatherIcon";
 import { env } from "../../config/env";
 import { sendPasswordReset, signIn } from "../../services/authService";
 import { colors, spacing, typography } from "../../theme";
@@ -25,6 +26,7 @@ interface FormValues {
 
 const LoginScreen = ({ navigation }: any) => {
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { control, getValues, handleSubmit, formState, trigger } =
@@ -40,11 +42,16 @@ const LoginScreen = ({ navigation }: any) => {
       typeof err === "object" && err && "code" in err
         ? String((err as { code?: string }).code)
         : "";
+    const invalidCredentialsMessage = "The email or password is incorrect.";
     const errorMap: Record<string, string> = {
-      "auth/user-not-found": "No account found with this email.",
-      "auth/wrong-password": "Incorrect password.",
+      "auth/invalid-credential": invalidCredentialsMessage,
+      "auth/invalid-login-credentials": invalidCredentialsMessage,
+      "auth/user-not-found": invalidCredentialsMessage,
+      "auth/wrong-password": invalidCredentialsMessage,
       "auth/too-many-requests": "Too many attempts. Try again later.",
       "auth/invalid-email": "Please enter a valid email address.",
+      "auth/network-request-failed":
+        "Could not connect. Check your internet connection and try again.",
       "auth/account-pending": "This account is pending admin approval.",
       "auth/account-inactive":
         "This account is inactive. Please contact an admin.",
@@ -54,10 +61,7 @@ const LoginScreen = ({ navigation }: any) => {
     if (errorMap[code]) {
       return errorMap[code];
     }
-    if (err instanceof Error && err.message.trim()) {
-      return err.message;
-    }
-    return "Something went wrong. Please try again.";
+    return "Could not sign in. Please try again.";
   };
 
   const onSubmit = async ({ email, password }: FormValues) => {
@@ -138,17 +142,35 @@ const LoginScreen = ({ navigation }: any) => {
             render={({ field: { onBlur, onChange, value } }) => (
               <View style={styles.field}>
                 <Text style={styles.label}>PASSWORD</Text>
-                <TextInput
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  secureTextEntry
-                  placeholderTextColor={colors.text.tertiary}
+                <View
                   style={[
-                    styles.input,
+                    styles.passwordInputWrap,
                     formState.errors.password && styles.inputError,
                   ]}
-                />
+                >
+                  <TextInput
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    secureTextEntry={!passwordVisible}
+                    placeholderTextColor={colors.text.tertiary}
+                    style={styles.passwordInput}
+                  />
+                  <TouchableOpacity
+                    accessibilityLabel={
+                      passwordVisible ? "Hide password" : "Show password"
+                    }
+                    accessibilityRole="button"
+                    onPress={() => setPasswordVisible(current => !current)}
+                    style={styles.passwordToggle}
+                  >
+                    <Icon
+                      name={passwordVisible ? "eye-off" : "eye"}
+                      size={20}
+                      color={colors.text.secondary}
+                    />
+                  </TouchableOpacity>
+                </View>
                 {formState.errors.password && (
                   <Text style={styles.errorText}>
                     {formState.errors.password.message}
@@ -224,6 +246,28 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   inputError: { borderColor: colors.status.error },
+  passwordInputWrap: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.bg.tertiary,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    borderRadius: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    minHeight: 48,
+    padding: spacing.md,
+    fontSize: typography.size.base,
+    color: colors.text.primary,
+  },
+  passwordToggle: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
   forgot: { alignSelf: "flex-end", minHeight: 48, justifyContent: "center" },
   forgotText: { fontSize: typography.size.base, color: colors.gold.default },

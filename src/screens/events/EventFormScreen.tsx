@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -118,7 +119,6 @@ const EventFormScreen = ({ navigation, route }: any) => {
   const [hourReminderEnabled, setHourReminderEnabled] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
-  const [openTimeMenu, setOpenTimeMenu] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
   const upsertEvent = useEventsStore((state) => state.upsertEvent);
@@ -318,8 +318,6 @@ const EventFormScreen = ({ navigation, route }: any) => {
                 <TimeDropdown
                   value={value}
                   onChange={onChange}
-                  openMenu={openTimeMenu}
-                  setOpenMenu={setOpenTimeMenu}
                   error={formState.errors.time?.message}
                 />
               )}
@@ -466,81 +464,16 @@ const ReminderToggleRow = ({
   </View>
 );
 
-const DropdownSelect = <T extends string>({
-  id,
-  label,
-  onChange,
-  openMenu,
-  options,
-  setOpenMenu,
-  value,
-}: {
-  id: string;
-  label: string;
-  options: { label: string; value: T }[];
-  value: T;
-  onChange: (value: T) => void;
-  openMenu: string | null;
-  setOpenMenu: (value: string | null) => void;
-}) => {
-  const open = openMenu === id;
-  return (
-    <View style={styles.dropdownWrap}>
-      <Text style={styles.dropdownLabel}>{label}</Text>
-      <TouchableOpacity
-        style={[styles.dropdownButton, open && styles.dropdownButtonOpen]}
-        onPress={() => setOpenMenu(open ? null : id)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.dropdownValue}>
-          {options.find((option) => option.value === value)?.label ?? value}
-        </Text>
-        <Text style={styles.dropdownChevron}>{open ? "^" : "v"}</Text>
-      </TouchableOpacity>
-      {open && (
-        <View style={styles.dropdownPanel}>
-          {options.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.dropdownOption,
-                option.value === value && styles.dropdownOptionSelected,
-              ]}
-              onPress={() => {
-                onChange(option.value);
-                setOpenMenu(null);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.dropdownOptionText,
-                  option.value === value && styles.dropdownOptionTextSelected,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-};
-
 const TimeDropdown = ({
   error,
   onChange,
-  openMenu,
-  setOpenMenu,
   value,
 }: {
   value: string;
   onChange: (value: string) => void;
-  openMenu: string | null;
-  setOpenMenu: (value: string | null) => void;
   error?: string;
 }) => {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const parts = timePartsFromValue(value);
   const resolvedMinuteOptions = minuteOptions.some(
     (option) => option.value === parts.minute,
@@ -553,43 +486,136 @@ const TimeDropdown = ({
     const merged = { ...parts, ...next };
     onChange(timeValueFromParts(merged.hour, merged.minute, merged.period));
   };
+  const timeLabel = `${parts.hour}:${parts.minute} ${parts.period}`;
 
   return (
     <View style={styles.timeField}>
       <Text style={styles.label}>TIME</Text>
-      <View style={styles.timeRow}>
-        <DropdownSelect
-          id="event-hour"
-          label="Hour"
-          options={hourOptions}
-          value={parts.hour}
-          onChange={(hour) => updatePart({ hour })}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-        />
-        <DropdownSelect
-          id="event-minute"
-          label="Minute"
-          options={resolvedMinuteOptions}
-          value={parts.minute}
-          onChange={(minute) => updatePart({ minute })}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-        />
-        <DropdownSelect
-          id="event-period"
-          label="AM/PM"
-          options={periodOptions}
-          value={parts.period}
-          onChange={(period) => updatePart({ period })}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.timePickerButton, error && styles.inputError]}
+        onPress={() => setPickerOpen(true)}
+        activeOpacity={0.86}
+      >
+        <View style={styles.timePickerCopy}>
+          <Text style={styles.timePickerValue}>{timeLabel}</Text>
+          <Text style={styles.timePickerHelp}>Tap to choose time</Text>
+        </View>
+        <Text style={styles.timePickerChevron}>v</Text>
+      </TouchableOpacity>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={pickerOpen}
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <View style={styles.timeModalBackdrop}>
+          <View style={styles.timeModalCard}>
+            <View style={styles.timeModalHeader}>
+              <View style={styles.timeModalTitleWrap}>
+                <Text style={styles.timeModalTitle}>Choose time</Text>
+                <Text style={styles.timeModalSubtitle}>{timeLabel}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.timeModalClose}
+                onPress={() => setPickerOpen(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.timeModalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.periodRow}>
+              {periodOptions.map((option) => {
+                const selected = parts.period === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.periodChip,
+                      selected && styles.periodChipSelected,
+                    ]}
+                    onPress={() => updatePart({ period: option.value })}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.periodChipText,
+                        selected && styles.periodChipTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.timePickerColumns}>
+              <TimeOptionColumn
+                label="Hour"
+                options={hourOptions}
+                value={parts.hour}
+                onChange={(hour) => updatePart({ hour })}
+              />
+              <TimeOptionColumn
+                label="Minute"
+                options={resolvedMinuteOptions}
+                value={parts.minute}
+                onChange={(minute) => updatePart({ minute })}
+              />
+            </View>
+            <GoldButton
+              label="Done"
+              onPress={() => setPickerOpen(false)}
+              fullWidth
+            />
+          </View>
+        </View>
+      </Modal>
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };
+
+const TimeOptionColumn = <T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (value: T) => void;
+}) => (
+  <View style={styles.timeOptionColumn}>
+    <Text style={styles.timeOptionColumnLabel}>{label}</Text>
+    <ScrollView
+      style={styles.timeOptionList}
+      contentContainerStyle={styles.timeOptionListContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <TouchableOpacity
+            key={option.value}
+            style={[styles.timeOption, selected && styles.timeOptionSelected]}
+            onPress={() => onChange(option.value)}
+            activeOpacity={0.82}
+          >
+            <Text
+              style={[
+                styles.timeOptionText,
+                selected && styles.timeOptionTextSelected,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  </View>
+);
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
@@ -666,60 +692,131 @@ const styles = StyleSheet.create({
   },
   dateTimeStack: { gap: spacing.md },
   timeField: { gap: spacing.xs },
-  timeRow: { flexDirection: "row", gap: spacing.sm },
-  dropdownWrap: { flex: 1, gap: spacing.xs },
-  dropdownLabel: {
-    fontSize: typography.size.xs,
-    color: colors.text.tertiary,
-    letterSpacing: 0.4,
-  },
-  dropdownButton: {
-    minHeight: 48,
+  timePickerButton: {
+    minHeight: 64,
     paddingHorizontal: spacing.md,
-    borderRadius: 10,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.tertiary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.xs,
+    gap: spacing.md,
   },
-  dropdownButtonOpen: { borderColor: colors.gold.default },
-  dropdownValue: {
+  timePickerCopy: { flex: 1, gap: 2 },
+  timePickerValue: {
     flex: 1,
-    fontSize: typography.size.base,
+    fontSize: typography.size.lg,
     fontWeight: typography.weight.semibold,
     color: colors.text.primary,
   },
-  dropdownChevron: {
+  timePickerHelp: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+  },
+  timePickerChevron: {
     fontSize: typography.size.xs,
     color: colors.gold.light,
   },
-  dropdownPanel: {
-    padding: spacing.xs,
-    borderRadius: 10,
+  timeModalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: spacing.lg,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+  },
+  timeModalCard: {
+    maxHeight: "78%",
+    padding: spacing.lg,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.card,
-    gap: spacing.xs,
+    gap: spacing.md,
   },
-  dropdownOption: {
-    minHeight: 36,
-    paddingHorizontal: spacing.sm,
+  timeModalHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
+    justifyContent: "space-between",
+    gap: spacing.md,
   },
-  dropdownOptionSelected: { backgroundColor: `${colors.gold.default}22` },
-  dropdownOptionText: {
+  timeModalTitleWrap: { flex: 1, gap: spacing.xs },
+  timeModalTitle: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  timeModalSubtitle: {
     fontSize: typography.size.sm,
     color: colors.text.secondary,
   },
-  dropdownOptionTextSelected: {
-    color: colors.gold.light,
-    fontWeight: typography.weight.bold,
+  timeModalClose: {
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: colors.bg.elevated,
   },
+  timeModalCloseText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+  },
+  periodRow: { flexDirection: "row", gap: spacing.sm },
+  periodChip: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  periodChipSelected: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}22`,
+  },
+  periodChipText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+  },
+  periodChipTextSelected: { color: colors.gold.light },
+  timePickerColumns: { flexDirection: "row", gap: spacing.md },
+  timeOptionColumn: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  timeOptionColumnLabel: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+    letterSpacing: 0.8,
+  },
+  timeOptionList: {
+    maxHeight: 270,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  timeOptionListContent: { padding: spacing.xs, gap: spacing.xs },
+  timeOption: {
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+  timeOptionSelected: { backgroundColor: `${colors.gold.default}22` },
+  timeOptionText: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+  },
+  timeOptionTextSelected: { color: colors.gold.light },
   helpText: { fontSize: typography.size.xs, color: colors.text.tertiary },
 });
 

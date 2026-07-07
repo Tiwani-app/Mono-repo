@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+// import { getCrashlytics, log, crash } from '@react-native-firebase/crashlytics';
 import {
+  // Button,
   FlatList,
   StyleSheet,
   Text,
@@ -85,6 +87,14 @@ const MarketplaceScreen = ({ navigation }: any) => {
                     : "Admins can manage active, sold, and archived marketplace listings."}
                 </Text>
               </View>
+              {/* <Button
+            title="QA Test Crashlytics"
+            onPress={() => {
+            const crashlytics = getCrashlytics();
+            log(crashlytics, 'QA Crashlytics test for Tiwani build 2.1.0');
+            crash(crashlytics);
+          }}
+      /> */}
             </>
           }
           renderItem={({ item }) =>

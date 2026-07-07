@@ -58,6 +58,12 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    function visibleAfterMembershipStart() {
+      return profile().joinedAt == null ||
+        resource.data.sentAt == null ||
+        resource.data.sentAt >= profile().joinedAt;
+    }
+
     function ownUserDoc(userId) {
       return signedIn() && request.auth.uid == userId;
     }
@@ -173,7 +179,7 @@ service cloud.firestore {
         (resource.data.status == "published" && resource.data.visibility == "all_members")
       );
       allow create, update: if isAdmin() && sameOrgIncoming();
-      allow delete: if false;
+      allow delete: if isAdmin() && sameOrgExisting();
     }
 
     match /marketplace/{listingId} {
@@ -192,11 +198,13 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
-      allow read: if sameOrgExisting() && (
-        resource.data.targetAudience == "all" ||
-        resource.data.targetAudience == request.auth.uid ||
-        isAdmin()
-      );
+      allow read: if sameOrgExisting() &&
+        visibleAfterMembershipStart() &&
+        (
+          resource.data.targetAudience == "all" ||
+          resource.data.targetAudience == request.auth.uid ||
+          isAdmin()
+        );
       allow create: if isAdmin() && sameOrgIncoming();
       allow update: if sameOrgExisting() &&
         onlyChanged(["readBy"]) &&

@@ -46,8 +46,27 @@ Deployment requires the production Firebase project to be on Blaze.
 
 ## Setup Email Delivery
 
-The member provisioning functions generate a Firebase password setup/reset link.
-They also attempt backend SMTP delivery when email delivery is configured.
+The member provisioning functions generate a Firebase password setup/reset link
+and send the setup email through SMTP when delivery is configured. This is the
+production path for join-request approvals and admin-created member accounts.
+
+Use a real transactional mail provider rather than a personal Gmail password.
+Good production choices are Postmark, SendGrid, Mailgun, Brevo, or another
+provider that gives SMTP credentials and domain authentication. The sender
+should be a domain address such as `Tiwani <no-reply@tiwani.app>`, with replies
+going to a monitored support address such as `support@tiwani.app`.
+
+Before enabling SMTP, authenticate the sending domain in the provider dashboard:
+
+```text
+1. Verify the domain you want to send from.
+2. Add the provider's SPF DNS record.
+3. Add the provider's DKIM DNS records.
+4. Add a DMARC record. A safe starting value is:
+   v=DMARC1; p=none; rua=mailto:support@tiwani.app
+5. Wait for the provider dashboard to show SPF and DKIM as verified.
+6. Send a test email and confirm SPF, DKIM, and DMARC pass in the message headers.
+```
 
 Copy `functions/.env.example` to the appropriate local/CI secret source and set:
 
@@ -62,5 +81,24 @@ TIWANI_SMTP_USER=
 TIWANI_SMTP_PASSWORD=
 ```
 
+For Firebase Functions, the production project-specific local file is:
+
+```text
+functions/.env.tiwani-backend
+```
+
+Do not commit real SMTP credentials. After setting the environment values,
+deploy the functions:
+
+```bash
+cd frontend
+npx firebase deploy --only functions --project tiwani-backend
+```
+
 If SMTP is not configured, the callable still returns the generated setup link
 and a delivery error so an admin can handle setup manually during development.
+
+Firebase Auth's default password reset emails are separate from this SMTP path.
+For a fully branded password-reset experience, add a callable reset-email
+function that generates the Firebase reset link with the Admin SDK and sends it
+through this same SMTP transport.

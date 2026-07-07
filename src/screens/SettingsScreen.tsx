@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../components/common/AttachmentField";
@@ -24,7 +25,7 @@ import OutlineButton from "../components/common/OutlineButton";
 import ScreenHeader from "../components/common/ScreenHeader";
 import { env } from "../config/env";
 import { signOut } from "../services/authService";
-import { updateMemberProfile } from "../services/membersService";
+import { updateMemberProfile, uploadProfilePhoto } from "../services/membersService";
 import { requestPushPermissionAndRegister } from "../services/notificationsService";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
@@ -54,6 +55,7 @@ const SettingsScreen = ({ navigation }: any) => {
     keyof NotificationPreferences | null
   >(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
   const [registeringPush, setRegisteringPush] = useState(false);
 
   const { control, handleSubmit, reset, formState, setValue, watch } =
@@ -125,7 +127,7 @@ const SettingsScreen = ({ navigation }: any) => {
   };
 
   const handleSaveProfile = async (values: ProfileFormValues) => {
-    if (savingProfile) {
+    if (savingProfile || uploadingProfilePhoto) {
       return;
     }
 
@@ -168,6 +170,55 @@ const SettingsScreen = ({ navigation }: any) => {
       );
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handlePickProfilePhoto = async () => {
+    if (uploadingProfilePhoto) {
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Photo access needed",
+        "Allow photo library access to choose a profile photo.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      mediaTypes: ["images"],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    try {
+      setUploadingProfilePhoto(true);
+      const photoURL = await uploadProfilePhoto(user.uid, {
+        uri: asset.uri,
+        fileName: asset.fileName,
+        fileSize: asset.fileSize,
+        mimeType: asset.mimeType,
+      });
+      setValue("photoURL", photoURL, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+    } catch (error) {
+      Alert.alert(
+        "Photo not uploaded",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setUploadingProfilePhoto(false);
     }
   };
 
@@ -399,20 +450,19 @@ const SettingsScreen = ({ navigation }: any) => {
                     onChangeText={onChange}
                     error={formState.errors.photoURL?.message}
                     placeholder="https://example.com/profile-photo.jpg"
-                    helperText="Attach a profile photo or paste an image URL."
-                    onPick={() =>
-                      Alert.alert(
-                        "Image picker",
-                        "Profile photo selection will use the storage-backed picker when backend storage is connected.",
-                      )
+                    helperText={
+                      uploadingProfilePhoto
+                        ? "Uploading selected profile photo..."
+                        : "Attach a profile photo or paste an image URL."
                     }
+                    onPick={handlePickProfilePhoto}
                   />
                 )}
               />
               <GoldButton
-                label="Save Profile"
+                label={uploadingProfilePhoto ? "Uploading Photo..." : "Save Profile"}
                 onPress={handleSubmit(handleSaveProfile)}
-                loading={savingProfile}
+                loading={savingProfile || uploadingProfilePhoto}
                 fullWidth
               />
               <OutlineButton
@@ -505,6 +555,11 @@ const SettingsScreen = ({ navigation }: any) => {
                 label="Audit Logs"
                 value="Review"
                 onPress={() => navigation.navigate("AuditLogs")}
+              />
+              <LinkRow
+                label="Deletion Requests"
+                value="Review"
+                onPress={() => navigation.navigate("AccountDeletionRequests")}
               />
             </>
           ) : null}

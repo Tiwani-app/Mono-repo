@@ -15,7 +15,7 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Poll, PollVoterState } from "../../types/voting";
-import { formatDisplayDate } from "../../utils/formatDate";
+import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { safeGoBack } from "../../utils/navigation";
 import { canAcceptVotingInput, isVotingItemExpired } from "../../utils/votingExpiry";
 
@@ -126,7 +126,7 @@ const PollVoteScreen = ({ navigation, route }: any) => {
           </Text>
           {poll.expiresAt && (
             <Text style={styles.expiryMeta}>
-              Voting expires {formatDisplayDate(poll.expiresAt)}
+              {formatVotingExpiryLabel(poll.expiresAt)}
             </Text>
           )}
         </View>

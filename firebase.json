@@ -1,7 +1,4 @@
 {
-  "react-native": {
-    "app_check_token_auto_refresh": false
-  },
   "functions": {
     "source": "functions",
     "runtime": "nodejs22",

@@ -1,6 +1,7 @@
 import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import AdHocChargeScreen from '../screens/finance/AdHocChargeScreen';
+import ChargeLedgerScreen from '../screens/finance/ChargeLedgerScreen';
 import DuesPeriodFormScreen from '../screens/finance/DuesPeriodFormScreen';
 import DuesPeriodMembersScreen from '../screens/finance/DuesPeriodMembersScreen';
 import FinanceAdminScreen from '../screens/finance/FinanceAdminScreen';
@@ -14,6 +15,7 @@ const FinanceStack = () => (
   <Stack.Navigator screenOptions={{headerShown: false}}>
     <Stack.Screen name="FinanceAdmin" component={FinanceAdminScreen} />
     <Stack.Screen name="MyLedger" component={MyLedgerScreen} />
+    <Stack.Screen name="ChargeLedger" component={ChargeLedgerScreen} />
     <Stack.Screen name="DuesPeriodForm" component={DuesPeriodFormScreen} />
     <Stack.Screen name="DuesPeriodMembers" component={DuesPeriodMembersScreen} />
     <Stack.Screen name="RecordPayment" component={RecordPaymentScreen} />

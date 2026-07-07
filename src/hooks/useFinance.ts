@@ -37,6 +37,13 @@ export const useFinance = (uid?: string, includeAll = false) => {
     setLoading(true);
     setError(null);
     setSyncState('syncing');
+    let ledgerReady = false;
+    let duesPeriodsReady = !includeAll;
+    const finishLoadingIfReady = () => {
+      if (active && ledgerReady && duesPeriodsReady) {
+        setLoading(false);
+      }
+    };
     const handleError = (financeError: Error) => {
       if (!active) {
         return;
@@ -52,7 +59,8 @@ export const useFinance = (uid?: string, includeAll = false) => {
         }
         setLedgerEntries(entries);
         setError(null);
-        setLoading(false);
+        ledgerReady = true;
+        finishLoadingIfReady();
       }, handleError, meta => {
         if (!active) {
           return;
@@ -76,6 +84,8 @@ export const useFinance = (uid?: string, includeAll = false) => {
           }
           setDuesPeriods(periods);
           setError(null);
+          duesPeriodsReady = true;
+          finishLoadingIfReady();
         })
         .catch(handleError);
       return () => {

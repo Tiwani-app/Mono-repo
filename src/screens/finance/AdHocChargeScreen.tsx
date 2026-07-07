@@ -67,11 +67,23 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   const [selectedUids, setSelectedUids] = useState<string[]>(
     routeMemberId ? [routeMemberId] : [],
   );
+  const [memberQuery, setMemberQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === "active"),
     [members],
   );
+  const filteredActiveMembers = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    if (!query) {
+      return activeMembers;
+    }
+    return activeMembers.filter((member) =>
+      `${member.fullName} ${member.email} ${member.phone}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [activeMembers, memberQuery]);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
       label: "",
@@ -236,40 +248,56 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
             </Text>
           )}
           {(targetMode === "single" || targetMode === "multiple") && (
-            <View style={styles.memberList}>
-              {activeMembers.map((member) => {
-                const selected =
-                  targetMode === "single"
-                    ? selectedUid === member.uid
-                    : selectedUids.includes(member.uid);
-                return (
-                  <TouchableOpacity
-                    key={member.uid}
-                    style={[
-                      styles.memberRow,
-                      selected && styles.selectedMember,
-                    ]}
-                    onPress={() =>
-                      targetMode === "single"
-                        ? setSelectedUid(member.uid)
-                        : toggleSelectedUid(member.uid)
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Avatar
-                      initials={getInitials(member.fullName)}
-                      photoURL={member.photoURL}
-                      size={38}
-                      statusDot={member.financialStatus}
-                    />
-                    <Text style={styles.memberName}>{member.fullName}</Text>
-                    <View
-                      style={[styles.radio, selected && styles.radioSelected]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <>
+              <TextInput
+                value={memberQuery}
+                onChangeText={setMemberQuery}
+                autoCapitalize="none"
+                placeholder="Search member name, email, or phone"
+                placeholderTextColor={colors.text.tertiary}
+                style={styles.searchInput}
+              />
+              <View style={styles.memberList}>
+                {filteredActiveMembers.length === 0 ? (
+                  <View style={styles.noticeCard}>
+                    <Text style={styles.noticeText}>
+                      No active members match this search.
+                    </Text>
+                  </View>
+                ) : filteredActiveMembers.map((member) => {
+                  const selected =
+                    targetMode === "single"
+                      ? selectedUid === member.uid
+                      : selectedUids.includes(member.uid);
+                  return (
+                    <TouchableOpacity
+                      key={member.uid}
+                      style={[
+                        styles.memberRow,
+                        selected && styles.selectedMember,
+                      ]}
+                      onPress={() =>
+                        targetMode === "single"
+                          ? setSelectedUid(member.uid)
+                          : toggleSelectedUid(member.uid)
+                      }
+                      activeOpacity={0.8}
+                    >
+                      <Avatar
+                        initials={getInitials(member.fullName)}
+                        photoURL={member.photoURL}
+                        size={38}
+                        statusDot={member.financialStatus}
+                      />
+                      <Text style={styles.memberName}>{member.fullName}</Text>
+                      <View
+                        style={[styles.radio, selected && styles.radioSelected]}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
           )}
           <Field
             control={control}
@@ -422,6 +450,15 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.text.secondary,
   },
+  searchInput: {
+    minHeight: 48,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    color: colors.text.primary,
+  },
   memberList: { gap: spacing.sm },
   memberRow: {
     minHeight: 64,
@@ -473,6 +510,14 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
+  noticeCard: {
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  noticeText: { fontSize: typography.size.sm, color: colors.text.secondary },
 });
 
 export default AdHocChargeScreen;

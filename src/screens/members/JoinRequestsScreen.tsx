@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { useJoinRequests } from "../../hooks/useJoinRequests";
@@ -45,7 +46,7 @@ const setupDeliveryMessage = (delivery: SetupDeliveryResult | null) => {
 const JoinRequestsScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const { requests } = useJoinRequests({ enabled: admin });
+  const { error, loading, requests } = useJoinRequests({ enabled: admin });
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const handleReview = (
@@ -70,10 +71,12 @@ const JoinRequestsScreen = ({ navigation }: any) => {
             if (message) {
               Alert.alert("Request approved", message);
             }
-          } catch (error) {
+          } catch (reviewError) {
             Alert.alert(
               "Request not updated",
-              error instanceof Error ? error.message : "Please try again.",
+              reviewError instanceof Error
+                ? reviewError.message
+                : "Please try again.",
             );
           } finally {
             setReviewingId(null);
@@ -96,6 +99,23 @@ const JoinRequestsScreen = ({ navigation }: any) => {
           title="Admin only"
           message="Only admins can review join requests."
         />
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader
+          title="Join Requests"
+          showBack
+          onBack={() => safeGoBack(navigation, "DashboardHome")}
+        />
+        <EmptyState icon="!" title="Join requests unavailable" message={error} />
       </SafeAreaView>
     );
   }

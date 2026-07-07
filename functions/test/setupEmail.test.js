@@ -23,6 +23,9 @@ const originalEnv = emailEnvKeys.reduce((values, key) => {
   return values;
 }, {});
 const originalCreateTransport = nodemailer.createTransport;
+const originalFetch = global.fetch;
+
+const setupLinkWithApiKey = "https://example.com/setup?apiKey=test-api-key&oobCode=test-code";
 
 const resetEmailEnv = () => {
   for (const key of emailEnvKeys) {
@@ -33,32 +36,47 @@ const resetEmailEnv = () => {
     }
   }
   nodemailer.createTransport = originalCreateTransport;
+  global.fetch = originalFetch;
 };
 
 test.afterEach(resetEmailEnv);
 test.after(resetEmailEnv);
 
-test("returns setup link fallback when backend email delivery is disabled", async () => {
+test("sends setup email through Firebase Auth when SMTP delivery is disabled", async () => {
   process.env.TIWANI_EMAIL_DELIVERY_ENABLED = "false";
 
   let transportCreated = false;
+  const fetchCalls = [];
   nodemailer.createTransport = () => {
     transportCreated = true;
     return {sendMail: async () => undefined};
+  };
+  global.fetch = async (url, options) => {
+    fetchCalls.push({options, url});
+    return {ok: true};
   };
 
   const result = await sendPasswordSetupEmail({
     email: "ade@example.com",
     fullName: "Ade Omoloja",
-    setupLink: "https://example.com/setup",
+    setupLink: setupLinkWithApiKey,
   });
 
   assert.deepEqual(result, {
-    setupEmailError: "Backend email delivery is not enabled.",
-    setupEmailSent: false,
-    setupLink: "https://example.com/setup",
+    setupEmailError: null,
+    setupEmailSent: true,
+    setupLink: setupLinkWithApiKey,
   });
   assert.equal(transportCreated, false);
+  assert.equal(fetchCalls.length, 1);
+  assert.equal(
+    fetchCalls[0].url,
+    "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=test-api-key",
+  );
+  assert.deepEqual(JSON.parse(fetchCalls[0].options.body), {
+    email: "ade@example.com",
+    requestType: "PASSWORD_RESET",
+  });
 });
 
 test("reports a missing setup link before checking SMTP delivery", async () => {
@@ -84,27 +102,33 @@ test("reports a missing setup link before checking SMTP delivery", async () => {
   assert.equal(transportCreated, false);
 });
 
-test("reports missing SMTP configuration without creating a transport", async () => {
+test("sends setup email through Firebase Auth when SMTP configuration is missing", async () => {
   process.env.TIWANI_EMAIL_DELIVERY_ENABLED = "true";
 
   let transportCreated = false;
+  let fetchCalled = false;
   nodemailer.createTransport = () => {
     transportCreated = true;
     return {sendMail: async () => undefined};
+  };
+  global.fetch = async () => {
+    fetchCalled = true;
+    return {ok: true};
   };
 
   const result = await sendPasswordSetupEmail({
     email: "ade@example.com",
     fullName: "Ade Omoloja",
-    setupLink: "https://example.com/setup",
+    setupLink: setupLinkWithApiKey,
   });
 
   assert.deepEqual(result, {
-    setupEmailError: "Backend email delivery is missing SMTP configuration.",
-    setupEmailSent: false,
-    setupLink: "https://example.com/setup",
+    setupEmailError: null,
+    setupEmailSent: true,
+    setupLink: setupLinkWithApiKey,
   });
   assert.equal(transportCreated, false);
+  assert.equal(fetchCalled, true);
 });
 
 test("sends the password setup email with configured SMTP settings", async () => {
@@ -148,6 +172,7 @@ test("sends the password setup email with configured SMTP settings", async () =>
   });
   assert.equal(sendMailCalls.length, 1);
   assert.equal(sendMailCalls[0].from, "Members <members@tiwani.app>");
+  assert.equal(sendMailCalls[0].replyTo, "support@tiwani.app");
   assert.equal(sendMailCalls[0].to, "ade@example.com");
   assert.equal(sendMailCalls[0].subject, "Set up your Tiwani Circle account");
   assert.match(sendMailCalls[0].html, /Hello Ade Omoloja/);
@@ -177,5 +202,25 @@ test("keeps the setup link available when SMTP sending fails", async () => {
     setupEmailError: "SMTP is unavailable",
     setupEmailSent: false,
     setupLink: "https://example.com/setup",
+  });
+});
+
+test("keeps setup link available when Firebase Auth email delivery fails", async () => {
+  process.env.TIWANI_EMAIL_DELIVERY_ENABLED = "false";
+  global.fetch = async () => ({
+    json: async () => ({error: {message: "EMAIL_NOT_FOUND"}}),
+    ok: false,
+  });
+
+  const result = await sendPasswordSetupEmail({
+    email: "ade@example.com",
+    fullName: "Ade Omoloja",
+    setupLink: setupLinkWithApiKey,
+  });
+
+  assert.deepEqual(result, {
+    setupEmailError: "EMAIL_NOT_FOUND",
+    setupEmailSent: false,
+    setupLink: setupLinkWithApiKey,
   });
 });

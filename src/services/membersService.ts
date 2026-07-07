@@ -1,6 +1,7 @@
 import { env } from "../config/env";
 import { DataSyncSnapshotMeta } from "../types/sync";
 import {
+  AccountDeletionRequest,
   FinancialStatus,
   JoinRequest,
   MemberStatus,
@@ -8,6 +9,7 @@ import {
   User,
 } from "../types/user";
 import {
+  accountDeletionRequestFromRecord,
   joinRequestFromRecord,
   memberDirectoryFromRecord,
   userFromRecord,
@@ -16,6 +18,7 @@ import {
   approveJoinRequestCallable,
   completeAccountDeletionCallable,
   createMemberAccountCallable,
+  declineAccountDeletionCallable,
   declineJoinRequestCallable,
   reactivateMemberCallable,
   requestAccountDeletionCallable,
@@ -23,8 +26,10 @@ import {
   updateMemberRoleCallable,
 } from "./cloudFunctionsService";
 import type { SetupDeliveryResult } from "./cloudFunctionsService";
+import { firebaseStorage } from "../config/firebase";
 import {
   firestore,
+  getCurrentOrgId,
   getUserRecord,
   serverTimestamp,
   startOrgSubscription,
@@ -60,8 +65,13 @@ export interface AccountDeletionRequestInput {
 export interface AccountDeletionCompletionResult {
   authDeleted: boolean;
   profileAnonymized: boolean;
+  profileDeleted: boolean;
   requestId: string;
   tokenCount: number;
+}
+
+export interface AccountDeletionReviewResult {
+  requestId: string;
 }
 
 export interface MemberProvisioningResult {
@@ -87,7 +97,57 @@ export type MemberProfileUpdateInput = Partial<
   >
 >;
 
+export interface ProfilePhotoUploadFile {
+  uri: string;
+  fileName?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+}
+
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
+
+export const isDeletedMemberProfile = (member: User) => {
+  const fullName = member.fullName.trim().toLowerCase();
+  const email = member.email.trim().toLowerCase();
+  return (
+    Boolean(member.deletedAt) ||
+    Boolean(member.deletionRequestId) ||
+    fullName === "deleted member" ||
+    (email.startsWith("deleted-") && email.endsWith("@tiwani.local"))
+  );
+};
+
+const sanitizeStorageFileName = (name: string) =>
+  name
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || "profile-photo.jpg";
+
+const extensionForImage = (file: ProfilePhotoUploadFile) => {
+  const fileName = file.fileName?.trim();
+  const existingExtension = fileName?.match(/\.([a-zA-Z0-9]+)$/)?.[1];
+  if (existingExtension) {
+    return existingExtension.toLowerCase();
+  }
+  if (file.mimeType === "image/png") {
+    return "png";
+  }
+  if (file.mimeType === "image/webp") {
+    return "webp";
+  }
+  return "jpg";
+};
+
+const assertProfilePhotoUpload = (file: ProfilePhotoUploadFile) => {
+  if (file.fileSize !== null && file.fileSize !== undefined && file.fileSize > MAX_PROFILE_PHOTO_BYTES) {
+    throw new Error("Profile photos must be 5MB or smaller.");
+  }
+  if (file.mimeType && !file.mimeType.startsWith("image/")) {
+    throw new Error("Choose an image file for your profile photo.");
+  }
+};
 
 const normalizeChildren = (children: User["children"]) =>
   children
@@ -131,7 +191,7 @@ export const subscribeToMembers = (
   startOrgSubscription(
     "users",
     userFromRecord,
-    callback,
+    (members) => callback(members.filter((member) => !isDeletedMemberProfile(member))),
     undefined,
     onError,
     onSnapshotMeta,
@@ -145,7 +205,7 @@ export const subscribeToMemberDirectory = (
   startOrgSubscription(
     "member_directory",
     memberDirectoryFromRecord,
-    callback,
+    (members) => callback(members.filter((member) => !isDeletedMemberProfile(member))),
     (query) => query.where("status", "==", "active"),
     onError,
     onSnapshotMeta,
@@ -166,15 +226,42 @@ export const subscribeToJoinRequests = (
     onError,
   );
 
-export const getMember = async (uid: string): Promise<User> =>
-  userFromRecord(await getUserRecord(uid));
+export const subscribeToAccountDeletionRequests = (
+  callback: (requests: AccountDeletionRequest[]) => void,
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "account_deletion_requests",
+    accountDeletionRequestFromRecord,
+    (requests) =>
+      callback(
+        requests.sort(
+          (left, right) =>
+            right.requestedAt.getTime() - left.requestedAt.getTime(),
+        ),
+      ),
+    undefined,
+    onError,
+  );
+
+export const getMember = async (uid: string): Promise<User> => {
+  const member = userFromRecord(await getUserRecord(uid));
+  if (isDeletedMemberProfile(member)) {
+    throw new Error("Member profile not found.");
+  }
+  return member;
+};
 
 export const getMemberDirectoryProfile = async (uid: string): Promise<User> => {
   const snapshot = await firestore().collection("member_directory").doc(uid).get();
   if (!snapshot.exists()) {
     throw new Error("Member profile not found.");
   }
-  return memberDirectoryFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
+  const member = memberDirectoryFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
+  if (isDeletedMemberProfile(member)) {
+    throw new Error("Member profile not found.");
+  }
+  return member;
 };
 
 export const createMember = async (data: MemberInput): Promise<CreatedMember> => {
@@ -242,6 +329,24 @@ export const updateMemberProfile = async (
   await firestore().collection("users").doc(uid).update(update);
 };
 
+export const uploadProfilePhoto = async (
+  uid: string,
+  file: ProfilePhotoUploadFile,
+): Promise<string> => {
+  assertProfilePhotoUpload(file);
+  const orgId = await getCurrentOrgId();
+  const extension = extensionForImage(file);
+  const fileName = sanitizeStorageFileName(
+    file.fileName ?? `profile-photo-${Date.now()}.${extension}`,
+  );
+  const storagePath = `organisations/${orgId}/profiles/${uid}/${Date.now()}-${fileName}`;
+  const ref = firebaseStorage().ref(storagePath);
+  await ref.putFile(file.uri, {
+    contentType: file.mimeType ?? `image/${extension === "jpg" ? "jpeg" : extension}`,
+  });
+  return ref.getDownloadURL();
+};
+
 export const requestAccountDeletion = async (
   data: AccountDeletionRequestInput,
 ): Promise<void> => {
@@ -263,9 +368,21 @@ export const completeAccountDeletion = async (
   return {
     authDeleted: result.authDeleted,
     profileAnonymized: result.profileAnonymized,
+    profileDeleted: result.profileDeleted ?? result.profileAnonymized,
     requestId: result.requestId,
     tokenCount: result.tokenCount,
   };
+};
+
+export const declineAccountDeletion = async (
+  requestId: string,
+): Promise<AccountDeletionReviewResult> => {
+  const id = requestId.trim();
+  if (!id) {
+    throw new Error("Account deletion request is required.");
+  }
+  const result = await declineAccountDeletionCallable(id);
+  return { requestId: result.requestId };
 };
 
 export const createJoinRequest = async (

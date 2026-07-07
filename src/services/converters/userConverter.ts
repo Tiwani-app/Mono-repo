@@ -1,4 +1,5 @@
 import {
+  AccountDeletionRequest,
   Child,
   FinancialStatus,
   JoinRequest,
@@ -35,6 +36,11 @@ const maritalStatuses: User["maritalStatus"][] = [
 const requestStatuses: JoinRequest["status"][] = [
   "pending",
   "approved",
+  "declined",
+];
+const accountDeletionRequestStatuses: AccountDeletionRequest["status"][] = [
+  "requested",
+  "completed",
   "declined",
 ];
 
@@ -114,6 +120,12 @@ export const userFromRecord = (record: RawRecord): User => ({
       : requiredDate({ memberSince: record.joinedAt }, "memberSince")
           .toISOString()
           .slice(0, 10),
+  joinedAt: asNullableDate(record.joinedAt, "joinedAt"),
+  deletedAt: asNullableDate(record.deletedAt, "deletedAt"),
+  deletionRequestId: asNullableString(
+    record.deletionRequestId,
+    "deletionRequestId",
+  ),
   notificationPreferences: preferencesFromRecord(
     record.notificationPreferences,
   ),
@@ -161,6 +173,12 @@ export const memberDirectoryFromRecord = (record: RawRecord): User => ({
     typeof record.memberSince === "string" && record.memberSince.trim()
       ? record.memberSince
       : "",
+  joinedAt: asNullableDate(record.joinedAt, "joinedAt"),
+  deletedAt: asNullableDate(record.deletedAt, "deletedAt"),
+  deletionRequestId: asNullableString(
+    record.deletionRequestId,
+    "deletionRequestId",
+  ),
   notificationPreferences: {
     events: true,
     finance: true,
@@ -180,4 +198,29 @@ export const joinRequestFromRecord = (record: RawRecord): JoinRequest => ({
   createdAt: requiredDate(record, "createdAt"),
   reviewedAt: asNullableDate(record.reviewedAt, "reviewedAt"),
   reviewedBy: asNullableString(record.reviewedBy, "reviewedBy"),
+});
+
+export const accountDeletionRequestFromRecord = (
+  record: RawRecord,
+): AccountDeletionRequest => ({
+  id: requiredString(record, "id"),
+  requestId:
+    typeof record.requestId === "string" && record.requestId.trim()
+      ? record.requestId
+      : requiredString(record, "id"),
+  uid: requiredString(record, "uid"),
+  fullName: requiredString(record, "fullName"),
+  email: requiredString(record, "email"),
+  reason: typeof record.reason === "string" ? record.reason : "",
+  status: requiredEnum(
+    record.status,
+    accountDeletionRequestStatuses,
+    "status",
+  ),
+  requestedAt: requiredDate(record, "requestedAt"),
+  reviewedAt: asNullableDate(record.reviewedAt, "reviewedAt"),
+  reviewedBy: asNullableString(record.reviewedBy, "reviewedBy"),
+  completedAt: asNullableDate(record.completedAt, "completedAt"),
+  completedBy: asNullableString(record.completedBy, "completedBy"),
+  declinedAt: asNullableDate(record.declinedAt, "declinedAt"),
 });

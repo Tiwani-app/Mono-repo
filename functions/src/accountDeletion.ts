@@ -4,7 +4,7 @@ import { assertSameOrg, requireActiveUser } from "./authz";
 import { auth, db } from "./firebase";
 import { stringField } from "./validation";
 
-const deletedMemberName = "Deleted member";
+const callableOptions = { invoker: "public" as const };
 
 const deleteAuthUser = async (uid: string) => {
   try {
@@ -22,28 +22,7 @@ const deleteAuthUser = async (uid: string) => {
   }
 };
 
-const anonymizedMemberProfile = (uid: string) => ({
-  address: "",
-  children: [],
-  dateOfBirth: "",
-  deletedAt: FieldValue.serverTimestamp(),
-  deletionRequestId: uid,
-  email: `deleted-${uid}@tiwani.local`,
-  financialStatus: "green",
-  fullName: deletedMemberName,
-  maritalStatus: "single",
-  notificationPreferences: { events: false, finance: false, voting: false },
-  outstandingBalance: 0,
-  phone: "N/A",
-  photoURL: null,
-  role: "member",
-  spouseDateOfBirth: null,
-  spouseName: null,
-  status: "inactive",
-  weddingAnniversary: null,
-});
-
-export const requestAccountDeletion = onCall(async (request) => {
+export const requestAccountDeletion = onCall(callableOptions, async (request) => {
   const user = await requireActiveUser(request);
   const reason = stringField(request.data, "reason", { maxLength: 1000 });
   const requestRef = db.collection("account_deletion_requests").doc(user.uid);
@@ -81,7 +60,7 @@ export const requestAccountDeletion = onCall(async (request) => {
   return { ok: true, requestId: user.uid };
 });
 
-export const completeAccountDeletion = onCall(async (request) => {
+export const completeAccountDeletion = onCall(callableOptions, async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const requestId = stringField(request.data, "requestId", { maxLength: 160 });
   const requestRef = db.collection("account_deletion_requests").doc(requestId);
@@ -106,7 +85,7 @@ export const completeAccountDeletion = onCall(async (request) => {
   }
 
   const authDeleted = await deleteAuthUser(requestId);
-  let profileAnonymized = false;
+  let profileDeleted = false;
 
   await db.runTransaction(async (transaction) => {
     const [freshRequest, memberSnapshot] = await Promise.all([
@@ -126,25 +105,16 @@ export const completeAccountDeletion = onCall(async (request) => {
     }
     if (memberSnapshot.exists) {
       assertSameOrg(user, memberSnapshot.data()?.orgId);
-      profileAnonymized = true;
-      transaction.update(memberRef, anonymizedMemberProfile(requestId));
-      transaction.set(
-        directoryRef,
-        {
-          deletedAt: FieldValue.serverTimestamp(),
-          fullName: deletedMemberName,
-          orgId: user.profile.orgId,
-          photoURL: null,
-          uid: requestId,
-        },
-        { merge: true },
-      );
+      profileDeleted = true;
+      transaction.delete(memberRef);
+      transaction.delete(directoryRef);
     }
     transaction.update(requestRef, {
       authDeleted,
       completedAt: FieldValue.serverTimestamp(),
       completedBy: user.uid,
       profileAnonymized: memberSnapshot.exists,
+      profileDeleted: memberSnapshot.exists,
       reviewedAt: FieldValue.serverTimestamp(),
       reviewedBy: user.uid,
       status: "completed",
@@ -158,6 +128,7 @@ export const completeAccountDeletion = onCall(async (request) => {
       details: {
         authDeleted,
         profileAnonymized: memberSnapshot.exists,
+        profileDeleted: memberSnapshot.exists,
         requestId,
         tokenCount: tokenSnapshot.size,
       },
@@ -174,8 +145,48 @@ export const completeAccountDeletion = onCall(async (request) => {
   return {
     authDeleted,
     ok: true,
-    profileAnonymized,
+    profileAnonymized: profileDeleted,
+    profileDeleted,
     requestId,
     tokenCount: tokenSnapshot.size,
   };
+});
+
+export const declineAccountDeletion = onCall(callableOptions, async (request) => {
+  const user = await requireActiveUser(request, ["admin"]);
+  const requestId = stringField(request.data, "requestId", { maxLength: 160 });
+  const requestRef = db.collection("account_deletion_requests").doc(requestId);
+  const auditRef = db.collection("audit_logs").doc();
+
+  await db.runTransaction(async (transaction) => {
+    const requestSnapshot = await transaction.get(requestRef);
+    if (!requestSnapshot.exists) {
+      throw new HttpsError("not-found", "Account deletion request not found.");
+    }
+    const deletionRequest = requestSnapshot.data() ?? {};
+    assertSameOrg(user, deletionRequest.orgId);
+    if (deletionRequest.status !== "requested") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Only requested account deletions can be declined.",
+      );
+    }
+    transaction.update(requestRef, {
+      declinedAt: FieldValue.serverTimestamp(),
+      reviewedAt: FieldValue.serverTimestamp(),
+      reviewedBy: user.uid,
+      status: "declined",
+    });
+    transaction.set(auditRef, {
+      action: "account_deletion.declined",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: requestRef.path,
+      details: { requestId },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { ok: true, requestId };
 });

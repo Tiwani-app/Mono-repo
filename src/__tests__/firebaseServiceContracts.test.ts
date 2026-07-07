@@ -64,11 +64,13 @@ jest.mock("../config/env", () => ({
 jest.mock("../services/cloudFunctionsService", () => ({
   approveJoinRequestCallable: jest.fn(),
   castElectionBallotCallable: jest.fn(),
+  completeAccountDeletionCallable: jest.fn(),
   createAdHocChargesCallable: jest.fn(),
   createElectionCallable: jest.fn(),
   createFinancePeriodCallable: jest.fn(),
   createMemberAccountCallable: jest.fn(),
   createPollCallable: jest.fn(),
+  declineAccountDeletionCallable: jest.fn(),
   declineJoinRequestCallable: jest.fn(),
   listElectionVoterReceiptsCallable: jest.fn(),
   recordPaymentCallable: jest.fn(),
@@ -118,7 +120,11 @@ import {
   updateLibraryDocument,
 } from "../services/libraryService";
 import { createListing } from "../services/marketplaceService";
-import { createMember, updateMember } from "../services/membersService";
+import {
+  createMember,
+  updateMember,
+  uploadProfilePhoto,
+} from "../services/membersService";
 import { sendAnnouncement } from "../services/notificationsService";
 import {
   castElectionBallot,
@@ -300,6 +306,43 @@ describe("Firebase service contracts", () => {
     );
   });
 
+  it("uploads marketplace images before saving listing metadata", async () => {
+    const nowSpy = jest
+      .spyOn(Date, "now")
+      .mockReturnValueOnce(1782715000000);
+    mockStorageGetDownloadURL.mockResolvedValueOnce("https://storage.example/listing.jpg");
+
+    await createListing({
+      title: "Chair",
+      price: 5000,
+      description: "Good condition",
+      condition: "good",
+      status: "available",
+      imageURL: null,
+      uploadImage: {
+        uri: "file:///tmp/chair.jpg",
+        fileName: "chair.jpg",
+        fileSize: 2048,
+        mimeType: "image/jpeg",
+      },
+      contactInstruction: "Message the admin",
+    });
+
+    expect(mockStorageRef).toHaveBeenCalledWith(
+      "organisations/tiwani-org-v1/marketplace/generated-id/1782715000000-chair.jpg",
+    );
+    expect(mockStoragePutFile).toHaveBeenCalledWith("file:///tmp/chair.jpg", {
+      contentType: "image/jpeg",
+    });
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        imageURL: "https://storage.example/listing.jpg",
+      }),
+    );
+    nowSpy.mockRestore();
+  });
+
   it("sends admin announcements through backend push delivery", async () => {
     const result = await sendAnnouncement({
       title: "Meeting reminder",
@@ -372,6 +415,81 @@ describe("Firebase service contracts", () => {
       storagePath: "organisations/tiwani-org-v1/library/generated-id/constitution.pdf",
       fileType: "pdf",
     }));
+  });
+
+  it("saves library metadata with a storage path when a download URL is unavailable", async () => {
+    mockStorageGetDownloadURL.mockRejectedValueOnce(new Error("storage denied"));
+    mockGet.mockResolvedValueOnce({
+      exists: () => true,
+      id: "generated-id",
+      data: () => ({
+        id: "generated-id",
+        title: "Tiwani Constitution",
+        description: "Current constitution",
+        category: "constitutional",
+        type: "constitution",
+        documentDate: null,
+        uploadedAt: new Date("2026-06-01"),
+        uploadedBy: "admin-1",
+        uploadedByName: "Admin User",
+        status: "published",
+        visibility: "all_members",
+        fileName: "constitution.pdf",
+        fileURL: null,
+        storagePath: "organisations/tiwani-org-v1/library/generated-id/constitution.pdf",
+        fileType: "pdf",
+        fileSize: 1024,
+      }),
+    });
+
+    await createLibraryDocument({
+      title: "Tiwani Constitution",
+      description: "Current constitution",
+      category: "constitutional",
+      type: "constitution",
+      documentDate: null,
+      status: "published",
+      visibility: "all_members",
+      fileName: "constitution.pdf",
+      fileURL: null,
+      storagePath: null,
+      fileType: "pdf",
+      fileSize: 1024,
+      uploadFile: {
+        uri: "file:///tmp/constitution.pdf",
+        name: "constitution.pdf",
+        size: 1024,
+        mimeType: "application/pdf",
+      },
+    });
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({
+      fileURL: null,
+      storagePath: "organisations/tiwani-org-v1/library/generated-id/constitution.pdf",
+    }));
+  });
+
+  it("uploads profile photos to the member profile Storage path", async () => {
+    const nowSpy = jest
+      .spyOn(Date, "now")
+      .mockReturnValueOnce(1782710000000);
+    mockStorageGetDownloadURL.mockResolvedValueOnce("https://storage.example/profile.jpg");
+
+    const photoURL = await uploadProfilePhoto("member-1", {
+      uri: "file:///tmp/profile.jpg",
+      fileName: "profile.jpg",
+      fileSize: 1024,
+      mimeType: "image/jpeg",
+    });
+
+    expect(mockStorageRef).toHaveBeenCalledWith(
+      "organisations/tiwani-org-v1/profiles/member-1/1782710000000-profile.jpg",
+    );
+    expect(mockStoragePutFile).toHaveBeenCalledWith("file:///tmp/profile.jpg", {
+      contentType: "image/jpeg",
+    });
+    expect(photoURL).toBe("https://storage.example/profile.jpg");
+    nowSpy.mockRestore();
   });
 
   it("creates member accounts through Cloud Functions", async () => {
