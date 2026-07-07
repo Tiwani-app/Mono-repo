@@ -25,8 +25,17 @@ docs/MEMBER_USER_GUIDE.md
 docs/PRODUCTION_CHECKBOX_ACTION_PACK.md
 docs/INSTRUCTIONS.md
 !.env.example
-# GoogleService-Info.plist
-# google-services.json
+GoogleService-Info.plist
+google-services.json
+**/GoogleService-Info.plist
+**/google-services.json
+functions/.env
+functions/.env.*
+!functions/.env.example
+
+credentials.json
+*adminsdk*.json
+service-account*.json
 firestore-debug.log
 firebase-debug.log
 functions/lib/
