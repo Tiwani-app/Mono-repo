@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -26,7 +26,10 @@ import ScreenHeader from "../components/common/ScreenHeader";
 import { env } from "../config/env";
 import { signOut } from "../services/authService";
 import { updateMemberProfile, uploadProfilePhoto } from "../services/membersService";
-import { requestPushPermissionAndRegister } from "../services/notificationsService";
+import {
+  hasPushPermission,
+  requestPushPermissionAndRegister,
+} from "../services/notificationsService";
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import { NotificationPreferences, User } from "../types/user";
@@ -57,6 +60,19 @@ const SettingsScreen = ({ navigation }: any) => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
   const [registeringPush, setRegisteringPush] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    hasPushPermission().then((granted) => {
+      if (active) {
+        setPushEnabled(granted);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const { control, handleSubmit, reset, formState, setValue, watch } =
     useForm<ProfileFormValues>({
@@ -258,6 +274,9 @@ const SettingsScreen = ({ navigation }: any) => {
     try {
       setRegisteringPush(true);
       const result = await requestPushPermissionAndRegister(user.uid);
+      if (result.status === "registered") {
+        setPushEnabled(true);
+      }
       Alert.alert(
         result.status === "registered"
           ? "Push notifications enabled"
@@ -511,9 +530,12 @@ const SettingsScreen = ({ navigation }: any) => {
               </Text>
             </View>
             <GoldButton
-              label="Enable Push"
+              label={
+                pushEnabled ? "Push Notifications Enabled" : "Enable Push"
+              }
               onPress={handleRegisterPush}
               loading={registeringPush}
+              disabled={pushEnabled}
               fullWidth
             />
           </View>

@@ -187,6 +187,19 @@ export const markNotificationRead = async (id: string): Promise<void> => {
     });
 };
 
+export const hasPushPermission = async (): Promise<boolean> => {
+  try {
+    const status = await firebaseMessaging().hasPermission();
+    const authorizationStatus = firebaseMessagingModule().AuthorizationStatus;
+    return (
+      status === authorizationStatus.AUTHORIZED ||
+      status === authorizationStatus.PROVISIONAL
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const requestPushPermissionAndRegister = async (
   uid: string,
 ): Promise<PushRegistrationResult> => {

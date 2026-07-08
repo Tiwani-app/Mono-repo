@@ -4,6 +4,7 @@ import {
   setCrashlyticsUserContext,
 } from "../config/firebase";
 import { User } from "../types/user";
+import { getLocalTimezone } from "../utils/locale";
 import { userFromRecord } from "./converters/userConverter";
 import { firestore, getUserRecord } from "./firebaseHelpers";
 import { clearSessionActivity, markSessionActive } from "./sessionService";
@@ -72,7 +73,9 @@ const getProfile = async (uid: string): Promise<User> => {
   return userFromRecord({
     ...record,
     currencySymbol: organisation?.data()?.currencySymbol,
-    timezone: organisation?.data()?.timezone,
+    // Use the device's timezone so the app reflects wherever the member
+    // signs in from, not the organisation's home timezone.
+    timezone: getLocalTimezone(),
   });
 };
 
