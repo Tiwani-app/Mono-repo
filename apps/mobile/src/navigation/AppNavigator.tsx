@@ -13,47 +13,79 @@ import { TAB_ROOT_ROUTES } from "./tabRoutes";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
-// Returns only the given tab's nested stack to its root, keeping the root
-// screen (and its Firestore subscriptions) mounted where possible. Cheaper
-// than resetting the whole tab navigator state, which remounts every stack.
-const popNestedStackToRoot = (
-  navigation: { getState: () => any; dispatch: (action: unknown) => void },
+interface TabNavigation {
+  getState: () => any;
+  dispatch: (action: unknown) => void;
+}
+
+// Rebuilds only the given tab's route object; a fresh route (new key, no
+// params, no state) remounts that one stack at its initial screen. Other tabs
+// keep their route objects, so their screens stay mounted untouched.
+const rebuildTabRoute = (
+  navigation: TabNavigation,
+  routeName: keyof AppTabParamList,
+) => {
+  const state = navigation.getState();
+  navigation.dispatch(
+    CommonActions.reset({
+      index: state.index,
+      routes: state.routes.map((route: { name: string }) =>
+        route.name === routeName ? { name: route.name } : route,
+      ),
+    }),
+  );
+};
+
+// Returns the given tab's nested stack to its root, keeping the root screen
+// (and its Firestore subscriptions) mounted where possible. Cheaper than
+// resetting the whole tab navigator state, which remounts every stack.
+const returnTabToRoot = (
+  navigation: TabNavigation,
   routeName: keyof AppTabParamList,
 ) => {
   const tabRoute = navigation
     .getState()
     .routes.find((route: { name: string }) => route.name === routeName);
-  const nestedState = tabRoute?.state;
-  if (!nestedState?.key) {
+  if (!tabRoute) {
     return;
   }
   const rootScreen = TAB_ROOT_ROUTES[routeName].screen;
-  // Cross-tab navigation (e.g. dashboard quick actions) can create the stack
-  // with a nested screen as its only route; popToTop would stay there, so
-  // reset that stack to its real root instead.
-  if (nestedState.routes[0]?.name !== rootScreen) {
-    navigation.dispatch({
-      ...CommonActions.reset({ index: 0, routes: [{ name: rootScreen }] }),
-      target: nestedState.key,
-    });
+  const nestedState = tabRoute.state;
+  if (nestedState?.key) {
+    if (nestedState.routes[0]?.name === rootScreen) {
+      if ((nestedState.index ?? 0) > 0) {
+        navigation.dispatch({
+          ...StackActions.popToTop(),
+          target: nestedState.key,
+        });
+      }
+      return;
+    }
+    // Cross-tab navigation (e.g. dashboard quick actions) can create the
+    // stack with a nested screen as its first route; rebuild the tab so it
+    // reopens at its real root.
+    rebuildTabRoute(navigation, routeName);
     return;
   }
-  if ((nestedState.index ?? 0) > 0) {
-    navigation.dispatch({
-      ...StackActions.popToTop(),
-      target: nestedState.key,
-    });
+  // The nested stack keeps its initial state local until a navigation happens
+  // inside it, so `tabRoute.state` is undefined here even when a quick action
+  // opened the tab directly on a nested screen. That hidden screen is still
+  // recorded in the tab route's params; rebuild the tab to clear it.
+  const paramsScreen = (tabRoute.params as { screen?: string } | undefined)
+    ?.screen;
+  if (paramsScreen && paramsScreen !== rootScreen) {
+    rebuildTabRoute(navigation, routeName);
   }
 };
 
 const AppNavigator = () => (
   <Tab.Navigator
     screenListeners={({ navigation, route }) => ({
-      blur: () => popNestedStackToRoot(navigation, route.name),
+      blur: () => returnTabToRoot(navigation, route.name),
       tabPress: () => {
         const state = navigation.getState();
         if (state.routes[state.index]?.name === route.name) {
-          popNestedStackToRoot(navigation, route.name);
+          returnTabToRoot(navigation, route.name);
         }
       },
     })}
