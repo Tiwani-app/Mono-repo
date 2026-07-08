@@ -84,7 +84,7 @@ export const getEventAttendees = async (
         uid,
         fullName:
           typeof member?.fullName === "string" ? member.fullName : "Unknown member",
-        email: "",
+        email: typeof member?.email === "string" ? member.email : "",
         photoURL: typeof member?.photoURL === "string" ? member.photoURL : null,
         checkedIn: event.attendees.includes(uid),
       };

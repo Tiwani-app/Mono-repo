@@ -220,6 +220,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
                 label="Check Out"
                 onPress={() => handleCheckOut(item)}
                 disabled={Boolean(pendingUid)}
+                size="sm"
               />
             ) : (
               <GoldButton
