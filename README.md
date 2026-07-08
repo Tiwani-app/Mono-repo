@@ -1,16 +1,14 @@
 # Tiwani
 
-Tiwani is a mobile membership management app for associations and cooperatives.
+Tiwani is a mobile membership management app for associations, cooperatives, and member-run organizations that want less admin chaos and more engaged members.
 
-The Option 3 monorepo migration is complete. The Git repository root is this
-folder, and the old `frontend/` tree has been removed (its history is
-preserved in Git — the mobile app files were moved, not recreated).
+No more scattered WhatsApp threads, lost spreadsheets, or “who paid what?” confusion. Tiwani puts membership, money, meetings, voting, and documents in one place. On every member’s phone.
 
 ```text
 Tiwani/
   apps/mobile/              Mobile app (Expo / React Native)
   backend/firebase/         Firebase workspace: Functions, rules, hosting, scripts
-  docs/                     Product, release, and operations documentation
+  docs/                     
   tools/                    Repo-level checks and maintenance tooling
 ```
 
@@ -74,17 +72,3 @@ Mobile builds run from `apps/mobile/` with EAS:
 cd apps/mobile
 npx eas build --platform ios --profile productionCandidate
 ```
-
-## Migration References
-
-The migration history is documented in:
-
-```text
-MONOREPO_PREP_AND_MIGRATION_PLAN.md
-MONOREPO_CLEANUP_AND_MIGRATION_PLAN.md
-MONOREPO_PHASE2_READINESS_CHECKLIST.md
-```
-
-These are historical records; the structure above is current. Command names
-`verify:phase2`–`verify:phase4` mentioned in them were replaced by
-`verify:layout`, `verify:production`, and `verify` after the Git cutover.
