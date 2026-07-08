@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -55,6 +55,14 @@ type MemberFinanceSummary = {
   overdue: number;
 };
 
+// Shared fallback so memoized MemberCard rows keep a stable prop identity.
+const EMPTY_FINANCE_SUMMARY: MemberFinanceSummary = {
+  outstanding: 0,
+  overdue: 0,
+};
+
+const SEARCH_DEBOUNCE_MS = 150;
+
 const matchesMemberFilter = (
   member: User,
   filter: MemberListFilter,
@@ -94,8 +102,6 @@ const MembersListScreen = ({ navigation }: any) => {
     lastSyncedAt,
     loading,
     members,
-    searchQuery,
-    setSearchQuery,
     syncState,
   } = useMembers({
     enabled: canBrowseMembers,
@@ -103,6 +109,18 @@ const MembersListScreen = ({ navigation }: any) => {
   });
   const [memberFilter, setMemberFilter] =
     React.useState<MemberListFilter>("all");
+  // The input updates instantly; the query used for filtering lags slightly so
+  // typing doesn't re-filter and re-render the whole list on every keystroke.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setSearchQuery(searchInput),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const financeSummaryByMember = useMemo(() => {
     const summary = new Map<string, MemberFinanceSummary>();
@@ -148,6 +166,28 @@ const MembersListScreen = ({ navigation }: any) => {
     });
   }, [admin, financeSummaryByMember, memberFilter, members, searchQuery]);
 
+  const handlePressMember = useCallback(
+    (member: User) =>
+      navigation.navigate("MemberProfile", { memberId: member.uid }),
+    [navigation],
+  );
+
+  const renderMember = useCallback(
+    ({ item }: { item: User }) => (
+      <MemberCard
+        financeSummary={
+          admin
+            ? financeSummaryByMember.get(item.uid) ?? EMPTY_FINANCE_SUMMARY
+            : undefined
+        }
+        member={item}
+        showFinance={admin}
+        onPress={handlePressMember}
+      />
+    ),
+    [admin, financeSummaryByMember, handlePressMember],
+  );
+
   if (loading || (admin && financeLoading)) {
     return <LoadingSpinner />;
   }
@@ -190,8 +230,8 @@ const MembersListScreen = ({ navigation }: any) => {
           <View style={styles.listHeader}>
             <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
             <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+              value={searchInput}
+              onChangeText={setSearchInput}
               placeholder="Search name, email, or phone"
               placeholderTextColor={colors.text.tertiary}
               style={styles.search}
@@ -225,21 +265,7 @@ const MembersListScreen = ({ navigation }: any) => {
             )}
           </View>
         }
-        renderItem={({ item }) => (
-          <MemberCard
-            financeSummary={
-              admin ? financeSummaryByMember.get(item.uid) ?? {
-                outstanding: 0,
-                overdue: 0,
-              } : undefined
-            }
-            member={item}
-            showFinance={admin}
-            onPress={() =>
-              navigation.navigate("MemberProfile", { memberId: item.uid })
-            }
-          />
-        )}
+        renderItem={renderMember}
         ListEmptyComponent={
           <EmptyState
             icon={searchQuery ? "🔍" : "👥"}

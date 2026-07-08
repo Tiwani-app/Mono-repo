@@ -32,11 +32,19 @@ export const getUserRecord = async (uid: string): Promise<RawRecord> => {
 export const getCurrentUserRecord = async (): Promise<RawRecord> =>
   getUserRecord(currentUid());
 
+// Keyed by uid so a user switch never reuses another account's orgId.
+let cachedOrgId: { uid: string; orgId: string } | null = null;
+
 export const getCurrentOrgId = async (): Promise<string> => {
-  const record = await getCurrentUserRecord();
+  const uid = currentUid();
+  if (cachedOrgId?.uid === uid) {
+    return cachedOrgId.orgId;
+  }
+  const record = await getUserRecord(uid);
   if (typeof record.orgId !== "string" || !record.orgId.trim()) {
     throw new Error("Your organisation membership is not configured.");
   }
+  cachedOrgId = { uid, orgId: record.orgId };
   return record.orgId;
 };
 
@@ -64,6 +72,7 @@ export const startOrgSubscription = <T>(
   const database = firestore();
   let unsubscribe = () => {};
   let active = true;
+  let hasDeliveredRecords = false;
   const handleError = (error: unknown) => {
     const nextError =
       error instanceof Error
@@ -97,6 +106,11 @@ export const startOrgSubscription = <T>(
               fromCache: snapshot.metadata.fromCache,
               hasPendingWrites: snapshot.metadata.hasPendingWrites,
             });
+            // Metadata-only snapshots (e.g. cache -> server confirmation)
+            // carry no document changes; skip remapping every record.
+            if (hasDeliveredRecords && snapshot.docChanges().length === 0) {
+              return;
+            }
             const records = snapshotRecords(snapshot);
             const mappedRecords = records.flatMap((record) => {
               try {
@@ -110,6 +124,7 @@ export const startOrgSubscription = <T>(
               }
             });
             callback(mappedRecords);
+            hasDeliveredRecords = true;
           } catch (error) {
             handleError(error);
           }

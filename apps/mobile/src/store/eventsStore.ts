@@ -30,8 +30,9 @@ export const useEventsStore = create<EventsState>(set => ({
         event,
       ].sort((left, right) => left.dateTime.getTime() - right.dateTime.getTime()),
     })),
-  setLoading: loading => set({loading}),
-  setError: error => set({error}),
-  setSyncState: syncState => set({syncState}),
+  setLoading: loading => set(state => (state.loading === loading ? state : {loading})),
+  setError: error => set(state => (state.error === error ? state : {error})),
+  setSyncState: syncState =>
+    set(state => (state.syncState === syncState ? state : {syncState})),
   setLastSyncedAt: lastSyncedAt => set({lastSyncedAt}),
 }));

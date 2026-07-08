@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,7 +11,6 @@ import Icon from "../components/common/FeatherIcon";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../components/common/EmptyState";
 import EventCard from "../components/events/EventCard";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useAccountDeletionRequests } from "../hooks/useAccountDeletionRequests";
 import { useEvents } from "../hooks/useEvents";
 import { useFinance } from "../hooks/useFinance";
@@ -116,16 +116,11 @@ const DashboardScreen = ({ navigation }: any) => {
   } = useMembers({
     enabled: admin,
   });
-  const {
-    error: requestsError,
-    loading: requestsLoading,
-    requests,
-  } = useJoinRequests({ enabled: admin });
-  const {
-    error: deletionRequestsError,
-    loading: deletionRequestsLoading,
-    requests: deletionRequests,
-  } = useAccountDeletionRequests({ enabled: admin });
+  const { error: requestsError, requests } = useJoinRequests({
+    enabled: admin,
+  });
+  const { error: deletionRequestsError, requests: deletionRequests } =
+    useAccountDeletionRequests({ enabled: admin });
   const {
     error: notificationsError,
     loading: notificationsLoading,
@@ -152,17 +147,6 @@ const DashboardScreen = ({ navigation }: any) => {
   const { totalPaid: totalCollected } = getFinanceTotals(ledgerEntries);
   const currentDuesPeriod =
     duesPeriods.find((period) => period.status === "active") ?? duesPeriods[0];
-  const loading =
-    eventsLoading ||
-    membersLoading ||
-    notificationsLoading ||
-    requestsLoading ||
-    deletionRequestsLoading ||
-    (admin && financeLoading);
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -196,26 +180,32 @@ const DashboardScreen = ({ navigation }: any) => {
           {admin ? (
             <>
               <StatTile
-                value={String(members.length)}
+                value={membersLoading ? "…" : String(members.length)}
                 label="Members"
-                subLabel={`${activeMembers.length} active`}
+                subLabel={
+                  membersLoading ? "loading" : `${activeMembers.length} active`
+                }
                 accentColor={colors.gold.default}
                 onPress={() => navigation.navigate("MembersList")}
               />
               <StatTile
-                value={String(upcomingEvents.length)}
+                value={eventsLoading ? "…" : String(upcomingEvents.length)}
                 label="Events"
                 subLabel="upcoming"
                 accentColor={colors.status.info}
               />
               <StatTile
-                value={formatCurrency(totalCollected)}
+                value={financeLoading ? "…" : formatCurrency(totalCollected)}
                 label="Collected"
-                subLabel={currentDuesPeriod?.name ?? "all periods"}
+                subLabel={
+                  financeLoading
+                    ? "loading"
+                    : (currentDuesPeriod?.name ?? "all periods")
+                }
                 accentColor={colors.status.success}
               />
               <StatTile
-                value={String(overdueMembers.length)}
+                value={membersLoading ? "…" : String(overdueMembers.length)}
                 label="Overdue"
                 subLabel={overdueMembers.length === 1 ? "member" : "members"}
                 accentColor={colors.status.error}
@@ -224,7 +214,7 @@ const DashboardScreen = ({ navigation }: any) => {
           ) : (
             <>
               <StatTile
-                value={String(upcomingEvents.length)}
+                value={eventsLoading ? "…" : String(upcomingEvents.length)}
                 label="Events"
                 subLabel="upcoming"
                 accentColor={colors.status.info}
@@ -300,7 +290,11 @@ const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <Text style={styles.sectionLabel}>UPCOMING</Text>
-        {eventsError ? (
+        {eventsLoading ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator color={colors.gold.default} />
+          </View>
+        ) : eventsError ? (
           <EmptyState
             icon="!"
             title="Events unavailable"
@@ -328,7 +322,11 @@ const DashboardScreen = ({ navigation }: any) => {
         )}
 
         <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
-        {notificationsError ? (
+        {notificationsLoading ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator color={colors.gold.default} />
+          </View>
+        ) : notificationsError ? (
           <EmptyState
             icon="!"
             title="Activity unavailable"
@@ -438,6 +436,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  sectionLoading: {
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   quickAction: {
     width: "31%",
     minHeight: 72,

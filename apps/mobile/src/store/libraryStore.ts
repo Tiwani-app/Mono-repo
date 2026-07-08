@@ -25,9 +25,12 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   syncState: "idle",
   lastSyncedAt: null,
   setDocuments: (documents) => set({ documents }),
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error }),
+  setLoading: (loading) =>
+    set((state) => (state.loading === loading ? state : { loading })),
+  setError: (error) =>
+    set((state) => (state.error === error ? state : { error })),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setSyncState: (syncState) => set({ syncState }),
+  setSyncState: (syncState) =>
+    set((state) => (state.syncState === syncState ? state : { syncState })),
   setLastSyncedAt: (lastSyncedAt) => set({ lastSyncedAt }),
 }));

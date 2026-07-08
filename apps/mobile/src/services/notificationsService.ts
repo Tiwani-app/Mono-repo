@@ -118,11 +118,14 @@ export const subscribeToNotifications = (
       if (!active) {
         return;
       }
+      // Cap each feed at the 100 most recent so the subscription doesn't
+      // download the org's entire announcement history.
       const base = database
         .collection("announcements")
         .where("orgId", "==", orgId)
         .where("sentAt", ">=", visibleAfter)
-        .orderBy("sentAt", "desc");
+        .orderBy("sentAt", "desc")
+        .limit(100);
       subscriptions = [
         base.where("targetAudience", "==", "all").onSnapshot(
           { includeMetadataChanges: true },

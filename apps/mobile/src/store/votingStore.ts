@@ -45,8 +45,9 @@ export const useVotingStore = create<VotingState>(set => ({
   setHasVotedPoll: hasVotedPoll => set({hasVotedPoll}),
   setHasVotedElection: hasVotedElection => set({hasVotedElection}),
   resetElectionChoices: () => set({electionChoices: {}}),
-  setLoading: loading => set({loading}),
-  setError: error => set({error}),
-  setSyncState: syncState => set({syncState}),
+  setLoading: loading => set(state => (state.loading === loading ? state : {loading})),
+  setError: error => set(state => (state.error === error ? state : {error})),
+  setSyncState: syncState =>
+    set(state => (state.syncState === syncState ? state : {syncState})),
   setLastSyncedAt: lastSyncedAt => set({lastSyncedAt}),
 }));

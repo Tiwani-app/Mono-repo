@@ -19,7 +19,7 @@ interface Props {
     overdue: number;
   };
   member: User;
-  onPress: () => void;
+  onPress: (member: User) => void;
   showFinance?: boolean;
 }
 
@@ -56,7 +56,10 @@ const MemberCard = ({
   const owing = Math.max(0, outstanding - overdue);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress(member)}
+      activeOpacity={0.8}>
       <Avatar
         initials={getInitials(member.fullName)}
         photoURL={member.photoURL}
@@ -122,4 +125,5 @@ const styles = StyleSheet.create({
   badgeRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
 });
 
-export default MemberCard;
+// Memoized so list re-renders (e.g. while typing in search) skip unchanged rows.
+export default React.memo(MemberCard);

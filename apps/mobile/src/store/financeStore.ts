@@ -26,8 +26,9 @@ export const useFinanceStore = create<FinanceState>(set => ({
   lastSyncedAt: null,
   setLedgerEntries: ledgerEntries => set({ledgerEntries}),
   setDuesPeriods: duesPeriods => set({duesPeriods}),
-  setLoading: loading => set({loading}),
-  setError: error => set({error}),
-  setSyncState: syncState => set({syncState}),
+  setLoading: loading => set(state => (state.loading === loading ? state : {loading})),
+  setError: error => set(state => (state.error === error ? state : {error})),
+  setSyncState: syncState =>
+    set(state => (state.syncState === syncState ? state : {syncState})),
   setLastSyncedAt: lastSyncedAt => set({lastSyncedAt}),
 }));
