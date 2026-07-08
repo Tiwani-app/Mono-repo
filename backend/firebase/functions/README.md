@@ -1,5 +1,7 @@
 # Tiwani Cloud Functions
 
+> Phase 4 canonical Firebase workspace. backend freeze completed on July 7, 2026. Deploy Functions, Firestore rules, Storage rules, and Hosting from `backend/firebase`, not from `frontend/functions` or the legacy top-level `backend/` folder.
+
 This package is the trusted backend foundation for workflows that must not rely on direct mobile-client writes.
 
 ## Implemented callables
@@ -36,7 +38,7 @@ This package is the trusted backend foundation for workflows that must not rely 
 ## Local workflow
 
 ```bash
-cd functions
+cd backend/firebase/functions
 npm install
 npm run build
 npm test
@@ -91,7 +93,7 @@ Do not commit real SMTP credentials. After setting the environment values,
 deploy the functions:
 
 ```bash
-cd frontend
+cd backend/firebase
 npx firebase deploy --only functions --project tiwani-backend
 ```
 

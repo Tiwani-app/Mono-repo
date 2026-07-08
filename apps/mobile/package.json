@@ -9,10 +9,10 @@
     "ios": "expo run:ios",
     "start": "expo start --dev-client",
     "lint": "eslint .",
-    "functions:build": "npm --prefix functions run build",
+    "functions:build": "npm --prefix ../../backend/firebase/functions run build",
     "test:rules": "npm run test:rules:config && npm run test:rules:emulator",
     "test:rules:config": "jest src/__tests__/firebaseRulesConfig.test.ts --runInBand",
-    "test:rules:emulator": "JAVA_HOME=/opt/homebrew/opt/openjdk@21 PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:exec --only firestore \"npm run test:rules:emulator:jest\"",
+    "test:rules:emulator": "cd ../../backend/firebase && JAVA_HOME=/opt/homebrew/opt/openjdk@21 PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:exec --only firestore \"TIWANI_FIREBASE_WORKSPACE=../../backend/firebase npm --prefix ../../apps/mobile run test:rules:emulator:jest\"",
     "test:rules:emulator:jest": "jest --testMatch '**/src/__tests__/firestoreRulesEmulator.spec.ts' --runInBand",
     "typecheck": "tsc --noEmit",
     "test": "jest"

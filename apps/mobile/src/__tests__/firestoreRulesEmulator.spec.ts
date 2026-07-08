@@ -6,8 +6,12 @@ import {
 } from "@firebase/rules-unit-testing";
 
 const fs = require("fs");
+const path = require("path");
 
 const projectId = "tiwani-dev";
+const firebaseWorkspace = process.env.TIWANI_FIREBASE_WORKSPACE
+  ? path.resolve(process.env.TIWANI_FIREBASE_WORKSPACE)
+  : path.resolve("../../backend/firebase");
 let testEnv: RulesTestEnvironment;
 
 const userRecord = (
@@ -223,16 +227,18 @@ const seed = async () => {
   });
 };
 
+// initializeTestEnvironment can take >10s on a cold emulator, well past
+// Jest's 5s default hook timeout.
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
     firestore: {
       host: "127.0.0.1",
       port: 8080,
-      rules: fs.readFileSync("firestore.rules", "utf8"),
+      rules: fs.readFileSync(path.join(firebaseWorkspace, "firestore.rules"), "utf8"),
     },
   });
-});
+}, 60000);
 
 beforeEach(async () => {
   await testEnv.clearFirestore();

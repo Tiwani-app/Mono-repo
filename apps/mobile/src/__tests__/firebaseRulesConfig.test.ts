@@ -1,7 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const root = path.resolve(".");
+const root = process.env.TIWANI_FIREBASE_WORKSPACE
+  ? path.resolve(process.env.TIWANI_FIREBASE_WORKSPACE)
+  : path.resolve("../../backend/firebase");
 const readRootFile = (fileName: string) =>
   fs.readFileSync(path.join(root, fileName), "utf8");
 
