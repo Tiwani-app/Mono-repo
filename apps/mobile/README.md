@@ -1,19 +1,15 @@
-# Tiwani Frontend
+# Tiwani Mobile App
 
-Tiwani is a mobile membership management app for associations and cooperatives. This folder contains the React Native/Expo frontend, generated native projects, Firebase client integration, Firestore and Storage rules, and the Cloud Functions package used by privileged workflows.
+Tiwani is a mobile membership management app for associations and cooperatives. This folder contains the React Native/Expo frontend, generated native projects, and Firebase client integration.
 
 The current app uses native React Native Firebase modules, Firebase Auth, Firestore realtime subscriptions, Firebase Storage uploads, Firebase Cloud Functions callables, and Expo dev-client/native builds.
 
 ## Active Workspace Notice
 
-This `frontend/` folder is currently the active mobile app workspace and the
-active Firebase backend workspace. The trusted Cloud Functions backend used in
-production lives in `frontend/functions/`.
-
-The top-level `../backend/` folder is legacy/stale right now. Do not deploy from
-`../backend/` unless the monorepo migration has been deliberately completed and
-verified. Until then, Firebase deploys and rules tests should run from this
-folder.
+`apps/mobile/` is the mobile app workspace. The trusted Cloud Functions
+backend, Firestore/Storage rules, and Firebase deploy workspace live in
+`../../backend/firebase/`. Run Firebase deploys from `backend/firebase/`, not
+from this folder.
 
 ## Current Baseline
 
@@ -59,10 +55,9 @@ Expo Go is not a supported runtime for this app because the project uses `@react
 ## Project Structure
 
 ```text
-frontend/
+apps/mobile/
   android/                         Generated Android project
   ios/                             Generated iOS project
-  functions/                       Firebase Cloud Functions package
   src/
     __tests__/                     Frontend, service, converter, navigation, and rules tests
     components/                    Shared and feature-specific UI components
@@ -77,11 +72,11 @@ frontend/
     utils/                         Guards, formatting, validation, and navigation helpers
   app.config.js                    Expo config with environment-aware native identity
   eas.json                         EAS build profiles
-  firebase.json                    Firebase rules/functions/emulator config
-  firestore.rules                  Firestore security rules
-  firestore.indexes.json           Firestore composite indexes
-  storage.rules                    Firebase Storage security rules
 ```
+
+Firebase workspace files (`firebase.json`, `firestore.rules`,
+`firestore.indexes.json`, `storage.rules`, `functions/`) live in
+`../../backend/firebase/`.
 
 ## Prerequisites
 
@@ -109,7 +104,7 @@ Native's bundled Foojay Java toolchain resolver so the generated Android Gradle
 Install Functions dependencies when working on backend callables:
 
 ```bash
-npm --prefix functions install
+npm --prefix ../../backend/firebase/functions install
 ```
 
 ## Environment Configuration
@@ -219,7 +214,7 @@ The Firebase platform files are intentionally gitignored and are not part of thi
 To set up or change Firebase projects:
 
 1. Download your project's `GoogleService-Info.plist` and `google-services.json` from Firebase Console.
-2. Place them at the frontend root paths above, or set `TIWANI_IOS_GOOGLE_SERVICES_FILE` and `TIWANI_ANDROID_GOOGLE_SERVICES_FILE`.
+2. Place them at the app root paths above, or set `TIWANI_IOS_GOOGLE_SERVICES_FILE` and `TIWANI_ANDROID_GOOGLE_SERVICES_FILE`.
 3. Confirm `app.config.js` bundle/package values match the Firebase apps.
 4. Rebuild the native app. Metro reload alone is not enough after native Firebase file changes.
 
@@ -455,13 +450,13 @@ npm run functions:build
 Build functions directly:
 
 ```bash
-npm --prefix functions run build
+npm --prefix ../../backend/firebase/functions run build
 ```
 
 Run function tests:
 
 ```bash
-npm --prefix functions test
+npm --prefix ../../backend/firebase/functions test
 ```
 
 ## Firebase Emulator Suite
@@ -491,9 +486,10 @@ EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=10.0.2.2
 
 Then rebuild/restart the app as needed.
 
-Start emulators manually:
+Start emulators manually (from the Firebase workspace):
 
 ```bash
+cd ../../backend/firebase
 firebase emulators:start
 ```
 
@@ -508,6 +504,7 @@ npm run test:rules:emulator
 Deploy Firestore rules only:
 
 ```bash
+cd ../../backend/firebase
 npx firebase deploy --only firestore:rules --project <your-project-id>
 ```
 
@@ -540,7 +537,7 @@ npm run test:rules
 Cloud Functions live in:
 
 ```text
-functions/
+../../backend/firebase/functions/
 ```
 
 Implemented callable groups:
@@ -555,24 +552,19 @@ Implemented callable groups:
 Build functions:
 
 ```bash
-npm --prefix functions run build
+npm --prefix ../../backend/firebase/functions run build
 ```
 
 Run the functions emulator:
 
 ```bash
-npm --prefix functions run serve
+npm --prefix ../../backend/firebase/functions run serve
 ```
 
-Deploy functions:
+Deploy functions from the Firebase workspace:
 
 ```bash
-npm --prefix functions run deploy
-```
-
-Or deploy from the frontend folder:
-
-```bash
+cd ../../backend/firebase
 npx firebase deploy --only functions --project <your-project-id>
 ```
 
@@ -788,13 +780,13 @@ npm run test:rules
 For Cloud Function changes, also run:
 
 ```bash
-npm --prefix functions run build
-npm --prefix functions test
+npm --prefix ../../backend/firebase/functions run build
+npm --prefix ../../backend/firebase/functions test
 ```
 
 ## Related Documents
 
-- `firestore.rules`
-- `storage.rules`
-- `firestore.indexes.json`
-- `functions/README.md`
+- `../../backend/firebase/firestore.rules`
+- `../../backend/firebase/storage.rules`
+- `../../backend/firebase/firestore.indexes.json`
+- `../../backend/firebase/functions/README.md`

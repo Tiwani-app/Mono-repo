@@ -1,0 +1,24 @@
+{
+  "name": "tiwani-monorepo",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Root command surface for the Tiwani mobile app and Firebase backend.",
+  "workspaces": [
+    "apps/mobile",
+    "backend/firebase/functions"
+  ],
+  "scripts": {
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:ios": "npm --prefix apps/mobile run ios",
+    "mobile:android": "npm --prefix apps/mobile run android",
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
+    "mobile:lint": "npm --prefix apps/mobile run lint",
+    "mobile:test": "npm --prefix apps/mobile test",
+    "functions:build": "npm --prefix backend/firebase/functions run build",
+    "functions:test": "npm --prefix backend/firebase/functions test",
+    "rules:test": "npm --prefix apps/mobile run test:rules",
+    "verify:layout": "sh tools/checks/verify-layout.sh",
+    "verify:production": "sh tools/checks/verify-production-gate.sh",
+    "verify": "npm run verify:layout && npm run mobile:typecheck && npm run mobile:lint && npm run mobile:test && npm run functions:build && npm run functions:test && npm run rules:test && npm run verify:production"
+  }
+}

@@ -19,6 +19,31 @@ backend/firebase/functions/lib/
 backend/firebase/.firebase/
 .firebase/
 
+# Docs
+docs/architecture/
+docs/guides/
+docs/operations
+docs/planning/
+docs/production/
+docs/release/
+docs/ANDROID_GOOGLE_PLAY_HANDOFF.md
+docs/FIREBASE_PRODUCTION_CONSOLE_CHECKLIST.md
+docs/INCIDENT_RESPONSE_CONTACTS.md
+docs/Instruction.md
+docs/PRODUCTION_CHECKBOX_ACTION_PACK.md
+docs/IOS_RELEASE_CANDIDATE_HANDOFF.md
+docs/PRODUCTION_MONITORING_RUNBOOK.md
+docs/RELEASE_BLOCKERS.md
+docs/RELEASE_CANDIDATE_QA_CHECKLIST.md
+docs/RELEASE_CANDIDATE_QA_RUN_2026-06-28.md
+docs/STORE_REVIEW_PREP.md
+
+# others
+MONOREPO_CLEANUP_AND_MIGRATION_PLAN.md
+MONOREPO_PHASE2_READINESS_CHECKLIST.md
+MONOREPO_PREP_AND_MIGRATION_PLAN.md
+
+
 # Environment and secrets
 .env
 .env.*
