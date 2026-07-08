@@ -28,6 +28,8 @@ export {
   sendAnnouncementPush,
 } from "./notifications";
 export {
+  notifyAttendeeCheckedIn,
+  notifyAttendeeCheckedOut,
   notifyEventCreated,
   notifyLibraryDocumentCreated,
   notifyLibraryDocumentUpdated,

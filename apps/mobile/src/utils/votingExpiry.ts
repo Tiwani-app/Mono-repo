@@ -20,3 +20,11 @@ export const votingDisplayStatus = (
   item: ExpirableVotingItem,
   now = new Date(),
 ) => (isVotingItemExpired(item, now) ? "expired" : item.status);
+
+export const partitionExpiredVotingItems = <T extends ExpirableVotingItem>(
+  items: T[],
+  now = new Date(),
+) => ({
+  active: items.filter((item) => !isVotingItemExpired(item, now)),
+  expired: items.filter((item) => isVotingItemExpired(item, now)),
+});

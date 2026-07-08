@@ -4,6 +4,7 @@ import {
   FirestoreEvent,
   QueryDocumentSnapshot,
   onDocumentCreated,
+  onDocumentDeleted,
   onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -292,6 +293,83 @@ export const publishOrgAnnouncement = async (
     notifId: announcementRef.id,
     success: true,
   };
+};
+
+const publishMemberNotification = async (input: {
+  body: string;
+  orgId: string;
+  relatedDocId?: string | null;
+  target?: NotificationTarget | null;
+  title: string;
+  type: NotificationType;
+  uid: string;
+}) => {
+  const title = input.title.trim();
+  const body = input.body.trim();
+  if (!title || !body || !input.orgId.trim() || !input.uid.trim()) {
+    return null;
+  }
+
+  const announcementRef = db.collection("announcements").doc();
+  await announcementRef.set({
+    notifId: announcementRef.id,
+    orgId: input.orgId,
+    title,
+    body,
+    type: input.type,
+    targetAudience: input.uid,
+    target: serializeTarget(input.target),
+    relatedDocId: input.relatedDocId ?? null,
+    sentAt: FieldValue.serverTimestamp(),
+    readBy: [],
+    sentBy: null,
+  });
+
+  const tokenSnapshot = await db
+    .collection("device_tokens")
+    .where("uid", "==", input.uid)
+    .where("disabled", "==", false)
+    .get();
+  const tokenDocs = tokenSnapshot.docs.filter((doc) => {
+    const token = doc.data().token;
+    return typeof token === "string" && token.trim();
+  });
+  if (tokenDocs.length > 0) {
+    const response = await messaging.sendEachForMulticast({
+      tokens: tokenDocs.map((doc) => String(doc.data().token)),
+      notification: { body, title },
+      data: messagingDataFor(announcementRef.id, input.orgId, input.type, input.target),
+    });
+    await markInvalidTokens(response, tokenDocs);
+  }
+
+  return { notifId: announcementRef.id, success: true };
+};
+
+const notifyAttendanceChange = async (
+  userId: string,
+  eventId: string,
+  action: "checked_in" | "checked_out",
+) => {
+  const eventSnapshot = await db.collection("events").doc(eventId).get();
+  const eventData = asRecord(eventSnapshot.data());
+  const orgId = stringValue(eventData.orgId);
+  if (!orgId) {
+    return;
+  }
+  const eventTitle = stringValue(eventData.title) ?? "an event";
+  await publishMemberNotification({
+    body:
+      action === "checked_in"
+        ? `You were checked in to ${eventTitle}.`
+        : `You were checked out of ${eventTitle}.`,
+    orgId,
+    relatedDocId: eventId,
+    target: { route: "event_detail", eventId },
+    title: action === "checked_in" ? "Event check-in" : "Event check-out",
+    type: "event",
+    uid: userId,
+  });
 };
 
 const eventTarget = (
@@ -640,6 +718,18 @@ const notifyLibraryDocumentChange = async (
     type: "library",
   });
 };
+
+export const notifyAttendeeCheckedIn = onDocumentCreated(
+  "users/{userId}/attendance/{eventId}",
+  async (event) =>
+    notifyAttendanceChange(event.params.userId, event.params.eventId, "checked_in"),
+);
+
+export const notifyAttendeeCheckedOut = onDocumentDeleted(
+  "users/{userId}/attendance/{eventId}",
+  async (event) =>
+    notifyAttendanceChange(event.params.userId, event.params.eventId, "checked_out"),
+);
 
 export const notifyEventCreated = onDocumentCreated(
   "events/{eventId}",

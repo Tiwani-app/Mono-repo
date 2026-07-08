@@ -20,7 +20,11 @@ import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
-import { isVotingItemExpired, votingDisplayStatus } from "../../utils/votingExpiry";
+import {
+  isVotingItemExpired,
+  partitionExpiredVotingItems,
+  votingDisplayStatus,
+} from "../../utils/votingExpiry";
 
 const VotingHubScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -34,6 +38,43 @@ const VotingHubScreen = ({ navigation }: any) => {
     polls,
     syncState,
   } = useVoting();
+  const { active: activeElections, expired: expiredElections } =
+    partitionExpiredVotingItems(elections);
+  const { active: activePolls, expired: expiredPolls } =
+    partitionExpiredVotingItems(polls);
+
+  const renderElection = (election: Election) => (
+    <ElectionCard
+      key={election.id}
+      admin={admin}
+      election={election}
+      onEdit={() =>
+        navigation.navigate("ElectionForm", {
+          electionId: election.id,
+        })
+      }
+      onOpen={() =>
+        navigation.navigate("ElectionBallot", {
+          electionId: election.id,
+        })
+      }
+      onResults={() =>
+        navigation.navigate("ElectionResults", {
+          electionId: election.id,
+        })
+      }
+      showResults={canViewResults}
+    />
+  );
+  const renderPoll = (poll: Poll) => (
+    <PollCard
+      key={poll.id}
+      admin={admin}
+      poll={poll}
+      onEdit={() => navigation.navigate("PollForm", { pollId: poll.id })}
+      onOpen={() => navigation.navigate("PollVote", { pollId: poll.id })}
+    />
+  );
 
   if (loading) {
     return <LoadingSpinner />;
@@ -78,29 +119,16 @@ const VotingHubScreen = ({ navigation }: any) => {
                 }
               />
             ) : (
-              elections.map((election) => (
-                <ElectionCard
-                  key={election.id}
-                  admin={admin}
-                  election={election}
-                  onEdit={() =>
-                    navigation.navigate("ElectionForm", {
-                      electionId: election.id,
-                    })
-                  }
-                  onOpen={() =>
-                    navigation.navigate("ElectionBallot", {
-                      electionId: election.id,
-                    })
-                  }
-                  onResults={() =>
-                    navigation.navigate("ElectionResults", {
-                      electionId: election.id,
-                    })
-                  }
-                  showResults={canViewResults}
+              activeElections.map(renderElection)
+            )}
+            {expiredElections.length > 0 && (
+              <>
+                <SectionHeader
+                  title="EXPIRED ELECTIONS"
+                  count={expiredElections.length}
                 />
-              ))
+                {expiredElections.map(renderElection)}
+              </>
             )}
             <SectionHeader title="POLLS" count={polls.length} />
             {polls.length === 0 ? (
@@ -114,19 +142,13 @@ const VotingHubScreen = ({ navigation }: any) => {
                 }
               />
             ) : (
-              polls.map((poll) => (
-                <PollCard
-                  key={poll.id}
-                  admin={admin}
-                  poll={poll}
-                  onEdit={() =>
-                    navigation.navigate("PollForm", { pollId: poll.id })
-                  }
-                  onOpen={() =>
-                    navigation.navigate("PollVote", { pollId: poll.id })
-                  }
-                />
-              ))
+              activePolls.map(renderPoll)
+            )}
+            {expiredPolls.length > 0 && (
+              <>
+                <SectionHeader title="EXPIRED POLLS" count={expiredPolls.length} />
+                {expiredPolls.map(renderPoll)}
+              </>
             )}
           </>
         )}

@@ -310,6 +310,22 @@ describe("Firestore security rules", () => {
     );
   });
 
+  it("allows only admins to create and delete attendance records", async () => {
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+    const attendancePath = "users/member-1/attendance/event-1";
+    const attendanceRecord = {
+      eventId: "event-1",
+      method: "admin_tap",
+      checkedInAt: new Date(),
+    };
+
+    await assertSucceeds(adminDb.doc(attendancePath).set(attendanceRecord));
+    await assertFails(memberDb.doc(attendancePath).delete());
+    await assertSucceeds(adminDb.doc(attendancePath).delete());
+    await assertFails(memberDb.doc(attendancePath).set(attendanceRecord));
+  });
+
   it("allows admins to read same-org audit logs only", async () => {
     const adminDb = testEnv.authenticatedContext("admin-1").firestore();
     const memberDb = testEnv.authenticatedContext("member-1").firestore();

@@ -16,11 +16,13 @@ const mockDoc = jest.fn((id = "generated-id") => ({
 const mockTransactionGet = jest.fn(async (ref) => ref.get());
 const mockTransactionSet = jest.fn();
 const mockTransactionUpdate = jest.fn();
+const mockTransactionDelete = jest.fn();
 const mockRunTransaction = jest.fn(async (callback) =>
   callback({
     get: mockTransactionGet,
     set: mockTransactionSet,
     update: mockTransactionUpdate,
+    delete: mockTransactionDelete,
   }),
 );
 const mockBatchSet = jest.fn();
@@ -108,6 +110,7 @@ jest.mock("../services/firebaseHelpers", () => ({
 
 import {
   checkInAttendee,
+  checkOutAttendee,
   toggleRsvp,
 } from "../services/eventsService";
 import {
@@ -166,6 +169,7 @@ describe("Firebase service contracts", () => {
     mockDelete.mockReset();
     mockTransactionSet.mockReset();
     mockTransactionUpdate.mockReset();
+    mockTransactionDelete.mockReset();
     mockBatchSet.mockReset();
     mockBatchUpdate.mockReset();
     mockBatchCommit.mockReset();
@@ -281,6 +285,43 @@ describe("Firebase service contracts", () => {
         method: "admin_tap",
       }),
     );
+  });
+
+  it("removes the attendee and attendance record on admin check-out", async () => {
+    mockGet.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        attendeeList: ["member-2", "member-3"],
+        capacity: 30,
+        rsvpList: ["member-2", "member-3"],
+        status: "published",
+      }),
+    });
+
+    await checkOutAttendee("event-1", "member-2");
+
+    expect(mockTransactionUpdate).toHaveBeenCalledWith(expect.anything(), {
+      attendeeList: ["member-3"],
+    });
+    expect(mockTransactionDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects admin check-out for members who are not checked in", async () => {
+    mockGet.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        attendeeList: [],
+        capacity: 30,
+        rsvpList: ["member-2"],
+        status: "published",
+      }),
+    });
+
+    await expect(checkOutAttendee("event-1", "member-2")).rejects.toThrow(
+      "This member is not checked in.",
+    );
+    expect(mockTransactionUpdate).not.toHaveBeenCalled();
+    expect(mockTransactionDelete).not.toHaveBeenCalled();
   });
 
   it("creates archived marketplace listing metadata with member contact fields", async () => {

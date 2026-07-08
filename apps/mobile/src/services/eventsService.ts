@@ -194,3 +194,31 @@ export const checkInAttendee = async (
     });
   });
 };
+
+export const checkOutAttendee = async (
+  eventId: string,
+  userId: string,
+): Promise<void> => {
+  const database = firestore();
+  const eventRef = database.collection("events").doc(eventId);
+  const attendanceRef = database
+    .collection("users")
+    .doc(userId)
+    .collection("attendance")
+    .doc(eventId);
+  await database.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(eventRef);
+    if (!snapshot.exists()) {
+      throw new Error("Event not found.");
+    }
+    const event = snapshot.data() ?? {};
+    const attendeeList = Array.isArray(event.attendeeList) ? event.attendeeList : [];
+    if (!attendeeList.includes(userId)) {
+      throw new Error("This member is not checked in.");
+    }
+    transaction.update(eventRef, {
+      attendeeList: attendeeList.filter((uid: string) => uid !== userId),
+    });
+    transaction.delete(attendanceRef);
+  });
+};

@@ -11,6 +11,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useMembers } from "../../hooks/useMembers";
 import {
   checkInAttendee,
+  checkOutAttendee,
   getEvent,
   getEventAttendees,
 } from "../../services/eventsService";
@@ -108,6 +109,24 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handleCheckOut = async (attendee: EventAttendee) => {
+    if (!eventId || !attendee.checkedIn) {
+      return;
+    }
+    try {
+      setPendingUid(attendee.uid);
+      await checkOutAttendee(eventId, attendee.uid);
+      setAttendees(await getEventAttendees(eventId));
+    } catch (error) {
+      Alert.alert(
+        "Check-out failed",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setPendingUid(null);
+    }
+  };
+
   if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -197,7 +216,11 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
               </Text>
             </View>
             {item.checkedIn ? (
-              <OutlineButton label="Checked In" onPress={() => {}} disabled />
+              <OutlineButton
+                label="Check Out"
+                onPress={() => handleCheckOut(item)}
+                disabled={Boolean(pendingUid)}
+              />
             ) : (
               <GoldButton
                 label="Check In"
