@@ -104,11 +104,12 @@ const firebaseRc = readJson('backend/firebase/.firebaserc');
 const easConfig = readJson('apps/mobile/eas.json');
 
 assert(rootPackage.private === true, 'root package.json must remain private');
-assert(Array.isArray(rootPackage.workspaces), 'root package.json must define workspaces');
+// No "workspaces" field on purpose: installs are per-package, and a declared
+// workspace root makes Expo/Metro look for a root node_modules that never
+// exists here.
 assert(
-  rootPackage.workspaces.includes('apps/mobile') &&
-    rootPackage.workspaces.includes('backend/firebase/functions'),
-  'root workspaces must include apps/mobile and backend/firebase/functions',
+  rootPackage.workspaces === undefined,
+  'root package.json must not declare npm workspaces (per-package installs)',
 );
 assert(
   rootPackage.scripts?.['verify'] &&
