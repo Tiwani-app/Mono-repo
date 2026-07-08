@@ -20,6 +20,7 @@ interface Props {
   onChangeText: (value: string) => void;
   onPick?: () => void;
   placeholder?: string;
+  showUrlInput?: boolean;
   value?: string | null;
 }
 
@@ -36,6 +37,7 @@ const AttachmentField = ({
   onChangeText,
   onPick,
   placeholder,
+  showUrlInput = true,
   value,
 }: Props) => {
   const [imageFailed, setImageFailed] = useState(false);
@@ -79,18 +81,20 @@ const AttachmentField = ({
           </TouchableOpacity>
         )}
       </View>
-      <TextInput
-        value={value ?? ""}
-        onChangeText={(nextValue) => {
-          setImageFailed(false);
-          onChangeText(nextValue);
-        }}
-        keyboardType={keyboardType}
-        autoCapitalize={keyboardType === "url" ? "none" : undefined}
-        placeholder={placeholder}
-        placeholderTextColor={colors.text.tertiary}
-        style={[styles.input, error && styles.inputError]}
-      />
+      {showUrlInput && (
+        <TextInput
+          value={value ?? ""}
+          onChangeText={(nextValue) => {
+            setImageFailed(false);
+            onChangeText(nextValue);
+          }}
+          keyboardType={keyboardType}
+          autoCapitalize={keyboardType === "url" ? "none" : undefined}
+          placeholder={placeholder}
+          placeholderTextColor={colors.text.tertiary}
+          style={[styles.input, error && styles.inputError]}
+        />
+      )}
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );

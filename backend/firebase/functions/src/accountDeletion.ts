@@ -117,6 +117,9 @@ export const completeAccountDeletion = onCall(callableOptions, async (request) =
       profileDeleted: memberSnapshot.exists,
       reviewedAt: FieldValue.serverTimestamp(),
       reviewedBy: user.uid,
+      reviewedByName: user.profile.fullName,
+      reviewedByEmail: user.profile.email,
+      reviewedByPhone: user.profile.phone || null,
       status: "completed",
     });
     transaction.set(db.collection("audit_logs").doc(), {
@@ -175,6 +178,8 @@ export const declineAccountDeletion = onCall(callableOptions, async (request) =>
       declinedAt: FieldValue.serverTimestamp(),
       reviewedAt: FieldValue.serverTimestamp(),
       reviewedBy: user.uid,
+      reviewedByName: user.profile.fullName,
+      reviewedByEmail: user.profile.email,
       status: "declined",
     });
     transaction.set(auditRef, {

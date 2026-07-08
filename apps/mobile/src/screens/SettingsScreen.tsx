@@ -449,11 +449,11 @@ const SettingsScreen = ({ navigation }: any) => {
                     value={value}
                     onChangeText={onChange}
                     error={formState.errors.photoURL?.message}
-                    placeholder="https://example.com/profile-photo.jpg"
+                    showUrlInput={false}
                     helperText={
                       uploadingProfilePhoto
                         ? "Uploading selected profile photo..."
-                        : "Attach a profile photo or paste an image URL."
+                        : "Tap the upload button to choose a profile photo."
                     }
                     onPick={handlePickProfilePhoto}
                   />

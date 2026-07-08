@@ -184,6 +184,7 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
         }
         renderItem={({ item }) => {
           const reviewedDate = reviewDate(item);
+          const reviewer = item.reviewedByName?.trim() || item.reviewedByEmail?.trim() || null;
           const isReviewing = reviewingId === item.requestId;
           return (
             <View style={styles.card}>
@@ -206,7 +207,7 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
               {reviewedDate ? (
                 <Text style={styles.reviewed}>
                   Reviewed {reviewedDate}
-                  {item.reviewedBy ? ` by ${item.reviewedBy}` : ""}
+                  {reviewer ? ` by ${reviewer}` : ""}
                 </Text>
               ) : null}
               {item.status === "requested" ? (

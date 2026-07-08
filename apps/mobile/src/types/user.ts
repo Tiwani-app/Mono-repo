@@ -67,6 +67,8 @@ export interface AccountDeletionRequest {
   requestedAt: Date;
   reviewedAt: Date | null;
   reviewedBy: string | null;
+  reviewedByName?: string | null;
+  reviewedByEmail?: string | null;
   completedAt: Date | null;
   completedBy: string | null;
   declinedAt: Date | null;
