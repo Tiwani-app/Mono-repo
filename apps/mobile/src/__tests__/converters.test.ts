@@ -1,7 +1,10 @@
 import { eventFromRecord } from "../services/converters/eventConverter";
 import { ledgerEntryFromRecord } from "../services/converters/financeConverter";
 import { notificationFromRecord } from "../services/converters/notificationConverter";
-import { userFromRecord } from "../services/converters/userConverter";
+import {
+  accountDeletionRequestFromRecord,
+  userFromRecord,
+} from "../services/converters/userConverter";
 import {
   electionFromRecord,
   pollFromRecord,
@@ -244,5 +247,35 @@ describe("backend converters", () => {
         expiresAt,
       }),
     ).toMatchObject({ expiresAt });
+  });
+
+  it("maps reviewer name and email on account deletion requests", () => {
+    const base = {
+      id: "request-1",
+      uid: "member-1",
+      fullName: "Member One",
+      email: "member@example.com",
+      status: "declined",
+      requestedAt: new Date("2026-07-01T10:00:00.000Z"),
+      reviewedAt: new Date("2026-07-02T10:00:00.000Z"),
+      reviewedBy: "admin-1",
+    };
+
+    expect(
+      accountDeletionRequestFromRecord({
+        ...base,
+        reviewedByName: "Admin One",
+        reviewedByEmail: "admin@example.com",
+      }),
+    ).toMatchObject({
+      reviewedByName: "Admin One",
+      reviewedByEmail: "admin@example.com",
+    });
+
+    expect(accountDeletionRequestFromRecord(base)).toMatchObject({
+      reviewedBy: "admin-1",
+      reviewedByName: null,
+      reviewedByEmail: null,
+    });
   });
 });

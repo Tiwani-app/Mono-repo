@@ -220,6 +220,8 @@ export const accountDeletionRequestFromRecord = (
   requestedAt: requiredDate(record, "requestedAt"),
   reviewedAt: asNullableDate(record.reviewedAt, "reviewedAt"),
   reviewedBy: asNullableString(record.reviewedBy, "reviewedBy"),
+  reviewedByName: asNullableString(record.reviewedByName, "reviewedByName"),
+  reviewedByEmail: asNullableString(record.reviewedByEmail, "reviewedByEmail"),
   completedAt: asNullableDate(record.completedAt, "completedAt"),
   completedBy: asNullableString(record.completedBy, "completedBy"),
   declinedAt: asNullableDate(record.declinedAt, "declinedAt"),
