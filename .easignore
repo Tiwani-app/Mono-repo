@@ -1,0 +1,50 @@
+# EAS packaging rules. When this file exists, EAS CLI uses it INSTEAD of
+# .gitignore to decide what gets uploaded to the build workers.
+#
+# Difference from .gitignore: GoogleService-Info.plist and
+# google-services.json are NOT excluded here. They stay out of Git, but the
+# native builds need them, so they are uploaded with the build archive.
+# Real secrets (.env files, keystores, service accounts) remain excluded.
+
+.DS_Store
+.claude/
+.git/
+
+# Dependencies and build output
+node_modules/
+.expo/
+expo/
+apps/mobile/android/.gradle/
+apps/mobile/android/.idea/
+apps/mobile/android/.kotlin/
+apps/mobile/android/local.properties
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/app/.cxx/
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/ios/.xcode.env.local
+backend/firebase/functions/lib/
+backend/firebase/functions/node_modules/
+backend/firebase/.firebase/
+.firebase/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+backend/firebase/functions/.env.tiwani-backend.save
+credentials.json
+*adminsdk*.json
+service-account*.json
+*.jks
+*.keystore
+*.p8
+*.cer
+*.mobileprovision
+
+# Firebase CLI debug output
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.log
