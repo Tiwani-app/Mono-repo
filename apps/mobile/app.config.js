@@ -26,6 +26,7 @@ module.exports = {
   expo: {
     name: appName,
     slug: "tiwani",
+    owner: "tiwani-app",
     version: appVersion,
     orientation: "portrait",
     scheme: "tiwani",

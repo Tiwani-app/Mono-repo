@@ -25,7 +25,8 @@ docs/guides/
 docs/operations
 docs/planning/
 docs/production/
-docs/release/
+docs/release/*
+!docs/release/SUBMIT_BUILD.md
 docs/ANDROID_GOOGLE_PLAY_HANDOFF.md
 docs/FIREBASE_PRODUCTION_CONSOLE_CHECKLIST.md
 docs/INCIDENT_RESPONSE_CONTACTS.md
