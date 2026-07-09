@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -452,13 +454,29 @@ const CandidateDropdown = ({
   onChange: (value: string) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const selectedMember = members.find((member) => member.fullName === value);
+
+  const filteredMembers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return members;
+    }
+    return members.filter((member) =>
+      `${member.fullName} ${member.email}`.toLowerCase().includes(query),
+    );
+  }, [members, search]);
+
+  const closePicker = () => {
+    setOpen(false);
+    setSearch("");
+  };
 
   return (
     <View style={styles.memberSelect}>
       <TouchableOpacity
-        style={[styles.memberSelectButton, open && styles.memberSelectButtonOpen]}
-        onPress={() => setOpen((current) => !current)}
+        style={styles.memberSelectButton}
+        onPress={() => setOpen(true)}
         activeOpacity={0.85}
       >
         <View style={styles.memberSelectCopy}>
@@ -481,46 +499,81 @@ const CandidateDropdown = ({
             </Text>
           )}
         </View>
-        <Text style={styles.memberSelectChevron}>{open ? "^" : "v"}</Text>
+        <Icon name="chevron-down" size={16} color={colors.gold.light} />
       </TouchableOpacity>
-      {open && (
-        <View style={styles.memberSelectMenu}>
-          {members.map((member) => {
-            const selected = member.fullName === value;
-            return (
+      <Modal
+        visible={open}
+        animationType="slide"
+        transparent
+        onRequestClose={closePicker}
+      >
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Candidate</Text>
               <TouchableOpacity
-                key={member.uid}
-                style={[
-                  styles.memberSelectOption,
-                  selected && styles.memberSelectOptionSelected,
-                ]}
-                onPress={() => {
-                  onChange(member.fullName);
-                  setOpen(false);
-                }}
+                style={styles.pickerClose}
+                onPress={closePicker}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.memberSelectName,
-                    selected && styles.memberSelectNameSelected,
-                  ]}
-                >
-                  {member.fullName}
-                </Text>
-                <Text style={styles.memberSelectStatus}>
-                  {getFinanceStandingBannerLabel(
-                    getFinanceStanding(
-                      member.financialStatus,
-                      member.outstandingBalance,
-                    ),
-                  )}
-                </Text>
+                <Icon name="x" size={20} color={colors.text.secondary} />
               </TouchableOpacity>
-            );
-          })}
+            </View>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search by name or email"
+              placeholderTextColor={colors.text.tertiary}
+              style={styles.pickerSearch}
+              autoCorrect={false}
+            />
+            <FlatList
+              data={filteredMembers}
+              keyExtractor={(member) => member.uid}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.pickerList}
+              renderItem={({ item: member }) => {
+                const selected = member.fullName === value;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.memberSelectOption,
+                      selected && styles.memberSelectOptionSelected,
+                    ]}
+                    onPress={() => {
+                      onChange(member.fullName);
+                      closePicker();
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.memberSelectName,
+                        selected && styles.memberSelectNameSelected,
+                      ]}
+                    >
+                      {member.fullName}
+                    </Text>
+                    <Text style={styles.memberSelectStatus}>
+                      {getFinanceStandingBannerLabel(
+                        getFinanceStanding(
+                          member.financialStatus,
+                          member.outstandingBalance,
+                        ),
+                      )}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <Text style={styles.pickerEmpty}>
+                  No eligible members match your search.
+                </Text>
+              }
+            />
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 };
@@ -615,7 +668,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
-  memberSelectButtonOpen: { borderColor: colors.gold.default },
   memberSelectCopy: { flex: 1, gap: spacing.xs },
   memberSelectValue: {
     fontSize: typography.size.base,
@@ -627,17 +679,53 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     color: colors.text.tertiary,
   },
-  memberSelectChevron: {
-    fontSize: typography.size.xs,
-    color: colors.gold.light,
+  pickerBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
-  memberSelectMenu: {
-    padding: spacing.xs,
+  pickerSheet: {
+    maxHeight: "80%",
+    minHeight: "55%",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: colors.bg.secondary,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  pickerTitle: {
+    flex: 1,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  pickerClose: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: colors.bg.card,
+  },
+  pickerSearch: {
+    minHeight: 48,
+    padding: spacing.md,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border.subtle,
     backgroundColor: colors.bg.tertiary,
-    gap: spacing.xs,
+    color: colors.text.primary,
+  },
+  pickerList: { gap: spacing.xs, paddingBottom: spacing.xl },
+  pickerEmpty: {
+    padding: spacing.lg,
+    textAlign: "center",
+    color: colors.text.secondary,
   },
   memberSelectOption: {
     padding: spacing.md,
