@@ -107,7 +107,7 @@ const VotingHubScreen = ({ navigation }: any) => {
           />
         ) : (
           <>
-            <SectionHeader title="ELECTIONS" count={elections.length} />
+            <SectionHeader title="ELECTIONS" count={activeElections.length} />
             {elections.length === 0 ? (
               <EmptyState
                 icon="!"
@@ -121,16 +121,7 @@ const VotingHubScreen = ({ navigation }: any) => {
             ) : (
               activeElections.map(renderElection)
             )}
-            {expiredElections.length > 0 && (
-              <>
-                <SectionHeader
-                  title="EXPIRED ELECTIONS"
-                  count={expiredElections.length}
-                />
-                {expiredElections.map(renderElection)}
-              </>
-            )}
-            <SectionHeader title="POLLS" count={polls.length} />
+            <SectionHeader title="POLLS" count={activePolls.length} />
             {polls.length === 0 ? (
               <EmptyState
                 icon="?"
@@ -143,6 +134,15 @@ const VotingHubScreen = ({ navigation }: any) => {
               />
             ) : (
               activePolls.map(renderPoll)
+            )}
+            {expiredElections.length > 0 && (
+              <>
+                <SectionHeader
+                  title="EXPIRED ELECTIONS"
+                  count={expiredElections.length}
+                />
+                {expiredElections.map(renderElection)}
+              </>
             )}
             {expiredPolls.length > 0 && (
               <>
