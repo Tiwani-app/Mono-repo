@@ -15,6 +15,7 @@ export interface TiwaniEvent {
   category: EventCategory;
   dateTime: Date;
   location: string;
+  meetingLink: string | null;
   createdBy: string;
   status: EventStatus;
   rsvpList: string[];

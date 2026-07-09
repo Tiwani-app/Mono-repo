@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -21,6 +30,10 @@ import {
   EventStatus,
   TiwaniEvent,
 } from "../../types/event";
+import {
+  getMapsSearchUrl,
+  getMeetingLinkLabel,
+} from "../../utils/eventLinks";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
@@ -115,6 +128,28 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handleOpenMaps = async () => {
+    try {
+      await Linking.openURL(getMapsSearchUrl(event.location));
+    } catch {
+      Alert.alert("Maps unavailable", "This location could not be opened.");
+    }
+  };
+
+  const handleJoinMeeting = async () => {
+    const link = event.meetingLink?.trim();
+    // Only ever open https links stored on the event.
+    if (!link || !link.toLowerCase().startsWith("https://")) {
+      Alert.alert("Link unavailable", "This meeting link could not be opened.");
+      return;
+    }
+    try {
+      await Linking.openURL(link);
+    } catch {
+      Alert.alert("Link unavailable", "This meeting link could not be opened.");
+    }
+  };
+
   const handleCancelEvent = () => {
     Alert.alert("Cancel Event", "Cancel this event?", [
       { text: "Keep Event", style: "cancel" },
@@ -177,8 +212,28 @@ const EventDetailScreen = ({ navigation, route }: any) => {
         </View>
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>LOCATION</Text>
-          <Text style={styles.infoValue}>{event.location}</Text>
+          <TouchableOpacity
+            style={styles.locationRow}
+            onPress={handleOpenMaps}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.infoValue, styles.locationText]}>
+              {event.location}
+            </Text>
+            <Icon name="map-pin" size={16} color={colors.gold.default} />
+          </TouchableOpacity>
+          <Text style={styles.linkHint}>Tap to open in Maps</Text>
         </View>
+        {event.meetingLink && (
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>ONLINE MEETING</Text>
+            <GoldButton
+              label={getMeetingLinkLabel(event.meetingLink)}
+              onPress={handleJoinMeeting}
+              fullWidth
+            />
+          </View>
+        )}
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>ABOUT</Text>
           <Text style={styles.body}>{event.description}</Text>
@@ -289,6 +344,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   infoValue: { fontSize: typography.size.base, color: colors.text.primary },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  locationText: { flex: 1 },
+  linkHint: { fontSize: typography.size.xs, color: colors.text.tertiary },
   body: {
     fontSize: typography.size.base,
     color: colors.text.secondary,

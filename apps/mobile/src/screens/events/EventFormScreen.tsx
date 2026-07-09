@@ -29,6 +29,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useEventsStore } from "../../store/eventsStore";
 import { colors, spacing, typography } from "../../theme";
 import { EventCategory, EventStatus } from "../../types/event";
+import { isValidMeetingLink } from "../../utils/eventLinks";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -38,6 +39,7 @@ interface FormValues {
   date: string;
   time: string;
   location: string;
+  meetingLink: string;
   capacity: string;
 }
 
@@ -130,6 +132,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
       date: format(new Date(), "yyyy-MM-dd"),
       time: "10:00",
       location: "",
+      meetingLink: "",
       capacity: "0",
     },
   });
@@ -146,6 +149,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
           date: format(event.dateTime, "yyyy-MM-dd"),
           time: format(event.dateTime, "HH:mm"),
           location: event.location,
+          meetingLink: event.meetingLink ?? "",
           capacity: String(event.capacity),
         });
         setCategory(event.category);
@@ -190,6 +194,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
         category,
         dateTime,
         location: values.location.trim(),
+        meetingLink: values.meetingLink.trim() || null,
         capacity,
         status,
         dayReminderEnabled,
@@ -330,6 +335,23 @@ const EventFormScreen = ({ navigation, route }: any) => {
             name="location"
             rules={{ required: "Location is required." }}
           />
+          <Field
+            control={control}
+            error={formState.errors.meetingLink?.message}
+            keyboardType="url"
+            label="MEETING LINK"
+            name="meetingLink"
+            rules={{
+              validate: (value: string) =>
+                !value.trim() ||
+                isValidMeetingLink(value) ||
+                "Enter a valid https:// meeting link.",
+            }}
+          />
+          <Text style={styles.helpText}>
+            Optional. Paste a Google Meet, Zoom, or Teams link for online
+            events.
+          </Text>
           <Field
             control={control}
             error={formState.errors.capacity?.message}

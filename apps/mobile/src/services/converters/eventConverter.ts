@@ -1,6 +1,7 @@
 import { EventCategory, EventStatus, TiwaniEvent } from "../../types/event";
 import {
   RawRecord,
+  asNullableString,
   asNumber,
   asStringArray,
   requiredDate,
@@ -34,6 +35,7 @@ export const eventFromRecord = (record: RawRecord): TiwaniEvent => {
     category: requiredEnum(record.category, categories, "category"),
     dateTime: requiredDate({ dateTime: record.startTime }, "dateTime"),
     location: requiredString(record, "location"),
+    meetingLink: asNullableString(record.meetingLink, "meetingLink"),
     createdBy: requiredString(record, "createdBy"),
     status: requiredEnum(record.status, statuses, "status"),
     rsvpList,

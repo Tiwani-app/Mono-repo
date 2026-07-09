@@ -14,6 +14,7 @@ export interface EventInput {
   category: EventCategory;
   dateTime: Date;
   location: string;
+  meetingLink: string | null;
   capacity: number;
   status: EventStatus;
   dayReminderEnabled: boolean;
@@ -28,6 +29,9 @@ const eventData = (data: Partial<EventInput>) => ({
   ...(data.category !== undefined ? { category: data.category } : {}),
   ...(data.dateTime !== undefined ? { startTime: data.dateTime } : {}),
   ...(data.location !== undefined ? { location: data.location.trim() } : {}),
+  ...(data.meetingLink !== undefined
+    ? { meetingLink: data.meetingLink?.trim() || null }
+    : {}),
   ...(data.capacity !== undefined ? { capacity: data.capacity } : {}),
   ...(data.status !== undefined ? { status: data.status } : {}),
   ...(data.dayReminderEnabled !== undefined

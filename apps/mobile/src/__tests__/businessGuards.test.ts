@@ -98,6 +98,7 @@ const event = (
   category: "meeting",
   dateTime: new Date("2026-06-08T17:00:00.000Z"),
   location: "Clubhouse",
+  meetingLink: null,
   createdBy: "admin-1",
   status: "published",
   rsvpList: [],
