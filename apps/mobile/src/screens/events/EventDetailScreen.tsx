@@ -210,20 +210,27 @@ const EventDetailScreen = ({ navigation, route }: any) => {
             {formatEventTime(event.dateTime)}
           </Text>
         </View>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>LOCATION</Text>
-          <TouchableOpacity
-            style={styles.locationRow}
-            onPress={handleOpenMaps}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.infoValue, styles.locationText]}>
-              {event.location}
-            </Text>
-            <Icon name="map-pin" size={16} color={colors.gold.default} />
-          </TouchableOpacity>
-          <Text style={styles.linkHint}>Tap to open in Maps</Text>
-        </View>
+        {event.location ? (
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>LOCATION</Text>
+            <TouchableOpacity
+              style={styles.locationRow}
+              onPress={handleOpenMaps}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.infoValue, styles.locationText]}>
+                {event.location}
+              </Text>
+              <Icon name="map-pin" size={16} color={colors.gold.default} />
+            </TouchableOpacity>
+            <Text style={styles.linkHint}>Tap to open in Maps</Text>
+          </View>
+        ) : (
+          <View style={styles.infoCard}>
+            <Text style={styles.infoLabel}>LOCATION</Text>
+            <Text style={styles.infoValue}>Online</Text>
+          </View>
+        )}
         {event.meetingLink && (
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>ONLINE MEETING</Text>

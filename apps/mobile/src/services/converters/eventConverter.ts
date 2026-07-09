@@ -34,7 +34,8 @@ export const eventFromRecord = (record: RawRecord): TiwaniEvent => {
     description: requiredString(record, "description"),
     category: requiredEnum(record.category, categories, "category"),
     dateTime: requiredDate({ dateTime: record.startTime }, "dateTime"),
-    location: requiredString(record, "location"),
+    // Online-only events have no venue; location may be empty.
+    location: typeof record.location === "string" ? record.location : "",
     meetingLink: asNullableString(record.meetingLink, "meetingLink"),
     createdBy: requiredString(record, "createdBy"),
     status: requiredEnum(record.status, statuses, "status"),

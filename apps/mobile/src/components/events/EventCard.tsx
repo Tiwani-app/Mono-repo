@@ -51,8 +51,12 @@ const EventCard = ({ event, onPress }: Props) => {
         </Text>
       </View>
       <View style={styles.metaRow}>
-        <Icon name="map-pin" size={14} color={colors.text.secondary} />
-        <Text style={styles.meta}>{event.location}</Text>
+        <Icon
+          name={event.location ? "map-pin" : "video"}
+          size={14}
+          color={colors.text.secondary}
+        />
+        <Text style={styles.meta}>{event.location || "Online"}</Text>
       </View>
       {event.capacity > 0 && (
         <ProgressBar value={progress} color={categoryColor} />

@@ -333,8 +333,16 @@ const EventFormScreen = ({ navigation, route }: any) => {
             error={formState.errors.location?.message}
             label="LOCATION"
             name="location"
-            rules={{ required: "Location is required." }}
+            rules={{
+              validate: (value: string, values: FormValues) =>
+                Boolean(value.trim()) ||
+                isValidMeetingLink(values.meetingLink) ||
+                "Enter a location or add a meeting link below.",
+            }}
           />
+          <Text style={styles.helpText}>
+            Optional for online events with a meeting link.
+          </Text>
           <Field
             control={control}
             error={formState.errors.meetingLink?.message}
@@ -342,6 +350,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             label="MEETING LINK"
             name="meetingLink"
             rules={{
+              deps: ["location"],
               validate: (value: string) =>
                 !value.trim() ||
                 isValidMeetingLink(value) ||
