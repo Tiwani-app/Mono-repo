@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,8 @@ import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import BalanceBanner from "../../components/finance/BalanceBanner";
+import LedgerRow from "../../components/finance/LedgerRow";
+import { subscribeToLedger } from "../../services/financeService";
 import {
   getMember,
   getMemberDirectoryProfile,
@@ -25,7 +28,10 @@ import {
   getFinanceStandingBannerLabel,
   getFinanceStandingColor,
 } from "../../utils/financeStanding";
+import { LedgerEntry } from "../../types/finance";
 import { User } from "../../types/user";
+import { getFinanceTotals } from "../../utils/financeTotals";
+import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
 import {
@@ -73,6 +79,9 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
   const [activeTab, setActiveTab] = useState<"info" | "family" | "finance">(
     "info",
   );
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -93,6 +102,42 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
         ),
       );
   }, [memberId, user]);
+
+  useEffect(() => {
+    if (!member || !canViewMemberFinanceDetails(user, member)) {
+      setLedgerEntries([]);
+      return;
+    }
+    setLedgerLoading(true);
+    setLedgerError(null);
+    const unsubscribe = subscribeToLedger(
+      member.uid,
+      (entries) => {
+        setLedgerEntries(entries);
+        setLedgerLoading(false);
+      },
+      (error) => {
+        setLedgerError(error.message || "Could not load transactions.");
+        setLedgerLoading(false);
+      },
+    );
+    return () => unsubscribe();
+  }, [member, user]);
+
+  const sortedLedgerEntries = useMemo(
+    () =>
+      [...ledgerEntries].sort((left, right) => {
+        const leftDate = left.paidAt ?? left.dueDate;
+        const rightDate = right.paidAt ?? right.dueDate;
+        return (rightDate?.getTime() ?? 0) - (leftDate?.getTime() ?? 0);
+      }),
+    [ledgerEntries],
+  );
+  const {
+    outstanding: ledgerOutstanding,
+    totalCharged,
+    totalPaid,
+  } = getFinanceTotals(sortedLedgerEntries);
 
   if (loadError) {
     return (
@@ -251,10 +296,53 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
         )}
         {activeTab === "finance" &&
           (canViewFinance ? (
-            <BalanceBanner
-              outstanding={member.outstandingBalance}
-              financialStatus={member.financialStatus}
-            />
+            <>
+              <BalanceBanner
+                outstanding={
+                  ledgerLoading || ledgerError
+                    ? member.outstandingBalance
+                    : ledgerOutstanding
+                }
+                financialStatus={member.financialStatus}
+              />
+              {ledgerLoading ? (
+                <View style={styles.ledgerLoading}>
+                  <ActivityIndicator color={colors.gold.default} />
+                </View>
+              ) : ledgerError ? (
+                <Text style={styles.emptyText}>{ledgerError}</Text>
+              ) : (
+                <>
+                  <View style={styles.summaryRow}>
+                    <SummaryStat
+                      label="Charged"
+                      value={formatCurrency(totalCharged)}
+                    />
+                    <SummaryStat
+                      label="Paid"
+                      value={formatCurrency(totalPaid)}
+                    />
+                    <SummaryStat
+                      label="Outstanding"
+                      value={formatCurrency(ledgerOutstanding)}
+                      tone={financeStandingColor}
+                    />
+                  </View>
+                  <Text style={styles.sectionLabel}>TRANSACTION HISTORY</Text>
+                  {sortedLedgerEntries.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      No transactions recorded.
+                    </Text>
+                  ) : (
+                    <View style={styles.ledgerList}>
+                      {sortedLedgerEntries.map((entry) => (
+                        <LedgerRow key={entry.id} entry={entry} />
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+            </>
           ) : (
             <Text style={styles.restricted}>
               You do not have permission to view this information.
@@ -269,6 +357,23 @@ const Info = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.infoRow}>
     <Text style={styles.infoLabel}>{label}</Text>
     <Text style={styles.infoValue}>{value}</Text>
+  </View>
+);
+
+const SummaryStat = ({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone?: string;
+  value: string;
+}) => (
+  <View style={styles.summaryStat}>
+    <Text style={[styles.summaryValue, tone ? { color: tone } : null]}>
+      {value}
+    </Text>
+    <Text style={styles.summaryLabel}>{label}</Text>
   </View>
 );
 
@@ -342,6 +447,33 @@ const styles = StyleSheet.create({
   },
   emptyText: { color: colors.text.secondary },
   restricted: { color: colors.status.error, textAlign: "center" },
+  ledgerLoading: {
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ledgerList: { gap: spacing.md },
+  summaryRow: { flexDirection: "row", gap: spacing.sm },
+  summaryStat: {
+    flex: 1,
+    minHeight: 70,
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.bg.card,
+  },
+  summaryValue: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.black,
+    color: colors.text.primary,
+  },
+  summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
+  sectionLabel: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.bold,
+    letterSpacing: 0.8,
+  },
   editButton: {
     width: 40,
     height: 40,
