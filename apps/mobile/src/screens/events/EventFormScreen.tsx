@@ -341,7 +341,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
             }}
           />
           <Text style={styles.helpText}>
-            Optional for online events with a meeting link.
+            Optional. Write in a physical address for in-person events.
           </Text>
           <Field
             control={control}

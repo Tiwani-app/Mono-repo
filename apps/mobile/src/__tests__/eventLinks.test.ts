@@ -1,5 +1,3 @@
-jest.mock("react-native", () => ({ Platform: { OS: "ios" } }));
-
 import {
   getMapsSearchUrl,
   getMeetingLinkLabel,
@@ -55,9 +53,9 @@ describe("getMeetingLinkLabel", () => {
 });
 
 describe("getMapsSearchUrl", () => {
-  it("URL-encodes the location query", () => {
-    expect(getMapsSearchUrl("Community Hall, 12 Adeyemi St")).toContain(
-      encodeURIComponent("Community Hall, 12 Adeyemi St"),
-    );
+  it("builds a Google Maps search link with the encoded location", () => {
+    const url = getMapsSearchUrl("Community Hall, 12 Adeyemi St");
+    expect(url).toContain("https://www.google.com/maps/search/");
+    expect(url).toContain(encodeURIComponent("Community Hall, 12 Adeyemi St"));
   });
 });

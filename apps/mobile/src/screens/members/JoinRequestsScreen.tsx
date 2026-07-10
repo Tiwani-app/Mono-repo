@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
@@ -16,6 +23,24 @@ import { formatRelativeTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 import type { SetupDeliveryResult } from "../../services/cloudFunctionsService";
+
+type RequestFilter = "all" | "pending" | "previous";
+
+const requestFilters: { label: string; value: RequestFilter }[] = [
+  { label: "All", value: "all" },
+  { label: "Pending", value: "pending" },
+  { label: "Previous", value: "previous" },
+];
+
+const matchesRequestFilter = (request: JoinRequest, filter: RequestFilter) => {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "pending") {
+    return request.status === "pending";
+  }
+  return request.status !== "pending";
+};
 
 const statusColor = (status: JoinRequest["status"]) => {
   if (status === "approved") {
@@ -48,6 +73,10 @@ const JoinRequestsScreen = ({ navigation }: any) => {
   const admin = isAdmin(user);
   const { error, loading, requests } = useJoinRequests({ enabled: admin });
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<RequestFilter>("all");
+  const filteredRequests = requests.filter((request) =>
+    matchesRequestFilter(request, filter),
+  );
 
   const handleReview = (
     request: JoinRequest,
@@ -128,9 +157,36 @@ const JoinRequestsScreen = ({ navigation }: any) => {
         onBack={() => safeGoBack(navigation, "DashboardHome")}
       />
       <FlatList
-        data={requests}
+        data={filteredRequests}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <View style={styles.filterRow}>
+            {requestFilters.map((option) => {
+              const selected = filter === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.filterChip,
+                    selected && styles.selectedFilterChip,
+                  ]}
+                  onPress={() => setFilter(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      selected && styles.selectedFilterText,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.topRow}>
@@ -170,7 +226,13 @@ const JoinRequestsScreen = ({ navigation }: any) => {
           <EmptyState
             icon="!"
             title="No join requests"
-            message="New requests from Login will appear here."
+            message={
+              filter === "pending"
+                ? "There are no pending requests to review."
+                : filter === "previous"
+                  ? "Approved and declined requests will appear here."
+                  : "New requests from Login will appear here."
+            }
           />
         }
       />
@@ -204,6 +266,26 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: { gap: spacing.sm },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  filterChip: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+  },
+  selectedFilterChip: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}22`,
+  },
+  filterText: {
+    color: colors.text.secondary,
+    fontWeight: "700",
+  },
+  selectedFilterText: { color: colors.gold.light },
 });
 
 export default JoinRequestsScreen;

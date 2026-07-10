@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../components/common/AttachmentField";
@@ -217,11 +218,21 @@ const SettingsScreen = ({ navigation }: any) => {
     const asset = result.assets[0];
     try {
       setUploadingProfilePhoto(true);
+      // Avatars render at ~64px; downscale before upload so members never
+      // fetch multi-megabyte originals.
+      const targetWidth = Math.min(asset.width || 512, 512);
+      const rendered = await ImageManipulator.manipulate(asset.uri)
+        .resize({ width: targetWidth })
+        .renderAsync();
+      const resized = await rendered.saveAsync({
+        compress: 0.8,
+        format: SaveFormat.JPEG,
+      });
       const photoURL = await uploadProfilePhoto(user.uid, {
-        uri: asset.uri,
-        fileName: asset.fileName,
-        fileSize: asset.fileSize,
-        mimeType: asset.mimeType,
+        uri: resized.uri,
+        fileName: `profile-photo-${Date.now()}.jpg`,
+        fileSize: null,
+        mimeType: "image/jpeg",
       });
       setValue("photoURL", photoURL, {
         shouldDirty: true,
@@ -461,21 +472,32 @@ const SettingsScreen = ({ navigation }: any) => {
                     "Enter a valid photo URL.",
                 }}
                 render={({ field: { onChange, value } }) => (
-                  <AttachmentField
-                    label="PROFILE IMAGE"
-                    mode="image"
-                    fileName={user.fullName}
-                    value={value}
-                    onChangeText={onChange}
-                    error={formState.errors.photoURL?.message}
-                    showUrlInput={false}
-                    helperText={
-                      uploadingProfilePhoto
-                        ? "Uploading selected profile photo..."
-                        : "Tap the upload button to choose a profile photo."
-                    }
-                    onPick={handlePickProfilePhoto}
-                  />
+                  <View style={styles.photoField}>
+                    <AttachmentField
+                      label="PROFILE IMAGE"
+                      mode="image"
+                      fileName={user.fullName}
+                      value={value}
+                      onChangeText={onChange}
+                      error={formState.errors.photoURL?.message}
+                      showUrlInput={false}
+                      helperText={
+                        uploadingProfilePhoto
+                          ? "Uploading selected profile photo..."
+                          : "Tap the upload button to choose a profile photo."
+                      }
+                      onPick={handlePickProfilePhoto}
+                    />
+                    {Boolean(value) && (
+                      <OutlineButton
+                        label="Remove Photo"
+                        color={colors.status.error}
+                        onPress={() => onChange("")}
+                        disabled={uploadingProfilePhoto}
+                        fullWidth
+                      />
+                    )}
+                  </View>
                 )}
               />
               <GoldButton
@@ -573,6 +595,11 @@ const SettingsScreen = ({ navigation }: any) => {
           {admin ? (
             <>
               <Text style={styles.sectionLabel}>ADMIN TOOLS</Text>
+              <LinkRow
+                label="Join Requests"
+                value="Review"
+                onPress={() => navigation.navigate("JoinRequests")}
+              />
               <LinkRow
                 label="Audit Logs"
                 value="Review"
@@ -737,6 +764,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.card,
   },
   field: { gap: spacing.xs },
+  photoField: { gap: spacing.sm },
   label: {
     fontSize: typography.size.xs,
     color: colors.text.secondary,

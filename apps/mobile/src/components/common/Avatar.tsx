@@ -1,5 +1,6 @@
 import React from 'react';
-import {Image, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
+import {Image} from 'expo-image';
 import {colors, typography} from '../../theme';
 import {FinancialStatus} from '../../types/user';
 import StatusDot from './StatusDot';
@@ -19,6 +20,8 @@ const Avatar = ({initials, photoURL, size = 38, statusDot}: Props) => {
       {photoURL ? (
         <Image
           source={{uri: photoURL}}
+          cachePolicy="memory-disk"
+          transition={120}
           style={[styles.image, {width: size, height: size, borderRadius: size / 2}]}
         />
       ) : (
