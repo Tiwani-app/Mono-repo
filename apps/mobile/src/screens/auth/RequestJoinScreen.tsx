@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import FeedbackModal, { FeedbackModalType } from '../../components/common/FeedbackModal';
 import GoldButton from '../../components/common/GoldButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import Icon from '../../components/common/FeatherIcon';
@@ -36,6 +36,17 @@ interface FormValues {
 
 const RequestJoinScreen = ({ navigation }: any) => {
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
       fullName: '',
@@ -58,14 +69,9 @@ const RequestJoinScreen = ({ navigation }: any) => {
         phone: `${values.countryCode.trim()} ${values.phoneNumber.trim()}`.trim(),
         message: values.message.trim(),
       });
-      Alert.alert('Request sent', 'An admin will review your request.', [
-        {text: 'OK', onPress: () => safeGoBack(navigation, 'Login')},
-      ]);
+      setModal({ visible: true, type: "success", title: "Request sent", message: "An admin will review your request.", primaryLabel: "OK", onPrimary: () => { closeModal(); safeGoBack(navigation, 'Login'); } });
     } catch (error) {
-      Alert.alert(
-        'Request not sent',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
+      setModal({ visible: true, type: "error", title: "Request not sent", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -73,6 +79,18 @@ const RequestJoinScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader title="Request to Join" showBack onBack={() => safeGoBack(navigation, 'Login')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

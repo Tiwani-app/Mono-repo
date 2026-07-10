@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Alert, FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -26,6 +27,17 @@ const LibraryManageScreen = ({ navigation }: any) => {
     enabled: canManage,
   });
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   if (!canManage) {
     return (
@@ -57,35 +69,46 @@ const LibraryManageScreen = ({ navigation }: any) => {
       setPendingActionId(actionId);
       await action();
     } catch (actionError) {
-      Alert.alert(
-        failureTitle,
-        actionError instanceof Error
-          ? actionError.message
-          : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: failureTitle, message: actionError instanceof Error ? actionError.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setPendingActionId(null);
     }
   };
 
   const confirmDelete = (document: LibraryDocument) => {
-    Alert.alert("Delete Document", `Delete ${document.title}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () =>
-          runDocumentAction(
-            `delete-${document.id}`,
-            () => deleteLibraryDocument(document.id),
-            "Document not deleted",
-          ),
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Document",
+      message: `Delete ${document.title}?`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Delete",
+      onPrimary: () => {
+        closeModal();
+        runDocumentAction(
+          `delete-${document.id}`,
+          () => deleteLibraryDocument(document.id),
+          "Document not deleted",
+        );
       },
-    ]);
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Manage Library"
         showBack

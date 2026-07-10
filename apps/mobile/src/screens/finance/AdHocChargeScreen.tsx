@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +14,7 @@ import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import CalendarDateField from "../../components/common/CalendarDateField";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -69,6 +69,17 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   );
   const [memberQuery, setMemberQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === "active"),
     [members],
@@ -130,18 +141,15 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
           : selectedUids;
 
     if (dueDate === undefined) {
-      Alert.alert(
-        "Due date invalid",
-        "Use date format YYYY-MM-DD or leave it blank.",
-      );
+      setModal({ visible: true, type: "error", title: "Due date invalid", message: "Use date format YYYY-MM-DD or leave it blank.", onPrimary: closeModal });
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert("Amount required", "Enter an amount greater than zero.");
+      setModal({ visible: true, type: "error", title: "Amount required", message: "Enter an amount greater than zero.", onPrimary: closeModal });
       return;
     }
     if (memberIds.length === 0) {
-      Alert.alert("Member required", "Choose who should receive this charge.");
+      setModal({ visible: true, type: "error", title: "Member required", message: "Choose who should receive this charge.", onPrimary: closeModal });
       return;
     }
 
@@ -157,12 +165,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
       });
       safeGoBack(navigation, "FinanceAdmin");
     } catch (submitError) {
-      Alert.alert(
-        "Charge not created",
-        submitError instanceof Error
-          ? submitError.message
-          : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Charge not created", message: submitError instanceof Error ? submitError.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -213,6 +216,18 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Ad Hoc Charge"
         showBack

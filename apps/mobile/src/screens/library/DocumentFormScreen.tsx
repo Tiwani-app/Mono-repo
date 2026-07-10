@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +15,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -102,6 +102,17 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(Boolean(documentId));
   const [selectedFile, setSelectedFile] = useState<LibraryUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const canManage = canManageLibraryDocuments(user);
   const { control, handleSubmit, reset, setValue, watch, formState } =
     useForm<FormValues>({
@@ -175,10 +186,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
       setValue("fileName", uploadFile.name, { shouldDirty: true });
       setValue("fileURL", "", { shouldDirty: true });
     } catch (error) {
-      Alert.alert(
-        "Document not selected",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Document not selected", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     }
   };
 
@@ -193,14 +201,11 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
     const fileURL = selectedFile ? null : values.fileURL.trim() || null;
     const fileType = inferFileType(fileName);
     if (documentDate === undefined) {
-      Alert.alert("Document date invalid", "Choose a valid document date.");
+      setModal({ visible: true, type: "error", title: "Document date invalid", message: "Choose a valid document date.", onPrimary: closeModal });
       return;
     }
     if (!fileType) {
-      Alert.alert(
-        "Unsupported file type",
-        "Use a PDF, DOC, DOCX, JPG, or PNG file name.",
-      );
+      setModal({ visible: true, type: "error", title: "Unsupported file type", message: "Use a PDF, DOC, DOCX, JPG, or PNG file name.", onPrimary: closeModal });
       return;
     }
 
@@ -239,10 +244,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
       }
       safeGoBack(navigation, "Library");
     } catch (error) {
-      Alert.alert(
-        "Document not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Document not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -290,6 +292,18 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={documentId ? "Edit Document" : "Upload Document"}
         showBack

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -46,53 +46,62 @@ const VotingHubScreen = ({ navigation }: any) => {
     partitionExpiredVotingItems(polls);
 
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const handleClosePoll = (poll: Poll) => {
-    Alert.alert(
-      "Close Poll",
-      `Are you sure you want to close "${poll.title}"? This cannot be undone — voting will end immediately.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Close Poll",
-          style: "destructive",
-          onPress: async () => {
-            setClosingId(poll.id);
-            try {
-              await closePoll(poll.id);
-            } catch (e: any) {
-              Alert.alert("Error", e?.message ?? "Could not close the poll. Please try again.");
-            } finally {
-              setClosingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Close Poll",
+      message: `Are you sure you want to close "${poll.title}"? This cannot be undone — voting will end immediately.`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Close Poll",
+      onPrimary: async () => {
+        closeModal();
+        setClosingId(poll.id);
+        try {
+          await closePoll(poll.id);
+        } catch (e: any) {
+          setModal({ visible: true, type: "error", title: "Error", message: e?.message ?? "Could not close the poll. Please try again.", onPrimary: closeModal });
+        } finally {
+          setClosingId(null);
+        }
+      },
+    });
   };
 
   const handleCloseElection = (election: Election) => {
-    Alert.alert(
-      "Close Election",
-      `Are you sure you want to close "${election.title}"? This cannot be undone — voting will end immediately.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Close Election",
-          style: "destructive",
-          onPress: async () => {
-            setClosingId(election.id);
-            try {
-              await closeElection(election.id);
-            } catch (e: any) {
-              Alert.alert("Error", e?.message ?? "Could not close the election. Please try again.");
-            } finally {
-              setClosingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Close Election",
+      message: `Are you sure you want to close "${election.title}"? This cannot be undone — voting will end immediately.`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Close Election",
+      onPrimary: async () => {
+        closeModal();
+        setClosingId(election.id);
+        try {
+          await closeElection(election.id);
+        } catch (e: any) {
+          setModal({ visible: true, type: "error", title: "Error", message: e?.message ?? "Could not close the election. Please try again.", onPrimary: closeModal });
+        } finally {
+          setClosingId(null);
+        }
+      },
+    });
   };
 
   const renderElection = (election: Election) => (
@@ -138,6 +147,18 @@ const VotingHubScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader title="Vote & Polls" />
       <ScrollView contentContainerStyle={styles.content}>
         <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />

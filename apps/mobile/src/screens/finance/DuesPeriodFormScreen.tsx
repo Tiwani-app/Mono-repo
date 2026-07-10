@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,7 @@ import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { createDuesPeriod } from "../../services/financeService";
@@ -39,6 +39,17 @@ const parseDate = (value: string) => {
 const DuesPeriodFormScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
       name: "",
@@ -54,11 +65,11 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
     const dueDate = parseDate(values.dueDate);
     const amount = Number(values.amount.replace(/,/g, ""));
     if (!dueDate) {
-      Alert.alert("Due date required", "Use date format YYYY-MM-DD.");
+      setModal({ visible: true, type: "error", title: "Due date required", message: "Use date format YYYY-MM-DD.", onPrimary: closeModal });
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert("Amount required", "Enter an amount greater than zero.");
+      setModal({ visible: true, type: "error", title: "Amount required", message: "Enter an amount greater than zero.", onPrimary: closeModal });
       return;
     }
 
@@ -72,10 +83,7 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
       });
       safeGoBack(navigation, "FinanceAdmin");
     } catch (error) {
-      Alert.alert(
-        "Dues period not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Dues period not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -100,6 +108,18 @@ const DuesPeriodFormScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="New Dues Period"
         showBack

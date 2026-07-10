@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -20,6 +19,7 @@ import AttachmentField from "../components/common/AttachmentField";
 import Avatar from "../components/common/Avatar";
 import Badge from "../components/common/Badge";
 import CalendarDateField from "../components/common/CalendarDateField";
+import FeedbackModal, { FeedbackModalType } from "../components/common/FeedbackModal";
 import Icon from "../components/common/FeatherIcon";
 import GoldButton from "../components/common/GoldButton";
 import OutlineButton from "../components/common/OutlineButton";
@@ -54,6 +54,17 @@ const maritalOptions: { label: string; value: User["maritalStatus"] }[] = [
 
 const SettingsScreen = ({ navigation }: any) => {
   const { updateCurrentUser, user } = useAuthStore();
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingPreference, setSavingPreference] = useState<
     keyof NotificationPreferences | null
@@ -118,10 +129,7 @@ const SettingsScreen = ({ navigation }: any) => {
       await updateMemberProfile(user.uid, { notificationPreferences });
     } catch (error) {
       updateCurrentUser({ notificationPreferences: previousPreferences });
-      Alert.alert(
-        "Preference not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Preference not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSavingPreference(null);
     }
@@ -156,7 +164,7 @@ const SettingsScreen = ({ navigation }: any) => {
       .filter((child) => child.name || child.dateOfBirth);
 
     if (children.some((child) => !child.name)) {
-      Alert.alert("Child name required", "Enter a name for each child.");
+      setModal({ visible: true, type: "error", title: "Child name required", message: "Enter a name for each child.", onPrimary: closeModal });
       return;
     }
 
@@ -181,10 +189,7 @@ const SettingsScreen = ({ navigation }: any) => {
       setEditingProfile(false);
     } catch (error) {
       updateCurrentUser(previousProfile);
-      Alert.alert(
-        "Profile not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Profile not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSavingProfile(false);
     }
@@ -197,10 +202,7 @@ const SettingsScreen = ({ navigation }: any) => {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
-        "Photo access needed",
-        "Allow photo library access to choose a profile photo.",
-      );
+      setModal({ visible: true, type: "error", title: "Photo access needed", message: "Allow photo library access to choose a profile photo.", onPrimary: closeModal });
       return;
     }
 
@@ -240,41 +242,41 @@ const SettingsScreen = ({ navigation }: any) => {
         shouldValidate: true,
       });
     } catch (error) {
-      Alert.alert(
-        "Photo not uploaded",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Photo not uploaded", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setUploadingProfilePhoto(false);
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: signOut },
-    ]);
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Sign Out",
+      message: "Are you sure you want to sign out?",
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Sign Out",
+      onPrimary: () => { closeModal(); signOut(); },
+    });
   };
 
   const openExternalLink = async (label: string, url: string) => {
     const trimmedUrl = url.trim();
     if (!trimmedUrl) {
-      Alert.alert(
-        `${label} unavailable`,
-        "This link has not been configured for this build yet.",
-      );
+      setModal({ visible: true, type: "error", title: `${label} unavailable`, message: "This link has not been configured for this build yet.", onPrimary: closeModal });
       return;
     }
 
     try {
       const supported = await Linking.canOpenURL(trimmedUrl);
       if (!supported) {
-        Alert.alert(`${label} unavailable`, "This link could not be opened.");
+        setModal({ visible: true, type: "error", title: `${label} unavailable`, message: "This link could not be opened.", onPrimary: closeModal });
         return;
       }
       await Linking.openURL(trimmedUrl);
     } catch {
-      Alert.alert(`${label} unavailable`, "This link could not be opened.");
+      setModal({ visible: true, type: "error", title: `${label} unavailable`, message: "This link could not be opened.", onPrimary: closeModal });
     }
   };
 
@@ -288,12 +290,13 @@ const SettingsScreen = ({ navigation }: any) => {
       if (result.status === "registered") {
         setPushEnabled(true);
       }
-      Alert.alert(
-        result.status === "registered"
-          ? "Push notifications enabled"
-          : "Push notifications unavailable",
-        result.message,
-      );
+      setModal({
+        visible: true,
+        type: result.status === "registered" ? "success" : "info",
+        title: result.status === "registered" ? "Push notifications enabled" : "Push notifications unavailable",
+        message: result.message,
+        onPrimary: closeModal,
+      });
     } finally {
       setRegisteringPush(false);
     }
@@ -301,6 +304,18 @@ const SettingsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Settings"
         showBack

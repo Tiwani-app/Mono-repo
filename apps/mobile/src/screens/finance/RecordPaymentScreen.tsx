@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,7 @@ import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -112,6 +112,22 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   const [selectedChargeId, setSelectedChargeId] = useState("");
   const [chargeMenuOpen, setChargeMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [bulkModal, setBulkModal] = useState<
+    | { visible: false }
+    | { visible: true; type: "success"; count: number; onDone: () => void }
+    | { visible: true; type: "error"; message: string }
+  >({ visible: false });
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const {
     control,
     handleSubmit,
@@ -234,28 +250,19 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
     }
     const amount = Number(values.amount.replace(/,/g, ""));
     if (!selectedUid) {
-      Alert.alert(
-        "Member required",
-        "Choose the member who made this payment.",
-      );
+      setModal({ visible: true, type: "error", title: "Member required", message: "Choose the member who made this payment.", onPrimary: closeModal });
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert("Amount required", "Enter an amount greater than zero.");
+      setModal({ visible: true, type: "error", title: "Amount required", message: "Enter an amount greater than zero.", onPrimary: closeModal });
       return;
     }
     if (!selectedCharge) {
-      Alert.alert(
-        "Charge required",
-        "Choose which open charge this payment should settle.",
-      );
+      setModal({ visible: true, type: "error", title: "Charge required", message: "Choose which open charge this payment should settle.", onPrimary: closeModal });
       return;
     }
     if (amount > getChargeOutstanding(selectedCharge)) {
-      Alert.alert(
-        "Amount too high",
-        "Payment cannot exceed the selected charge balance.",
-      );
+      setModal({ visible: true, type: "error", title: "Amount too high", message: "Payment cannot exceed the selected charge balance.", onPrimary: closeModal });
       return;
     }
 
@@ -271,12 +278,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       });
       safeGoBack(navigation, "FinanceAdmin");
     } catch (submitError) {
-      Alert.alert(
-        "Payment not recorded",
-        submitError instanceof Error
-          ? submitError.message
-          : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Payment not recorded", message: submitError instanceof Error ? submitError.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -287,10 +289,11 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       return;
     }
     if (bulkItems.length === 0) {
-      Alert.alert(
-        "No members selected",
-        "Select at least one member with an open charge.",
-      );
+      setBulkModal({
+        visible: true,
+        type: "error",
+        message: "Select at least one member with an open charge.",
+      });
       return;
     }
     try {
@@ -305,18 +308,21 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
           note: values.note.trim(),
         })),
       );
-      Alert.alert(
-        "Payments recorded",
-        `${count} payment${count === 1 ? "" : "s"} recorded successfully.`,
-        [{ text: "OK", onPress: () => safeGoBack(navigation, "FinanceAdmin") }],
-      );
+      setBulkModal({
+        visible: true,
+        type: "success",
+        count,
+        onDone: () => setBulkModal({ visible: false }),
+      });
     } catch (submitError) {
-      Alert.alert(
-        "Payments not recorded",
-        submitError instanceof Error
-          ? submitError.message
-          : "Please try again.",
-      );
+      setBulkModal({
+        visible: true,
+        type: "error",
+        message:
+          submitError instanceof Error
+            ? submitError.message
+            : "Please try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -364,6 +370,47 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <FeedbackModal
+        visible={bulkModal.visible}
+        type={bulkModal.visible ? bulkModal.type : "error"}
+        title={
+          bulkModal.visible
+            ? bulkModal.type === "success"
+              ? "Payments Recorded"
+              : "Could Not Record"
+            : ""
+        }
+        message={
+          bulkModal.visible
+            ? bulkModal.type === "success"
+              ? `${bulkModal.count} payment${bulkModal.count === 1 ? "" : "s"} recorded successfully.`
+              : bulkModal.message
+            : ""
+        }
+        primaryLabel={
+          bulkModal.visible && bulkModal.type === "success" ? "Done" : "OK"
+        }
+        onPrimary={() => {
+          if (bulkModal.visible && bulkModal.type === "success") {
+            setBulkModal({ visible: false });
+            bulkModal.onDone();
+          } else {
+            setBulkModal({ visible: false });
+          }
+        }}
+      />
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Record Payment"
         showBack

@@ -1,9 +1,8 @@
 import React, { useRef, useState } from "react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { sendAnnouncement } from "../../services/notificationsService";
@@ -35,12 +35,23 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
   const [body, setBody] = useState("");
   const [type, setType] = useState<NotificationType>("general");
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const handleSubmit = async () => {
     const trimmedTitle = title.trim();
     const trimmedBody = body.trim();
     if (!trimmedTitle || !trimmedBody) {
-      Alert.alert("Announcement required", "Enter a title and message.");
+      setModal({ visible: true, type: "error", title: "Announcement required", message: "Enter a title and message.", onPrimary: closeModal });
       return;
     }
 
@@ -51,21 +62,16 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
         body: trimmedBody,
         type,
       });
-      Alert.alert(
-        "Announcement saved",
-        "Saved to every member's in-app inbox.",
-        [
-          {
-            text: "OK",
-            onPress: () => safeGoBack(navigation, "Notifications"),
-          },
-        ],
-      );
+      setModal({
+        visible: true,
+        type: "success",
+        title: "Announcement saved",
+        message: "Saved to every member's in-app inbox.",
+        primaryLabel: "OK",
+        onPrimary: () => { closeModal(); safeGoBack(navigation, "Notifications"); },
+      });
     } catch (error) {
-      Alert.alert(
-        "Announcement not sent",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Announcement not sent", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +96,18 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Send Announcement"
         showBack

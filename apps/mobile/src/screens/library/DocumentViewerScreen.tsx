@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -37,6 +37,17 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   useEffect(() => {
     setLoading(true);
@@ -66,10 +77,7 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
       setOpening(true);
       const url = await getLibraryDocumentURL(document.id, admin);
       if (!url) {
-        Alert.alert(
-          "File unavailable",
-          "This document does not have a file URL yet.",
-        );
+        setModal({ visible: true, type: "error", title: "File unavailable", message: "This document does not have a file URL yet.", onPrimary: closeModal });
         return;
       }
       const supported = await Linking.canOpenURL(url);
@@ -77,15 +85,9 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
         await Linking.openURL(url);
         return;
       }
-      Alert.alert(
-        "Unsupported file",
-        "This file cannot be opened on this device.",
-      );
+      setModal({ visible: true, type: "error", title: "Unsupported file", message: "This file cannot be opened on this device.", onPrimary: closeModal });
     } catch (openError) {
-      Alert.alert(
-        "Document unavailable",
-        openError instanceof Error ? openError.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Document unavailable", message: openError instanceof Error ? openError.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setOpening(false);
     }
@@ -121,6 +123,18 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Document"
         showBack

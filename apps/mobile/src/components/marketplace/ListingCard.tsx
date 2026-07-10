@@ -1,6 +1,7 @@
-import React from "react";
-import { Alert, Linking, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
+import FeedbackModal, { FeedbackModalType } from "../common/FeedbackModal";
 import GoldButton from "../common/GoldButton";
 import ListingMedia from "./ListingMedia";
 import { colors, spacing, typography } from "../../theme";
@@ -21,15 +22,23 @@ interface Props {
 
 const ListingCard = ({ listing }: Props) => {
   const sold = listing.status === "sold";
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const openContactUrl = async (contactUrl: string) => {
     try {
       await Linking.openURL(contactUrl);
     } catch {
-      Alert.alert(
-        "Contact unavailable",
-        "This contact method could not be opened on your device.",
-      );
+      setModal({ visible: true, type: "error", title: "Contact unavailable", message: "This contact method could not be opened on your device.", onPrimary: closeModal });
     }
   };
 
@@ -69,31 +78,40 @@ const ListingCard = ({ listing }: Props) => {
     );
 
     if (contactOptions.length === 0) {
-      Alert.alert(
-        "Contact unavailable",
-        "This listing does not have a phone number or email for enquiries.",
-      );
+      setModal({ visible: true, type: "info", title: "Contact unavailable", message: "This listing does not have a phone number or email for enquiries.", onPrimary: closeModal });
       return;
     }
     if (contactOptions.length === 1) {
       openContactUrl(contactOptions[0].url);
       return;
     }
-    Alert.alert(
-      `Contact ${listing.postedByName}`,
-      "Choose how to send your enquiry.",
-      [
-        { text: "Cancel", style: "cancel" },
-        ...contactOptions.map((option) => ({
-          text: option.label,
-          onPress: () => openContactUrl(option.url),
-        })),
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "info",
+      title: `Contact ${listing.postedByName}`,
+      message: "Choose how to send your enquiry.",
+      primaryLabel: contactOptions[0].label,
+      onPrimary: () => { closeModal(); openContactUrl(contactOptions[0].url); },
+      secondaryLabel: contactOptions[1] ? contactOptions[1].label : "Cancel",
+      onSecondary: contactOptions[1] ? () => { closeModal(); openContactUrl(contactOptions[1].url); } : closeModal,
+    });
   };
 
   return (
-    <View style={[styles.card, sold && styles.sold]}>
+    <>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
+      <View style={[styles.card, sold && styles.sold]}>
       <ListingMedia listing={listing} />
       <View style={styles.content}>
         <View style={styles.topRow}>
@@ -127,6 +145,7 @@ const ListingCard = ({ listing }: Props) => {
         </View>
       </View>
     </View>
+    </>
   );
 };
 

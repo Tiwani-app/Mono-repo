@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -17,6 +16,7 @@ import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -70,6 +70,17 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const {
     error: membersError,
     loading: membersLoading,
@@ -149,7 +160,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       candidates.map((candidate) => candidate.name.toLowerCase()),
     );
     if (candidates.length < 2 || uniqueNames.size < 2) {
-      Alert.alert("Candidates required", "Add at least two unique candidates.");
+      setModal({ visible: true, type: "error", title: "Candidates required", message: "Add at least two unique candidates.", onPrimary: closeModal });
       return;
     }
     const blockedCandidates = findFinanciallyBlockedCandidateNames(
@@ -157,23 +168,17 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       members,
     );
     if (blockedCandidates.length > 0) {
-      Alert.alert(
-        "Candidate not eligible",
-        `${blockedCandidates.join(", ")} must be in good financial standing before standing for election.`,
-      );
+      setModal({ visible: true, type: "error", title: "Candidate not eligible", message: `${blockedCandidates.join(", ")} must be in good financial standing before standing for election.`, onPrimary: closeModal });
       return;
     }
     const expiryDate = parse(values.expiresAt, "yyyy-MM-dd", new Date());
     const expiresAt = endOfDay(expiryDate);
     if (Number.isNaN(expiresAt.getTime())) {
-      Alert.alert("Expiry date required", "Choose a valid expiry date.");
+      setModal({ visible: true, type: "error", title: "Expiry date required", message: "Choose a valid expiry date.", onPrimary: closeModal });
       return;
     }
     if (status === "open" && expiresAt.getTime() <= Date.now()) {
-      Alert.alert(
-        "Expiry date required",
-        "Open elections need an expiry date in the future.",
-      );
+      setModal({ visible: true, type: "error", title: "Expiry date required", message: "Open elections need an expiry date in the future.", onPrimary: closeModal });
       return;
     }
 
@@ -198,10 +203,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       }
       safeGoBack(navigation, "VotingHub");
     } catch (error) {
-      Alert.alert(
-        "Election not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Election not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -268,6 +270,18 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={electionId ? "Edit Election" : "New Election"}
         showBack

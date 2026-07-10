@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -54,6 +55,17 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { members } = useMembers({
     enabled: Boolean(user?.uid),
     source: "directory",
@@ -103,7 +115,7 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
       return;
     }
     if (!isElectionBallotComplete(election, choices)) {
-      Alert.alert("Ballot incomplete", "Choose a candidate for every race.");
+      setModal({ visible: true, type: "error", title: "Ballot incomplete", message: "Choose a candidate for every race.", onPrimary: closeModal });
       return;
     }
     try {
@@ -119,15 +131,9 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
         ballotReceipt: nextVoterState.ballotReceipt ?? ballotReceipt,
         hasVoted: true,
       });
-      Alert.alert(
-        "Ballot recorded",
-        `Your ballot has been saved.\n\nReceipt: ${ballotReceipt}`,
-      );
+      setModal({ visible: true, type: "success", title: "Ballot recorded", message: `Your ballot has been saved.\n\nReceipt: ${ballotReceipt}`, onPrimary: closeModal });
     } catch (submitError) {
-      Alert.alert(
-        "Ballot not recorded",
-        submitError instanceof Error ? submitError.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Ballot not recorded", message: submitError instanceof Error ? submitError.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -165,6 +171,18 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Election"
         showBack

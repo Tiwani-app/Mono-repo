@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -32,6 +33,17 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(true);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
   const admin = isAdmin(user);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { members } = useMembers({
     enabled: admin,
     source: "directory",
@@ -100,10 +112,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
       await checkInAttendee(eventId, attendee.uid);
       setAttendees(await getEventAttendees(eventId));
     } catch (error) {
-      Alert.alert(
-        "Check-in failed",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Check-in failed", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setPendingUid(null);
     }
@@ -118,10 +127,7 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
       await checkOutAttendee(eventId, attendee.uid);
       setAttendees(await getEventAttendees(eventId));
     } catch (error) {
-      Alert.alert(
-        "Check-out failed",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Check-out failed", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setPendingUid(null);
     }
@@ -173,6 +179,18 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Event Check-In"
         showBack
