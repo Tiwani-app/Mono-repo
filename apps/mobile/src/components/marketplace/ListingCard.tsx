@@ -22,7 +22,18 @@ interface Props {
 const ListingCard = ({ listing }: Props) => {
   const sold = listing.status === "sold";
 
-  const handleEnquire = async () => {
+  const openContactUrl = async (contactUrl: string) => {
+    try {
+      await Linking.openURL(contactUrl);
+    } catch {
+      Alert.alert(
+        "Contact unavailable",
+        "This contact method could not be opened on your device.",
+      );
+    }
+  };
+
+  const handleEnquire = () => {
     const message = encodeURIComponent(
       `Hi ${listing.postedByName}, I'm interested in "${listing.title}" listed on Tiwani for ${formatCurrency(listing.price)}. Is it still available?`,
     );
@@ -37,30 +48,47 @@ const ListingCard = ({ listing }: Props) => {
       listing.contactInstruction.match(
         /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
       )?.[0];
-    const contactUrls = [
+    const contactOptions = [
       whatsappPhone
-        ? `https://wa.me/${whatsappPhone}?text=${message}`
+        ? {
+            label: "WhatsApp",
+            url: `https://wa.me/${whatsappPhone}?text=${message}`,
+          }
         : null,
-      phone ? `sms:${phone}&body=${message}` : null,
+      phone
+        ? { label: "Text Message", url: `sms:${phone}&body=${message}` }
+        : null,
       email
-        ? `mailto:${email}?subject=Tiwani marketplace enquiry&body=${message}`
+        ? {
+            label: "Email",
+            url: `mailto:${email}?subject=Tiwani marketplace enquiry&body=${message}`,
+          }
         : null,
-    ].filter((contactUrl): contactUrl is string => Boolean(contactUrl));
+    ].filter(
+      (option): option is { label: string; url: string } => Boolean(option),
+    );
 
-    try {
-      for (const contactUrl of contactUrls) {
-        if (await Linking.canOpenURL(contactUrl)) {
-          await Linking.openURL(contactUrl);
-          return;
-        }
-      }
-    } catch {
-      // Fall through to the seller's instructions when an external app fails.
+    if (contactOptions.length === 0) {
+      Alert.alert(
+        "Contact unavailable",
+        "This listing does not have a phone number or email for enquiries.",
+      );
+      return;
     }
-
+    if (contactOptions.length === 1) {
+      openContactUrl(contactOptions[0].url);
+      return;
+    }
     Alert.alert(
-      "Contact unavailable",
-      "This listing does not have a phone number or email for enquiries.",
+      `Contact ${listing.postedByName}`,
+      "Choose how to send your enquiry.",
+      [
+        { text: "Cancel", style: "cancel" },
+        ...contactOptions.map((option) => ({
+          text: option.label,
+          onPress: () => openContactUrl(option.url),
+        })),
+      ],
     );
   };
 

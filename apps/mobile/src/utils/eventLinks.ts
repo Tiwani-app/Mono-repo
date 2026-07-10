@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 // React Native's URL implementation is incomplete, so parse the hostname
 // manually: strip any userinfo (user@host) and port before matching.
 const getHttpsHostname = (value: string): string | null => {
@@ -35,9 +33,7 @@ export const getMeetingLinkLabel = (url: string): string => {
   );
 };
 
-export const getMapsSearchUrl = (location: string): string => {
-  const query = encodeURIComponent(location.trim());
-  return Platform.OS === "ios"
-    ? `https://maps.apple.com/?q=${query}`
-    : `geo:0,0?q=${query}`;
-};
+// Google Maps works for both iOS and Android; the universal link opens the
+// Google Maps app when installed and falls back to the browser.
+export const getMapsSearchUrl = (location: string): string =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.trim())}`;
