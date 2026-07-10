@@ -19,7 +19,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
-import { recordPayment } from "../../services/financeService";
+import { recordBulkPayments, recordPayment } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { LedgerEntry } from "../../types/finance";
@@ -39,6 +39,7 @@ interface FormValues {
   note: string;
 }
 
+type RecordMode = "single" | "bulk";
 const defaultPaymentMethod = "Bank transfer";
 type MemberPaymentFilter = "all" | "paid" | "unpaid" | "overdue";
 
@@ -59,6 +60,20 @@ const referenceForCharge = (charge: LedgerEntry) =>
 
 const searchableMemberText = (member: User) =>
   `${member.fullName} ${member.email} ${member.phone}`.toLowerCase();
+
+const oldestOpenChargeForMember = (
+  uid: string,
+  entries: LedgerEntry[],
+): LedgerEntry | null => {
+  const charges = entries
+    .filter(
+      (e) => e.uid === uid && e.type !== "payment" && getChargeOutstanding(e) > 0,
+    )
+    .sort(
+      (a, b) => (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0),
+    );
+  return charges[0] ?? null;
+};
 
 const paymentFilterForMember = (
   member: User,
@@ -88,10 +103,12 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { members, error, loading } = useMembers({ enabled: admin });
+  const [mode, setMode] = useState<RecordMode>("single");
   const [memberFilter, setMemberFilter] =
     useState<MemberPaymentFilter>("all");
   const [memberQuery, setMemberQuery] = useState("");
   const [selectedUid, setSelectedUid] = useState(routeMemberId ?? "");
+  const [selectedUids, setSelectedUids] = useState<string[]>([]);
   const [selectedChargeId, setSelectedChargeId] = useState("");
   const [chargeMenuOpen, setChargeMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -151,6 +168,41 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       return matchesFilter && matchesSearch;
     });
   }, [allLedgerEntries, memberFilter, memberQuery, members]);
+
+  const bulkItems = useMemo(
+    () =>
+      selectedUids.flatMap((uid) => {
+        const charge = oldestOpenChargeForMember(uid, allLedgerEntries);
+        const member = members.find((m) => m.uid === uid);
+        if (!charge || !member) {
+          return [];
+        }
+        return [{ uid, member, charge, amount: getChargeOutstanding(charge) }];
+      }),
+    [selectedUids, allLedgerEntries, members],
+  );
+
+  const bulkTotal = useMemo(
+    () => bulkItems.reduce((sum, item) => sum + item.amount, 0),
+    [bulkItems],
+  );
+
+  const toggleBulkMember = (uid: string) => {
+    setSelectedUids((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid],
+    );
+  };
+
+  useEffect(() => {
+    if (mode === "bulk") {
+      setMemberFilter("unpaid");
+      setSelectedUids([]);
+      setSelectedUid("");
+    } else {
+      setSelectedUids([]);
+      setMemberFilter("all");
+    }
+  }, [mode]);
 
   useEffect(() => {
     setSelectedChargeId("");
@@ -230,6 +282,46 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const onBulkSubmit = async (values: FormValues) => {
+    if (submitting) {
+      return;
+    }
+    if (bulkItems.length === 0) {
+      Alert.alert(
+        "No members selected",
+        "Select at least one member with an open charge.",
+      );
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const count = await recordBulkPayments(
+        bulkItems.map((item) => ({
+          uid: item.uid,
+          chargeEntryId: item.charge.id,
+          amount: item.amount,
+          paymentMethod: values.paymentMethod.trim(),
+          reference: values.reference.trim(),
+          note: values.note.trim(),
+        })),
+      );
+      Alert.alert(
+        "Payments recorded",
+        `${count} payment${count === 1 ? "" : "s"} recorded successfully.`,
+        [{ text: "OK", onPress: () => safeGoBack(navigation, "FinanceAdmin") }],
+      );
+    } catch (submitError) {
+      Alert.alert(
+        "Payments not recorded",
+        submitError instanceof Error
+          ? submitError.message
+          : "Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (!admin) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -285,7 +377,17 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.sectionLabel}>MEMBER</Text>
+          <ChipRow
+            options={[
+              { label: "Single", value: "single" as RecordMode },
+              { label: "Bulk", value: "bulk" as RecordMode },
+            ]}
+            selectedValue={mode}
+            onChange={setMode}
+          />
+          <Text style={styles.sectionLabel}>
+            {mode === "bulk" ? "SELECT MEMBERS" : "MEMBER"}
+          </Text>
           {allChargesError && (
             <View style={styles.noticeCard}>
               <Text style={styles.errorText}>{allChargesError}</Text>
@@ -312,6 +414,65 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
                 </Text>
               </View>
             ) : filteredMembers.map((member) => {
+              if (mode === "bulk") {
+                const checked = selectedUids.includes(member.uid);
+                const openCharge = oldestOpenChargeForMember(member.uid, allLedgerEntries);
+                const disabled = !openCharge;
+                const status = paymentFilterForMember(member, allLedgerEntries);
+                return (
+                  <TouchableOpacity
+                    key={member.uid}
+                    style={[
+                      styles.memberRow,
+                      checked && styles.selectedMember,
+                      disabled && styles.memberRowDisabled,
+                    ]}
+                    onPress={() => !disabled && toggleBulkMember(member.uid)}
+                    activeOpacity={disabled ? 1 : 0.8}
+                  >
+                    <Avatar
+                      initials={getInitials(member.fullName)}
+                      photoURL={member.photoURL}
+                      size={38}
+                      statusDot={member.financialStatus}
+                    />
+                    <View style={styles.memberText}>
+                      <Text
+                        style={[
+                          styles.memberName,
+                          disabled && styles.memberNameDisabled,
+                        ]}
+                      >
+                        {member.fullName}
+                      </Text>
+                      <Text style={styles.memberMeta}>
+                        {disabled
+                          ? "No open charges"
+                          : `${openCharge.label} · ${formatCurrency(getChargeOutstanding(openCharge))}`}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.memberStatus,
+                        status === "paid" && styles.memberStatusPaid,
+                        status === "overdue" && styles.memberStatusOverdue,
+                      ]}
+                    >
+                      {status.toUpperCase()}
+                    </Text>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        checked && styles.checkboxChecked,
+                        disabled && styles.checkboxDisabled,
+                      ]}
+                    >
+                      {checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
               const selected = selectedUid === member.uid;
               const status = paymentFilterForMember(member, allLedgerEntries);
               return (
@@ -349,51 +510,71 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
               );
             })}
           </View>
-          {selectedMember && (
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>SELECTED BALANCE</Text>
-              <Text style={styles.summaryValue}>
-                {formatCurrency(selectedMember.outstandingBalance)}
-              </Text>
-            </View>
+
+          {mode === "bulk" ? (
+            <>
+              {selectedUids.length > 0 && (
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryLabel}>BULK TOTAL</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(bulkTotal)}
+                  </Text>
+                  <Text style={styles.summaryMeta}>
+                    {bulkItems.length} member{bulkItems.length === 1 ? "" : "s"} selected
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {selectedMember && (
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryLabel}>SELECTED BALANCE</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(selectedMember.outstandingBalance)}
+                  </Text>
+                </View>
+              )}
+              <Field
+                control={control}
+                error={formState.errors.amount?.message}
+                keyboardType="numeric"
+                label="AMOUNT"
+                name="amount"
+                rules={{
+                  required: "Amount is required.",
+                  pattern: {
+                    value: /^[0-9,]+$/,
+                    message: "Use numbers only.",
+                  },
+                }}
+              />
+              <Text style={styles.sectionLabel}>REFERENCE / CHARGE</Text>
+              <ChargeDropdown
+                error={chargesError}
+                loading={chargesLoading}
+                onChange={(charge) => {
+                  setSelectedChargeId(charge.id);
+                  setChargeMenuOpen(false);
+                  setValue("amount", String(getChargeOutstanding(charge)), {
+                    shouldValidate: true,
+                  });
+                  setValue("paymentMethod", paymentMethodForCharge(charge), {
+                    shouldValidate: true,
+                  });
+                  setValue("reference", referenceForCharge(charge), {
+                    shouldValidate: true,
+                  });
+                }}
+                open={chargeMenuOpen}
+                openCharges={openCharges}
+                selectedCharge={selectedCharge}
+                selectedUid={selectedUid}
+                setOpen={setChargeMenuOpen}
+              />
+            </>
           )}
-          <Field
-            control={control}
-            error={formState.errors.amount?.message}
-            keyboardType="numeric"
-            label="AMOUNT"
-            name="amount"
-            rules={{
-              required: "Amount is required.",
-              pattern: {
-                value: /^[0-9,]+$/,
-                message: "Use numbers only.",
-              },
-            }}
-          />
-          <Text style={styles.sectionLabel}>REFERENCE / CHARGE</Text>
-          <ChargeDropdown
-            error={chargesError}
-            loading={chargesLoading}
-            onChange={(charge) => {
-              setSelectedChargeId(charge.id);
-              setChargeMenuOpen(false);
-              setValue("amount", String(getChargeOutstanding(charge)), {
-                shouldValidate: true,
-              });
-              setValue("paymentMethod", paymentMethodForCharge(charge), {
-                shouldValidate: true,
-              });
-              setValue("reference", referenceForCharge(charge), {
-                shouldValidate: true,
-              });
-            }}
-            open={chargeMenuOpen}
-            openCharges={openCharges}
-            selectedCharge={selectedCharge}
-            selectedUid={selectedUid}
-            setOpen={setChargeMenuOpen}
-          />
+
           <Field
             control={control}
             error={formState.errors.paymentMethod?.message}
@@ -415,8 +596,16 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
             name="note"
           />
           <GoldButton
-            label="Record Payment"
-            onPress={handleSubmit(onSubmit)}
+            label={
+              mode === "bulk"
+                ? `Record ${bulkItems.length > 0 ? bulkItems.length : ""} Payment${bulkItems.length === 1 ? "" : "s"}`.trim()
+                : "Record Payment"
+            }
+            onPress={
+              mode === "bulk"
+                ? handleSubmit(onBulkSubmit)
+                : handleSubmit(onSubmit)
+            }
             loading={submitting}
             fullWidth
           />
@@ -693,6 +882,30 @@ const styles = StyleSheet.create({
     borderColor: colors.gold.default,
     backgroundColor: colors.gold.default,
   },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.text.tertiary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: {
+    borderColor: colors.gold.default,
+    backgroundColor: colors.gold.default,
+  },
+  checkboxDisabled: {
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.secondary,
+  },
+  checkmark: {
+    fontSize: 11,
+    fontWeight: typography.weight.bold,
+    color: colors.bg.secondary,
+  },
+  memberRowDisabled: { opacity: 0.45 },
+  memberNameDisabled: { color: colors.text.tertiary },
   summaryCard: {
     gap: spacing.xs,
     padding: spacing.lg,
@@ -707,6 +920,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     color: colors.gold.light,
   },
+  summaryMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

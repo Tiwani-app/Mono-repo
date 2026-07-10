@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
+import { closeElection, closePoll } from "../../services/votingService";
 import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
@@ -43,11 +45,63 @@ const VotingHubScreen = ({ navigation }: any) => {
   const { active: activePolls, expired: expiredPolls } =
     partitionExpiredVotingItems(polls);
 
+  const [closingId, setClosingId] = useState<string | null>(null);
+
+  const handleClosePoll = (poll: Poll) => {
+    Alert.alert(
+      "Close Poll",
+      `Are you sure you want to close "${poll.title}"? This cannot be undone — voting will end immediately.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Close Poll",
+          style: "destructive",
+          onPress: async () => {
+            setClosingId(poll.id);
+            try {
+              await closePoll(poll.id);
+            } catch (e: any) {
+              Alert.alert("Error", e?.message ?? "Could not close the poll. Please try again.");
+            } finally {
+              setClosingId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCloseElection = (election: Election) => {
+    Alert.alert(
+      "Close Election",
+      `Are you sure you want to close "${election.title}"? This cannot be undone — voting will end immediately.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Close Election",
+          style: "destructive",
+          onPress: async () => {
+            setClosingId(election.id);
+            try {
+              await closeElection(election.id);
+            } catch (e: any) {
+              Alert.alert("Error", e?.message ?? "Could not close the election. Please try again.");
+            } finally {
+              setClosingId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const renderElection = (election: Election) => (
     <ElectionCard
       key={election.id}
       admin={admin}
+      closing={closingId === election.id}
       election={election}
+      onClose={() => handleCloseElection(election)}
       onEdit={() =>
         navigation.navigate("ElectionForm", {
           electionId: election.id,
@@ -70,7 +124,9 @@ const VotingHubScreen = ({ navigation }: any) => {
     <PollCard
       key={poll.id}
       admin={admin}
+      closing={closingId === poll.id}
       poll={poll}
+      onClose={() => handleClosePoll(poll)}
       onEdit={() => navigation.navigate("PollForm", { pollId: poll.id })}
       onOpen={() => navigation.navigate("PollVote", { pollId: poll.id })}
     />
@@ -166,12 +222,16 @@ const SectionHeader = ({ count, title }: { count: number; title: string }) => (
 
 const PollCard = ({
   admin,
+  closing,
+  onClose,
   onEdit,
   onOpen,
   poll,
 }: {
   admin: boolean;
+  closing: boolean;
   poll: Poll;
+  onClose: () => void;
   onEdit: () => void;
   onOpen: () => void;
 }) => (
@@ -201,19 +261,32 @@ const PollCard = ({
     {admin && poll.status !== "closed" && !isVotingItemExpired(poll) && (
       <OutlineButton label="Edit Poll" onPress={onEdit} fullWidth />
     )}
+    {admin && poll.status === "open" && (
+      <OutlineButton
+        label={closing ? "Closing…" : "Close Poll"}
+        onPress={onClose}
+        disabled={closing}
+        color={colors.status.error}
+        fullWidth
+      />
+    )}
   </TouchableOpacity>
 );
 
 const ElectionCard = ({
   admin,
+  closing,
   election,
+  onClose,
   onEdit,
   onOpen,
   onResults,
   showResults,
 }: {
   admin: boolean;
+  closing: boolean;
   election: Election;
+  onClose: () => void;
   onEdit: () => void;
   onOpen: () => void;
   onResults: () => void;
@@ -244,6 +317,15 @@ const ElectionCard = ({
     )}
     {admin && election.status !== "closed" && !isVotingItemExpired(election) && (
       <OutlineButton label="Edit Election" onPress={onEdit} fullWidth />
+    )}
+    {admin && election.status === "open" && (
+      <OutlineButton
+        label={closing ? "Closing…" : "Close Election"}
+        onPress={onClose}
+        disabled={closing}
+        color={colors.status.error}
+        fullWidth
+      />
     )}
     {showResults && (
       <OutlineButton

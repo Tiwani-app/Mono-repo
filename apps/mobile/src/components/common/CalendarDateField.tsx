@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -111,6 +111,30 @@ const CalendarDateField = ({
     setVisibleMonth((current) => startOfMonth(setYear(current, year)));
     setShowYearPicker(false);
   };
+
+  const YEAR_ROW_HEIGHT = 52;
+
+  const yearRows = useMemo(() => {
+    const rows: number[][] = [];
+    for (let i = 0; i < years.length; i += 3) {
+      rows.push(years.slice(i, i + 3));
+    }
+    return rows;
+  }, [years]);
+
+  const yearScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!showYearPicker) return;
+    const yearIndex = years.findIndex((y) => y === visibleMonth.getFullYear());
+    if (yearIndex === -1) return;
+    const rowIndex = Math.floor(yearIndex / 3);
+    const offset = Math.max(0, rowIndex * YEAR_ROW_HEIGHT - YEAR_ROW_HEIGHT);
+    const timer = setTimeout(() => {
+      yearScrollRef.current?.scrollTo({ y: offset, animated: false });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [showYearPicker, visibleMonth, years]);
 
   return (
     <View style={[styles.field, style]}>
@@ -233,44 +257,40 @@ const CalendarDateField = ({
                     );
                   })}
                 </View>
-                <FlatList
-                  data={years}
-                  keyExtractor={(item) => String(item)}
-                  numColumns={3}
-                  contentContainerStyle={styles.yearList}
-                  columnWrapperStyle={styles.yearRow}
-                  initialScrollIndex={Math.max(
-                    0,
-                    years.findIndex((item) => item === visibleMonth.getFullYear()),
-                  )}
-                  getItemLayout={(_, index) => ({
-                    length: 52,
-                    offset: 52 * index,
-                    index,
-                  })}
-                  renderItem={({ item }) => {
-                    const selected = item === visibleMonth.getFullYear();
-                    return (
-                      <TouchableOpacity
-                        style={[
-                          styles.yearButton,
-                          selected && styles.selectedYearButton,
-                        ]}
-                        onPress={() => handleSelectYear(item)}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.yearText,
-                            selected && styles.selectedYearText,
-                          ]}
-                        >
-                          {item}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
+                <ScrollView
+                  ref={yearScrollRef}
+                  style={styles.yearList}
+                  contentContainerStyle={styles.yearListContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {yearRows.map((row, rowIndex) => (
+                    <View key={rowIndex} style={styles.yearRow}>
+                      {row.map((year) => {
+                        const selected = year === visibleMonth.getFullYear();
+                        return (
+                          <TouchableOpacity
+                            key={year}
+                            style={[
+                              styles.yearButton,
+                              selected && styles.selectedYearButton,
+                            ]}
+                            onPress={() => handleSelectYear(year)}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.yearText,
+                                selected && styles.selectedYearText,
+                              ]}
+                            >
+                              {year}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </ScrollView>
               </>
             ) : (
               <>
@@ -516,8 +536,10 @@ const styles = StyleSheet.create({
     color: colors.gold.light,
   },
   yearList: {
-    paddingTop: spacing.xs,
     maxHeight: 280,
+  },
+  yearListContent: {
+    paddingTop: spacing.xs,
   },
   yearRow: {
     gap: spacing.xs,

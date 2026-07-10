@@ -428,6 +428,17 @@ export const updatePoll = onCall(async (request) => {
     if (status === "closed" && poll.status !== "open") {
       throw new HttpsError("failed-precondition", "Open this poll before closing it.");
     }
+    if (
+      status === "draft" &&
+      poll.status === "open" &&
+      typeof poll.totalVotes === "number" &&
+      poll.totalVotes > 0
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot revert to draft after voting has started.",
+      );
+    }
     transaction.update(ref, {
       title,
       question,
@@ -449,7 +460,7 @@ export const updatePoll = onCall(async (request) => {
             closedBy: user.uid,
           }
         : {}),
-      ...(status === "draft" && poll.status === "draft" ? { status: "draft" } : {}),
+      ...(status === "draft" ? { status: "draft" } : {}),
     });
     transaction.set(db.collection("audit_logs").doc(), {
       action: "poll.updated",
@@ -863,6 +874,14 @@ export const updateElection = onCall(async (request) => {
     if (status === "closed" && election.status !== "open") {
       throw new HttpsError("failed-precondition", "Open this election before closing it.");
     }
+    if (status === "draft" && election.status === "open") {
+      if (await hasElectionVotes(transaction, ref)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cannot revert to draft after voting has started.",
+        );
+      }
+    }
     transaction.update(ref, {
       title,
       ballotType,
@@ -884,9 +903,7 @@ export const updateElection = onCall(async (request) => {
             closedBy: user.uid,
           }
         : {}),
-      ...(status === "draft" && election.status === "draft"
-        ? { status: "draft" }
-        : {}),
+      ...(status === "draft" ? { status: "draft" } : {}),
     });
     transaction.set(db.collection("audit_logs").doc(), {
       action: "election.updated",

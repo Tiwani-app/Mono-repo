@@ -9,6 +9,7 @@ import type {
   MemberInput,
 } from "./membersService";
 import type {
+  BulkPaymentItem,
   ChargeInput,
   DuesPeriodInput,
   PaymentInput,
@@ -243,6 +244,16 @@ export const recordPaymentCallable = (data: PaymentInput) =>
     "recordPayment",
     data,
   );
+
+export const recordBulkPaymentsCallable = (payments: BulkPaymentItem[]) =>
+  callCloudFunction<
+    { payments: BulkPaymentItem[] },
+    {
+      count: number;
+      ok: boolean;
+      results: { ok: boolean; paymentId: string; uid: string }[];
+    }
+  >("recordBulkPayments", { payments });
 
 export const reversePaymentCallable = (paymentId: string, note: string) =>
   callCloudFunction<

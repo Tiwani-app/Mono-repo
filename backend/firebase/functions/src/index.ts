@@ -7,6 +7,7 @@ export {
   createAdHocCharges,
   createFinancePeriod,
   recalculateMemberFinanceStanding,
+  recordBulkPayments,
   recordPayment,
   reversePayment,
 } from "./finance";
