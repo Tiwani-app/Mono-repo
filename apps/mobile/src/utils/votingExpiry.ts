@@ -21,10 +21,16 @@ export const votingDisplayStatus = (
   now = new Date(),
 ) => (isVotingItemExpired(item, now) ? "expired" : item.status);
 
-export const partitionExpiredVotingItems = <T extends ExpirableVotingItem>(
+// Active means still open for participation (draft or open, not past
+// expiry); closed collects closed and expired items for the bottom sections.
+export const partitionVotingItems = <T extends ExpirableVotingItem>(
   items: T[],
   now = new Date(),
-) => ({
-  active: items.filter((item) => !isVotingItemExpired(item, now)),
-  expired: items.filter((item) => isVotingItemExpired(item, now)),
-});
+) => {
+  const isClosed = (item: T) =>
+    item.status === "closed" || isVotingItemExpired(item, now);
+  return {
+    active: items.filter((item) => !isClosed(item)),
+    closed: items.filter(isClosed),
+  };
+};

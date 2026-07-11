@@ -22,7 +22,7 @@ import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
 import {
   isVotingItemExpired,
-  partitionExpiredVotingItems,
+  partitionVotingItems,
   votingDisplayStatus,
 } from "../../utils/votingExpiry";
 
@@ -38,10 +38,10 @@ const VotingHubScreen = ({ navigation }: any) => {
     polls,
     syncState,
   } = useVoting();
-  const { active: activeElections, expired: expiredElections } =
-    partitionExpiredVotingItems(elections);
-  const { active: activePolls, expired: expiredPolls } =
-    partitionExpiredVotingItems(polls);
+  const { active: activeElections, closed: closedElections } =
+    partitionVotingItems(elections);
+  const { active: activePolls, closed: closedPolls } =
+    partitionVotingItems(polls);
 
   const renderElection = (election: Election) => (
     <ElectionCard
@@ -135,19 +135,19 @@ const VotingHubScreen = ({ navigation }: any) => {
             ) : (
               activePolls.map(renderPoll)
             )}
-            {expiredElections.length > 0 && (
+            {closedElections.length > 0 && (
               <>
                 <SectionHeader
-                  title="EXPIRED ELECTIONS"
-                  count={expiredElections.length}
+                  title="CLOSED ELECTIONS"
+                  count={closedElections.length}
                 />
-                {expiredElections.map(renderElection)}
+                {closedElections.map(renderElection)}
               </>
             )}
-            {expiredPolls.length > 0 && (
+            {closedPolls.length > 0 && (
               <>
-                <SectionHeader title="EXPIRED POLLS" count={expiredPolls.length} />
-                {expiredPolls.map(renderPoll)}
+                <SectionHeader title="CLOSED POLLS" count={closedPolls.length} />
+                {closedPolls.map(renderPoll)}
               </>
             )}
           </>
