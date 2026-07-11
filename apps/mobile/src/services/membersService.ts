@@ -283,6 +283,16 @@ export const updateMember = async (
 ): Promise<void> => {
   const { role, status, ...profileData } = data;
   const profileUpdates = memberUpdates(profileData);
+  if (typeof profileUpdates.email === "string" && profileUpdates.email) {
+    const duplicates = await firestore()
+      .collection("users")
+      .where("orgId", "==", await getCurrentOrgId())
+      .where("email", "==", profileUpdates.email)
+      .get();
+    if (duplicates.docs.some((profile) => profile.id !== uid)) {
+      throw new Error("Another member already uses this email address.");
+    }
+  }
   if (role !== undefined) {
     await updateMemberRoleCallable(uid, role);
   }

@@ -24,6 +24,28 @@ const getAuthUserByEmail = async (email: string) => {
   }
 };
 
+// Guards against duplicate members: no two profiles in an org may share an
+// email, regardless of whether a matching Auth account exists.
+export const assertMemberEmailAvailable = async (
+  orgId: string,
+  email: string,
+  excludeUid?: string,
+) => {
+  const snapshot = await db
+    .collection("users")
+    .where("orgId", "==", orgId)
+    .where("email", "==", email)
+    .limit(2)
+    .get();
+  const duplicate = snapshot.docs.find((profile) => profile.id !== excludeUid);
+  if (duplicate) {
+    throw new HttpsError(
+      "already-exists",
+      "A member with this email address already exists.",
+    );
+  }
+};
+
 const memberUidFromRequest = (data: unknown) =>
   stringField(data, "uid", { maxLength: 160 });
 
@@ -124,6 +146,7 @@ export const createMemberAccount = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const input = request.data as UserProfileInput;
   const email = normalizeEmail(stringValue(input.email, "email"));
+  await assertMemberEmailAvailable(user.profile.orgId, email);
   const existingAuthUser = await getAuthUserByEmail(email);
 
   if (existingAuthUser) {
