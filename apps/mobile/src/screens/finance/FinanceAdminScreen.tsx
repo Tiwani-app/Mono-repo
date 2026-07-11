@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -65,6 +67,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   } = useMembers({
     enabled: admin,
   });
+  const [memberSearch, setMemberSearch] = useState("");
 
   useEffect(() => {
     if (user && !admin) {
@@ -129,14 +132,34 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     (sum, balance) => sum + balance.outstanding,
     0,
   );
+  const searchQuery = memberSearch.trim().toLowerCase();
+  const filteredMembers = searchQuery
+    ? members.filter((member) =>
+        `${member.fullName} ${member.email} ${member.phone}`
+          .toLowerCase()
+          .includes(searchQuery),
+      )
+    : members;
+  const duesPeriodCards = duesPeriods.map((period) => (
+    <DuesPeriodCard
+      key={period.id}
+      period={period}
+      onPress={() =>
+        navigation.navigate("DuesPeriodMembers", {
+          duesPeriodId: period.id,
+        })
+      }
+    />
+  ));
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader title="Finance" />
       <FlatList
-        data={members}
+        data={filteredMembers}
         keyExtractor={(item) => item.uid}
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <>
             <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
@@ -168,20 +191,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 onPress={() => navigation.navigate("AdHocCharge")}
               />
             </View>
-            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
-              DUES PERIODS
-            </Text>
-            {duesPeriods.map((period) => (
-              <DuesPeriodCard
-                key={period.id}
-                period={period}
-                onPress={() =>
-                  navigation.navigate("DuesPeriodMembers", {
-                    duesPeriodId: period.id,
-                  })
-                }
-              />
-            ))}
+            <Text style={styles.sectionLabel}>ALL CHARGES LEDGER</Text>
             <TouchableOpacity
               activeOpacity={0.84}
               onPress={() => navigation.navigate("ChargeLedger")}
@@ -197,7 +207,30 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 <Badge label="OPEN" color={colors.gold.default} />
               </View>
             </TouchableOpacity>
+            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
+              DUES PERIODS
+            </Text>
+            {duesPeriods.length > 2 ? (
+              <ScrollView
+                style={styles.duesScroll}
+                contentContainerStyle={styles.duesList}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {duesPeriodCards}
+              </ScrollView>
+            ) : (
+              <View style={styles.duesList}>{duesPeriodCards}</View>
+            )}
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
+            <TextInput
+              value={memberSearch}
+              onChangeText={setMemberSearch}
+              placeholder="Search name, email, or phone"
+              placeholderTextColor={colors.text.tertiary}
+              style={styles.memberSearch}
+              autoCorrect={false}
+            />
           </>
         }
         renderItem={({ item }) => {
@@ -236,6 +269,17 @@ const FinanceAdminScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           );
         }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="🔍"
+            title={memberSearch ? "No results" : "No members"}
+            message={
+              memberSearch
+                ? "No members match your search."
+                : "Members will appear here once they are added."
+            }
+          />
+        }
         ListFooterComponent={
           archivedBalances.length > 0 ? (
             <View style={styles.archivedSection}>
@@ -299,6 +343,18 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   actionGrid: { gap: spacing.sm },
+  duesList: { gap: spacing.md },
+  duesScroll: { maxHeight: 320 },
+  memberSearch: {
+    minHeight: 48,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    color: colors.text.primary,
+  },
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,
