@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
   Linking,
@@ -55,29 +56,47 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   const [cancelPending, setCancelPending] = useState(false);
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    setLoading(true);
-    setLoadError(null);
-    if (!eventId) {
-      setLoadError("This event could not be found.");
-      setLoading(false);
-      return;
-    }
-    Promise.all([
-      getEvent(eventId),
-      getEventAttendees(eventId),
-    ])
-      .then(([nextEvent, nextAttendees]) => {
-        setEvent(nextEvent);
-        setAttendees(nextAttendees);
-      })
-      .catch(error =>
-        setLoadError(
-          error instanceof Error ? error.message : "Could not load this event.",
-        ),
-      )
-      .finally(() => setLoading(false));
-  }, [eventId]);
+  // Refetches whenever the screen regains focus (e.g. returning from the
+  // edit form) so changes appear without a manual reload.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoadError(null);
+      if (!eventId) {
+        setLoadError("This event could not be found.");
+        setLoading(false);
+        return;
+      }
+      Promise.all([
+        getEvent(eventId),
+        getEventAttendees(eventId),
+      ])
+        .then(([nextEvent, nextAttendees]) => {
+          if (!active) {
+            return;
+          }
+          setEvent(nextEvent);
+          setAttendees(nextAttendees);
+        })
+        .catch(error => {
+          if (active) {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Could not load this event.",
+            );
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [eventId]),
+  );
 
   if (loading) {
     return <LoadingSpinner />;

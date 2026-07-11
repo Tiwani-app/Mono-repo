@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   ScrollView,
@@ -84,24 +85,39 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const { user } = useAuthStore();
 
-  useEffect(() => {
-    setLoadError(null);
-    if (!memberId) {
-      setLoadError("This profile could not be found.");
-      return;
-    }
-    const canLoadFullProfile = isAdmin(user) || user?.uid === memberId;
-    const loadMember = canLoadFullProfile ? getMember : getMemberDirectoryProfile;
-    loadMember(memberId)
-      .then(setMember)
-      .catch((error) =>
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Could not load this profile.",
-        ),
-      );
-  }, [memberId, user]);
+  // Refetches on focus so edits from the member form show without a reload.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoadError(null);
+      if (!memberId) {
+        setLoadError("This profile could not be found.");
+        return;
+      }
+      const canLoadFullProfile = isAdmin(user) || user?.uid === memberId;
+      const loadMember = canLoadFullProfile
+        ? getMember
+        : getMemberDirectoryProfile;
+      loadMember(memberId)
+        .then((nextMember) => {
+          if (active) {
+            setMember(nextMember);
+          }
+        })
+        .catch((error) => {
+          if (active) {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Could not load this profile.",
+            );
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [memberId, user]),
+  );
 
   useEffect(() => {
     if (!member || !canViewMemberFinanceDetails(user, member)) {

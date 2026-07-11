@@ -13,12 +13,7 @@ import {
   recordPaymentCallable,
   reversePaymentCallable,
 } from "./cloudFunctionsService";
-import {
-  firestore,
-  getCurrentOrgId,
-  snapshotRecords,
-  startOrgSubscription,
-} from "./firebaseHelpers";
+import { startOrgSubscription } from "./firebaseHelpers";
 
 export interface PaymentInput {
   uid: string;
@@ -65,13 +60,17 @@ export const subscribeToLedger = (
     onSnapshotMeta,
   );
 
-export const getDuesPeriods = async (): Promise<DuesPeriod[]> => {
-  const snapshot = await firestore()
-    .collection("finance_periods")
-    .where("orgId", "==", await getCurrentOrgId())
-    .get();
-  return snapshotRecords(snapshot).map(duesPeriodFromRecord);
-};
+export const subscribeToDuesPeriods = (
+  callback: (periods: DuesPeriod[]) => void,
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "finance_periods",
+    duesPeriodFromRecord,
+    callback,
+    undefined,
+    onError,
+  );
 
 export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => {
   await createFinancePeriodCallable(data);

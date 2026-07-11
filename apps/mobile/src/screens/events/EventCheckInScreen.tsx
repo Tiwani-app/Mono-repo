@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
@@ -45,7 +46,9 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     return photos;
   }, [members]);
 
-  useEffect(() => {
+  // useFocusEffect so the roster refreshes when returning to this screen.
+  useFocusEffect(
+    useCallback(() => {
     let active = true;
     if (!admin) {
       setLoading(false);
@@ -55,7 +58,6 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
       };
     }
 
-    setLoading(true);
     setLoadError(null);
     if (!eventId) {
       setLoadError("Event not found.");
@@ -89,7 +91,8 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
     return () => {
       active = false;
     };
-  }, [admin, eventId]);
+    }, [admin, eventId]),
+  );
 
   const handleCheckIn = async (attendee: EventAttendee) => {
     if (!eventId || attendee.checkedIn) {
