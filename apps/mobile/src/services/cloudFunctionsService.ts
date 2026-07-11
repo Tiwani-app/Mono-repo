@@ -250,6 +250,18 @@ export const reversePaymentCallable = (paymentId: string, note: string) =>
     { ok: boolean; paymentId: string }
   >("reversePayment", { note, paymentId });
 
+export const deleteFinanceChargeCallable = (chargeEntryId: string) =>
+  callCloudFunction<
+    { chargeEntryId: string },
+    { ok: boolean; chargeEntryId: string }
+  >("deleteFinanceCharge", { chargeEntryId });
+
+export const deleteFinancePeriodCallable = (periodId: string) =>
+  callCloudFunction<
+    { periodId: string },
+    { ok: boolean; periodId: string; deletedCharges: number }
+  >("deleteFinancePeriod", { periodId });
+
 export const recalculateMemberFinanceStandingCallable = (uid: string) =>
   callCloudFunction<
     { uid: string },

@@ -8,11 +8,12 @@ import {DuesPeriod} from '../../types/finance';
 import {formatCurrency} from '../../utils/formatCurrency';
 
 interface Props {
+  onDelete?: (period: DuesPeriod) => void;
   onPress?: () => void;
   period: DuesPeriod;
 }
 
-const DuesPeriodCard = ({onPress, period}: Props) => {
+const DuesPeriodCard = ({onDelete, onPress, period}: Props) => {
   const statusColor =
     period.status === 'settled'
       ? colors.status.success
@@ -34,7 +35,16 @@ const DuesPeriodCard = ({onPress, period}: Props) => {
         </View>
         <View style={styles.badgeRow}>
           <Badge label={period.status.toUpperCase()} color={statusColor} />
-          {onPress && (
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => onDelete(period)}
+              activeOpacity={0.8}
+            >
+              <Icon name="trash-2" size={16} color={colors.status.error} />
+            </TouchableOpacity>
+          )}
+          {onPress && !onDelete && (
             <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
           )}
         </View>
@@ -62,6 +72,14 @@ const styles = StyleSheet.create({
   name: {fontSize: typography.size.md, fontWeight: typography.weight.bold, color: colors.text.primary},
   amount: {fontSize: typography.size.sm, color: colors.text.secondary},
   progressLabel: {fontSize: typography.size.sm, color: colors.text.secondary},
+  deleteButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: `${colors.status.error}14`,
+  },
 });
 
 export default DuesPeriodCard;

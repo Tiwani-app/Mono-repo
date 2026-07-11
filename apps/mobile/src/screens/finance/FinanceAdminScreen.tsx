@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,8 @@ import DuesPeriodCard from "../../components/finance/DuesPeriodCard";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
+import { deleteDuesPeriod } from "../../services/financeService";
+import { DuesPeriod } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
@@ -68,6 +71,37 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     enabled: admin,
   });
   const [memberSearch, setMemberSearch] = useState("");
+  const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
+
+  const handleDeletePeriod = (period: DuesPeriod) => {
+    if (deletingPeriodId) {
+      return;
+    }
+    Alert.alert(
+      "Delete Dues Period",
+      `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingPeriodId(period.id);
+              await deleteDuesPeriod(period.id);
+            } catch (error) {
+              Alert.alert(
+                "Dues period not deleted",
+                error instanceof Error ? error.message : "Please try again.",
+              );
+            } finally {
+              setDeletingPeriodId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   useEffect(() => {
     if (user && !admin) {
@@ -144,6 +178,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     <DuesPeriodCard
       key={period.id}
       period={period}
+      onDelete={handleDeletePeriod}
       onPress={() =>
         navigation.navigate("DuesPeriodMembers", {
           duesPeriodId: period.id,

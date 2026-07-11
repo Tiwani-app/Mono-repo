@@ -7,6 +7,8 @@ import {
 import {
   createAdHocChargesCallable,
   createFinancePeriodCallable,
+  deleteFinanceChargeCallable,
+  deleteFinancePeriodCallable,
   recalculateMemberFinanceStandingCallable,
   recordPaymentCallable,
   reversePaymentCallable,
@@ -81,6 +83,22 @@ export const createAdHocCharge = async (data: ChargeInput): Promise<void> => {
 
 export const recordPayment = async (data: PaymentInput): Promise<void> => {
   await recordPaymentCallable(data);
+};
+
+export const deleteDuesPeriod = async (periodId: string): Promise<void> => {
+  const id = periodId.trim();
+  if (!id) {
+    throw new Error("Dues period is required.");
+  }
+  await deleteFinancePeriodCallable(id);
+};
+
+export const deleteCharge = async (chargeEntryId: string): Promise<void> => {
+  const id = chargeEntryId.trim();
+  if (!id) {
+    throw new Error("Charge is required.");
+  }
+  await deleteFinanceChargeCallable(id);
 };
 
 export const reversePayment = async ({

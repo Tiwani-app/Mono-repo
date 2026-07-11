@@ -111,7 +111,6 @@ const DashboardScreen = ({ navigation }: any) => {
   const admin = isAdmin(user);
   const { events, error: eventsError, loading: eventsLoading } = useEvents();
   const {
-    duesPeriods,
     error: financeError,
     ledgerEntries,
     loading: financeLoading,
@@ -152,8 +151,6 @@ const DashboardScreen = ({ navigation }: any) => {
     user?.outstandingBalance ?? 0,
   );
   const { totalPaid: totalCollected } = getFinanceTotals(ledgerEntries);
-  const currentDuesPeriod =
-    duesPeriods.find((period) => period.status === "active") ?? duesPeriods[0];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -206,11 +203,7 @@ const DashboardScreen = ({ navigation }: any) => {
                   financeLoading ? "…" : formatCompactCurrency(totalCollected)
                 }
                 label="Collected"
-                subLabel={
-                  financeLoading
-                    ? "loading"
-                    : (currentDuesPeriod?.name ?? "all periods")
-                }
+                subLabel={financeLoading ? "loading" : "Total"}
                 accentColor={colors.status.success}
               />
               <StatTile

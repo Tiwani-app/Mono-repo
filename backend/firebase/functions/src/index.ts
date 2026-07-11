@@ -6,6 +6,8 @@ export {
 export {
   createAdHocCharges,
   createFinancePeriod,
+  deleteFinanceCharge,
+  deleteFinancePeriod,
   recalculateMemberFinanceStanding,
   recordPayment,
   reversePayment,

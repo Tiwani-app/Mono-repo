@@ -423,15 +423,52 @@ export const recordPayment = onCall(async (request) => {
 
     const amountPaid = selectedPaidBefore + amount;
     const paidStatus = paidStatusFor(selectedAmount, amountPaid);
+
+    // Transactions require all reads before writes, so resolve the dues
+    // period state (for auto-settling) before the first update below.
+    const duesPeriodId =
+      paidStatus === "paid" && typeof selectedCharge.record.duesPeriodId === "string"
+        ? selectedCharge.record.duesPeriodId
+        : null;
+    let settledPeriod = false;
+    let periodRef: FirebaseFirestore.DocumentReference | null = null;
+    if (duesPeriodId) {
+      periodRef = db.collection("finance_periods").doc(duesPeriodId);
+      const periodSnapshot = await transaction.get(periodRef);
+      const period = periodSnapshot.data() ?? {};
+      const paidCount =
+        (typeof period.paidCount === "number" ? period.paidCount : 0) + 1;
+      const totalMembers =
+        typeof period.totalMembers === "number" ? period.totalMembers : 0;
+      settledPeriod =
+        periodSnapshot.exists &&
+        period.status !== "settled" &&
+        totalMembers > 0 &&
+        paidCount >= totalMembers;
+    }
+
     transaction.update(selectedCharge.snapshot.ref, {
       amountPaid,
       paidStatus,
     });
-    if (paidStatus === "paid" && typeof selectedCharge.record.duesPeriodId === "string") {
-      transaction.update(
-        db.collection("finance_periods").doc(selectedCharge.record.duesPeriodId),
-        { paidCount: FieldValue.increment(1) },
-      );
+    if (periodRef) {
+      transaction.update(periodRef, {
+        paidCount: FieldValue.increment(1),
+        ...(settledPeriod
+          ? { status: "settled", settledAt: FieldValue.serverTimestamp() }
+          : {}),
+      });
+    }
+    if (settledPeriod && periodRef) {
+      transaction.set(db.collection("audit_logs").doc(), {
+        action: "finance_period.settled",
+        actorUid: user.uid,
+        actorRole: user.profile.role,
+        orgId: user.profile.orgId,
+        targetPath: periodRef.path,
+        details: { periodId: duesPeriodId, settledByPaymentFor: uid },
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
 
     const paymentRef = db.collection("finance").doc();
@@ -537,16 +574,32 @@ export const reversePayment = onCall(async (request: CallableRequest<unknown>) =
       typeof charge.amountPaid === "number" ? charge.amountPaid : 0;
     const amountPaid = Math.max(0, previousAmountPaid - amount);
     const paidStatus = paidStatusFor(chargeAmount, amountPaid);
-    transaction.update(selectedCharge.ref, { amountPaid, paidStatus });
-    if (
+
+    // Reads must precede writes: check whether the reversal reopens a
+    // settled dues period before updating anything.
+    const unsettlesPeriod =
       previousAmountPaid >= chargeAmount &&
       paidStatus !== "paid" &&
-      typeof charge.duesPeriodId === "string"
-    ) {
-      transaction.update(
-        db.collection("finance_periods").doc(charge.duesPeriodId),
-        { paidCount: FieldValue.increment(-1) },
-      );
+      typeof charge.duesPeriodId === "string";
+    let reopenPeriod = false;
+    let periodRef: FirebaseFirestore.DocumentReference | null = null;
+    if (unsettlesPeriod) {
+      periodRef = db
+        .collection("finance_periods")
+        .doc(charge.duesPeriodId as string);
+      const periodSnapshot = await transaction.get(periodRef);
+      reopenPeriod =
+        periodSnapshot.exists && periodSnapshot.data()?.status === "settled";
+    }
+
+    transaction.update(selectedCharge.ref, { amountPaid, paidStatus });
+    if (periodRef) {
+      transaction.update(periodRef, {
+        paidCount: FieldValue.increment(-1),
+        ...(reopenPeriod
+          ? { status: "active", settledAt: FieldValue.delete() }
+          : {}),
+      });
     }
     transaction.update(paymentRef, {
       reversedAt: FieldValue.serverTimestamp(),
@@ -572,6 +625,183 @@ export const reversePayment = onCall(async (request: CallableRequest<unknown>) =
   });
 
   return { ok: true, paymentId };
+});
+
+export const deleteFinanceCharge = onCall(async (request) => {
+  const user = await requireActiveUser(request, ["admin"]);
+  const chargeEntryId = stringField(request.data, "chargeEntryId", {
+    maxLength: 160,
+  });
+  const chargeRef = db.collection("finance").doc(chargeEntryId);
+  const chargeSnapshot = await chargeRef.get();
+  if (!chargeSnapshot.exists) {
+    throw new HttpsError("not-found", "Charge not found.");
+  }
+  const charge = chargeSnapshot.data() ?? {};
+  assertSameOrg(user, charge.orgId);
+  if (charge.type === "payment") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payments cannot be deleted. Reverse the payment instead.",
+    );
+  }
+  if (typeof charge.duesPeriodId === "string") {
+    throw new HttpsError(
+      "failed-precondition",
+      "This charge belongs to a dues period. Delete the dues period instead.",
+    );
+  }
+  const amountPaid = typeof charge.amountPaid === "number" ? charge.amountPaid : 0;
+  if (amountPaid > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payments have been recorded against this charge. Reverse them before deleting it.",
+    );
+  }
+  const memberId = typeof charge.memberId === "string" ? charge.memberId : "";
+  const memberRef = memberId ? db.collection("users").doc(memberId) : null;
+  const remainingCharges = memberId
+    ? (
+        await db
+          .collection("finance")
+          .where("orgId", "==", user.profile.orgId)
+          .where("memberId", "==", memberId)
+          .get()
+      ).docs.filter(
+        (entry) => entry.data().type !== "payment" && entry.id !== chargeRef.id,
+      )
+    : [];
+
+  await db.runTransaction(async (transaction) => {
+    const member = memberRef ? await transaction.get(memberRef) : null;
+    const chargeSnapshots = await Promise.all(
+      remainingCharges.map((entry) => transaction.get(entry.ref)),
+    );
+    transaction.delete(chargeRef);
+    // Archived members keep their ledger but have no user doc to update.
+    if (member?.exists && memberRef) {
+      assertSameOrg(user, member.data()?.orgId);
+      transaction.update(memberRef, recalculateMemberFinance(chargeSnapshots));
+    }
+    transaction.set(db.collection("audit_logs").doc(), {
+      action: "finance_charge.deleted",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: chargeRef.path,
+      details: {
+        amount: typeof charge.amount === "number" ? charge.amount : 0,
+        chargeEntryId,
+        label: typeof charge.label === "string" ? charge.label : "",
+        type: typeof charge.type === "string" ? charge.type : "",
+        uid: memberId,
+      },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { ok: true, chargeEntryId };
+});
+
+export const deleteFinancePeriod = onCall(async (request) => {
+  const user = await requireActiveUser(request, ["admin"]);
+  const periodId = stringField(request.data, "periodId", { maxLength: 160 });
+  const periodRef = db.collection("finance_periods").doc(periodId);
+  const periodSnapshot = await periodRef.get();
+  if (!periodSnapshot.exists) {
+    throw new HttpsError("not-found", "Dues period not found.");
+  }
+  assertSameOrg(user, periodSnapshot.data()?.orgId);
+
+  const chargesSnapshot = await db
+    .collection("finance")
+    .where("orgId", "==", user.profile.orgId)
+    .where("duesPeriodId", "==", periodId)
+    .get();
+  const hasPayments = chargesSnapshot.docs.some((entry) => {
+    const record = entry.data();
+    return typeof record.amountPaid === "number" && record.amountPaid > 0;
+  });
+  if (hasPayments) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payments have been recorded against this dues period. Reverse them before deleting it.",
+    );
+  }
+
+  const deletedChargeIds = new Set(chargesSnapshot.docs.map((entry) => entry.id));
+  const memberIds = [
+    ...new Set(
+      chargesSnapshot.docs
+        .map((entry) => entry.data().memberId)
+        .filter((value): value is string => typeof value === "string"),
+    ),
+  ];
+  // One org-wide read, then recompute each affected member's standing from
+  // the charges that will remain after the period is removed.
+  const allChargesSnapshot = await db
+    .collection("finance")
+    .where("orgId", "==", user.profile.orgId)
+    .get();
+  const remainingByMember = new Map<string, FirebaseFirestore.QueryDocumentSnapshot[]>();
+  allChargesSnapshot.docs.forEach((entry) => {
+    const record = entry.data();
+    const entryMemberId =
+      typeof record.memberId === "string" ? record.memberId : "";
+    if (
+      record.type === "payment" ||
+      deletedChargeIds.has(entry.id) ||
+      !memberIds.includes(entryMemberId)
+    ) {
+      return;
+    }
+    const existing = remainingByMember.get(entryMemberId) ?? [];
+    existing.push(entry);
+    remainingByMember.set(entryMemberId, existing);
+  });
+  const memberSnapshots = await Promise.all(
+    memberIds.map((memberId) => db.collection("users").doc(memberId).get()),
+  );
+
+  const chunkSize = 200;
+  const operations: ((batch: FirebaseFirestore.WriteBatch) => void)[] = [
+    ...chargesSnapshot.docs.map(
+      (entry) => (batch: FirebaseFirestore.WriteBatch) => batch.delete(entry.ref),
+    ),
+    ...memberSnapshots
+      .filter((member) => member.exists)
+      .map((member) => (batch: FirebaseFirestore.WriteBatch) => {
+        batch.update(
+          member.ref,
+          recalculateMemberFinance(remainingByMember.get(member.id) ?? []),
+        );
+      }),
+  ];
+  for (let index = 0; index < operations.length; index += chunkSize) {
+    const batch = db.batch();
+    operations
+      .slice(index, index + chunkSize)
+      .forEach((operation) => operation(batch));
+    if (index + chunkSize >= operations.length) {
+      batch.delete(periodRef);
+      batch.set(db.collection("audit_logs").doc(), {
+        action: "finance_period.deleted",
+        actorUid: user.uid,
+        actorRole: user.profile.role,
+        orgId: user.profile.orgId,
+        targetPath: periodRef.path,
+        details: {
+          chargeCount: chargesSnapshot.size,
+          memberCount: memberIds.length,
+          periodId,
+        },
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  return { ok: true, periodId, deletedCharges: chargesSnapshot.size };
 });
 
 export const recalculateMemberFinanceStanding = onCall(async (request) => {
