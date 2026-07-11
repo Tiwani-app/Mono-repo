@@ -24,7 +24,7 @@ import {
 } from "../utils/financeStanding";
 import { getFinanceTotals } from "../utils/financeTotals";
 import { visibleUpcomingEvents } from "../utils/eventGuards";
-import { formatCurrency } from "../utils/formatCurrency";
+import { formatCompactCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
 import {
   formatPendingReviewCount,
@@ -46,7 +46,14 @@ const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
     style={[styles.statTile, { borderTopColor: accentColor }]}
   >
     <View style={styles.statMainAction}>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text
+        style={styles.statValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
       <View style={styles.statLabelRow}>
         <Text style={styles.statLabel}>{label}</Text>
         {onPress ? (
@@ -195,7 +202,9 @@ const DashboardScreen = ({ navigation }: any) => {
                 accentColor={colors.status.info}
               />
               <StatTile
-                value={financeLoading ? "…" : formatCurrency(totalCollected)}
+                value={
+                  financeLoading ? "…" : formatCompactCurrency(totalCollected)
+                }
                 label="Collected"
                 subLabel={
                   financeLoading
