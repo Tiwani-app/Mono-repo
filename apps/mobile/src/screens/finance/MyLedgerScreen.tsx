@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
@@ -144,37 +144,40 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
     !entry.duesPeriodId &&
     entry.amountPaid <= 0;
 
-  const handleDeleteCharge = (entry: LedgerEntry) => {
-    if (deletingChargeId) {
-      return;
-    }
-    Alert.alert(
-      "Delete Charge",
-      `Delete the "${entry.label}" charge of ${formatCurrency(entry.amount)}? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeletingChargeId(entry.id);
-              await deleteCharge(entry.id);
-            } catch (deleteError) {
-              Alert.alert(
-                "Charge not deleted",
-                deleteError instanceof Error
-                  ? deleteError.message
-                  : "Please try again.",
-              );
-            } finally {
-              setDeletingChargeId(null);
-            }
+  const handleDeleteCharge = useCallback(
+    (entry: LedgerEntry) => {
+      if (deletingChargeId) {
+        return;
+      }
+      Alert.alert(
+        "Delete Charge",
+        `Delete the "${entry.label}" charge of ${formatCurrency(entry.amount)}? This cannot be undone.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                setDeletingChargeId(entry.id);
+                await deleteCharge(entry.id);
+              } catch (deleteError) {
+                Alert.alert(
+                  "Charge not deleted",
+                  deleteError instanceof Error
+                    ? deleteError.message
+                    : "Please try again.",
+                );
+              } finally {
+                setDeletingChargeId(null);
+              }
+            },
           },
-        },
-      ],
-    );
-  };
+        ],
+      );
+    },
+    [deletingChargeId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -435,6 +438,8 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
             onDelete={canDeleteEntry(item) ? handleDeleteCharge : undefined}
           />
         )}
+        initialNumToRender={12}
+        windowSize={7}
         ListEmptyComponent={
           <EmptyState
             icon="📄"

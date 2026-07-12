@@ -80,5 +80,16 @@ export const useLibraryDocuments = ({
     setSyncState,
   ]);
 
-  return useLibraryStore();
+  // Per-field selectors: consumers only re-render when a field they read
+  // actually changes, instead of on any store update. setSearchQuery is a
+  // stable zustand action, so its selector never re-fires.
+  return {
+    documents: useLibraryStore((state) => state.documents),
+    loading: useLibraryStore((state) => state.loading),
+    error: useLibraryStore((state) => state.error),
+    searchQuery: useLibraryStore((state) => state.searchQuery),
+    setSearchQuery: useLibraryStore((state) => state.setSearchQuery),
+    syncState: useLibraryStore((state) => state.syncState),
+    lastSyncedAt: useLibraryStore((state) => state.lastSyncedAt),
+  };
 };

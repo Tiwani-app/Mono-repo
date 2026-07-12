@@ -107,4 +107,5 @@ const styles = StyleSheet.create({
   paymentAmount: {color: colors.status.success},
 });
 
-export default LedgerRow;
+// Memoized so ledger list re-renders skip unchanged rows.
+export default React.memo(LedgerRow);

@@ -202,6 +202,8 @@ const FinanceAdminScreen = ({ navigation }: any) => {
       <FlatList
         data={filteredMembers}
         keyExtractor={(item) => item.uid}
+        initialNumToRender={12}
+        windowSize={7}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={

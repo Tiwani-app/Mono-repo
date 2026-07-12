@@ -55,5 +55,13 @@ export const useEvents = () => {
     }
   }, [includeUnpublished, setError, setEvents, setLastSyncedAt, setLoading, setSyncState]);
 
-  return useEventsStore();
+  // Per-field selectors: consumers only re-render when a field they read
+  // actually changes, instead of on any store update.
+  return {
+    events: useEventsStore((state) => state.events),
+    loading: useEventsStore((state) => state.loading),
+    error: useEventsStore((state) => state.error),
+    syncState: useEventsStore((state) => state.syncState),
+    lastSyncedAt: useEventsStore((state) => state.lastSyncedAt),
+  };
 };

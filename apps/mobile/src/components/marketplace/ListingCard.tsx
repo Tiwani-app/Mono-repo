@@ -178,4 +178,5 @@ const styles = StyleSheet.create({
   postedBy: { fontSize: typography.size.xs, color: colors.text.tertiary },
 });
 
-export default ListingCard;
+// Memoized so marketplace list re-renders skip unchanged listings.
+export default React.memo(ListingCard);

@@ -225,6 +225,8 @@ const MembersListScreen = ({ navigation }: any) => {
       <FlatList
         data={filteredMembers}
         keyExtractor={(item) => item.uid}
+        initialNumToRender={12}
+        windowSize={7}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.listHeader}>

@@ -313,10 +313,10 @@ const DashboardScreen = ({ navigation }: any) => {
             <EventCard
               key={event.id}
               event={event}
-              onPress={() =>
+              onPress={(pressedEvent) =>
                 navigation.navigate("Events", {
                   screen: "EventDetail",
-                  params: { eventId: event.id },
+                  params: { eventId: pressedEvent.id },
                 })
               }
             />
