@@ -13,6 +13,7 @@ import {
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
@@ -20,7 +21,13 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
-import { createPoll, getPoll, updatePoll } from "../../services/votingService";
+import {
+  createPoll,
+  getPoll,
+  updatePoll,
+  uploadVotingImage,
+} from "../../services/votingService";
+import { pickResizedImage } from "../../utils/imagePicker";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { Poll } from "../../types/voting";
@@ -31,7 +38,7 @@ interface FormValues {
   title: string;
   question: string;
   expiresAt: string;
-  options: { label: string }[];
+  options: { label: string; imageURL: string }[];
 }
 
 const statusOptions: { label: string; value: Poll["status"] }[] = [
@@ -45,16 +52,23 @@ const PollFormScreen = ({ navigation, route }: any) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(pollId));
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(
+    null,
+  );
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
-    defaultValues: {
-      title: "",
-      question: "",
-      expiresAt: format(addDays(new Date(), 7), "yyyy-MM-dd"),
-      options: [{ label: "" }, { label: "" }],
-    },
-  });
+  const { control, handleSubmit, reset, formState, setValue } =
+    useForm<FormValues>({
+      defaultValues: {
+        title: "",
+        question: "",
+        expiresAt: format(addDays(new Date(), 7), "yyyy-MM-dd"),
+        options: [
+          { label: "", imageURL: "" },
+          { label: "", imageURL: "" },
+        ],
+      },
+    });
   const { append, fields, remove } = useFieldArray({
     control,
     name: "options",
@@ -70,7 +84,10 @@ const PollFormScreen = ({ navigation, route }: any) => {
           title: poll.title,
           question: poll.question,
           expiresAt: format(poll.expiresAt ?? addDays(new Date(), 7), "yyyy-MM-dd"),
-          options: poll.options.map((option) => ({ label: option.label })),
+          options: poll.options.map((option) => ({
+            label: option.label,
+            imageURL: option.imageURL ?? "",
+          })),
         });
         setStatus(poll.status);
       })
@@ -82,15 +99,46 @@ const PollFormScreen = ({ navigation, route }: any) => {
       .finally(() => setLoading(false));
   }, [admin, pollId, reset]);
 
+  const handlePickOptionImage = async (index: number) => {
+    if (uploadingImageIndex !== null) {
+      return;
+    }
+    try {
+      const picked = await pickResizedImage();
+      if (!picked) {
+        return;
+      }
+      setUploadingImageIndex(index);
+      const imageURL = await uploadVotingImage(picked);
+      setValue(`options.${index}.imageURL`, imageURL, { shouldDirty: true });
+    } catch (error) {
+      Alert.alert(
+        "Image not uploaded",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setUploadingImageIndex(null);
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
     }
+    const seenLabels = new Set<string>();
     const options = values.options
-      .map((option) => option.label.trim())
-      .filter(Boolean);
-    const uniqueOptions = Array.from(new Set(options));
-    if (uniqueOptions.length < 2) {
+      .map((option) => ({
+        label: option.label.trim(),
+        imageURL: option.imageURL.trim() || null,
+      }))
+      .filter((option) => {
+        if (!option.label || seenLabels.has(option.label)) {
+          return false;
+        }
+        seenLabels.add(option.label);
+        return true;
+      });
+    if (options.length < 2) {
       Alert.alert("Options required", "Add at least two unique options.");
       return;
     }
@@ -115,7 +163,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
         question: values.question.trim(),
         status,
         expiresAt,
-        options: uniqueOptions,
+        options,
       };
       if (pollId) {
         await updatePoll(pollId, payload);
@@ -205,32 +253,65 @@ const PollFormScreen = ({ navigation, route }: any) => {
           />
           <Text style={styles.sectionLabel}>OPTIONS</Text>
           {fields.map((field, index) => (
-            <View key={field.id} style={styles.optionRow}>
-              <View style={styles.optionInput}>
-                <Field
-                  control={control}
-                  error={formState.errors.options?.[index]?.label?.message}
-                  label={`OPTION ${index + 1}`}
-                  name={`options.${index}.label`}
-                  rules={{
-                    required: index < 2 ? "Option is required." : false,
-                  }}
-                />
+            <View key={field.id} style={styles.optionCard}>
+              <View style={styles.optionRow}>
+                <View style={styles.optionInput}>
+                  <Field
+                    control={control}
+                    error={formState.errors.options?.[index]?.label?.message}
+                    label={`OPTION ${index + 1}`}
+                    name={`options.${index}.label`}
+                    rules={{
+                      required: index < 2 ? "Option is required." : false,
+                    }}
+                  />
+                </View>
+                {fields.length > 2 && (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => remove(index)}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="trash-2" size={18} color={colors.status.error} />
+                  </TouchableOpacity>
+                )}
               </View>
-              {fields.length > 2 && (
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => remove(index)}
-                  activeOpacity={0.8}
-                >
-                  <Icon name="trash-2" size={18} color={colors.status.error} />
-                </TouchableOpacity>
-              )}
+              <Controller
+                control={control}
+                name={`options.${index}.imageURL`}
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.imageField}>
+                    <AttachmentField
+                      label="OPTION IMAGE (OPTIONAL)"
+                      mode="image"
+                      fileName={value ? `Option ${index + 1} image` : null}
+                      value={value}
+                      onChangeText={onChange}
+                      showUrlInput={false}
+                      helperText={
+                        uploadingImageIndex === index
+                          ? "Uploading image..."
+                          : "Optional image shown with this option."
+                      }
+                      onPick={() => handlePickOptionImage(index)}
+                    />
+                    {Boolean(value) && (
+                      <OutlineButton
+                        label="Remove Image"
+                        color={colors.status.error}
+                        onPress={() => onChange("")}
+                        disabled={uploadingImageIndex !== null}
+                        fullWidth
+                      />
+                    )}
+                  </View>
+                )}
+              />
             </View>
           ))}
           <OutlineButton
             label="Add Option"
-            onPress={() => append({ label: "" })}
+            onPress={() => append({ label: "", imageURL: "" })}
             fullWidth
           />
           <Text style={styles.sectionLabel}>STATUS</Text>
@@ -329,6 +410,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   field: { gap: spacing.xs },
+  imageField: { gap: spacing.sm },
   label: {
     fontSize: typography.size.xs,
     color: colors.text.secondary,
@@ -352,6 +434,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     color: colors.text.secondary,
     letterSpacing: 0.8,
+  },
+  optionCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
   },
   optionRow: {
     flexDirection: "row",

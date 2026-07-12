@@ -15,6 +15,7 @@ import {
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
@@ -27,7 +28,9 @@ import {
   createElection,
   getElection,
   updateElection,
+  uploadVotingImage,
 } from "../../services/votingService";
+import { pickResizedImage } from "../../utils/imagePicker";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import { User } from "../../types/user";
@@ -47,7 +50,7 @@ interface FormValues {
   title: string;
   expiresAt: string;
   office: string;
-  candidates: { name: string; manifestoLine: string }[];
+  candidates: { name: string; manifestoLine: string; photoURL: string }[];
 }
 
 const ballotOptions: { label: string; value: Election["ballotType"] }[] = [
@@ -85,14 +88,17 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         .sort((left, right) => left.fullName.localeCompare(right.fullName)),
     [members],
   );
-  const { control, handleSubmit, reset, formState, watch } = useForm<FormValues>({
+  const [uploadingPhotoIndex, setUploadingPhotoIndex] = useState<number | null>(
+    null,
+  );
+  const { control, handleSubmit, reset, formState, setValue, watch } = useForm<FormValues>({
     defaultValues: {
       title: "",
       expiresAt: format(addDays(new Date(), 7), "yyyy-MM-dd"),
       office: "President",
       candidates: [
-        { name: "", manifestoLine: "" },
-        { name: "", manifestoLine: "" },
+        { name: "", manifestoLine: "", photoURL: "" },
+        { name: "", manifestoLine: "", photoURL: "" },
       ],
     },
   });
@@ -120,6 +126,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
             firstRace?.candidates.map((candidate) => ({
               name: candidate.name,
               manifestoLine: candidate.manifestoLine,
+              photoURL: candidate.photoURL ?? "",
             })) ?? [],
         });
         setBallotType(election.ballotType);
@@ -135,6 +142,28 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       .finally(() => setLoading(false));
   }, [admin, electionId, reset]);
 
+  const handlePickCandidatePhoto = async (index: number) => {
+    if (uploadingPhotoIndex !== null) {
+      return;
+    }
+    try {
+      const picked = await pickResizedImage();
+      if (!picked) {
+        return;
+      }
+      setUploadingPhotoIndex(index);
+      const photoURL = await uploadVotingImage(picked);
+      setValue(`candidates.${index}.photoURL`, photoURL, { shouldDirty: true });
+    } catch (error) {
+      Alert.alert(
+        "Photo not uploaded",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setUploadingPhotoIndex(null);
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (submitting) {
       return;
@@ -143,6 +172,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       .map((candidate) => ({
         name: candidate.name.trim(),
         manifestoLine: candidate.manifestoLine.trim(),
+        photoURL: candidate.photoURL.trim() || null,
       }))
       .filter((candidate) => candidate.name);
     const uniqueNames = new Set(
@@ -387,11 +417,42 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
                 multiline
                 name={`candidates.${index}.manifestoLine`}
               />
+              <Controller
+                control={control}
+                name={`candidates.${index}.photoURL`}
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.photoField}>
+                    <AttachmentField
+                      label="CANDIDATE PHOTO (OPTIONAL)"
+                      mode="image"
+                      fileName={value ? "Candidate photo" : null}
+                      value={value}
+                      onChangeText={onChange}
+                      showUrlInput={false}
+                      helperText={
+                        uploadingPhotoIndex === index
+                          ? "Uploading photo..."
+                          : "Optional. Defaults to the member's profile photo."
+                      }
+                      onPick={() => handlePickCandidatePhoto(index)}
+                    />
+                    {Boolean(value) && (
+                      <OutlineButton
+                        label="Remove Photo"
+                        color={colors.status.error}
+                        onPress={() => onChange("")}
+                        disabled={uploadingPhotoIndex !== null}
+                        fullWidth
+                      />
+                    )}
+                  </View>
+                )}
+              />
             </View>
           ))}
           <OutlineButton
             label="Add Candidate"
-            onPress={() => append({ name: "", manifestoLine: "" })}
+            onPress={() => append({ name: "", manifestoLine: "", photoURL: "" })}
             fullWidth
           />
           <GoldButton
@@ -611,6 +672,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   field: { gap: spacing.xs },
+  photoField: { gap: spacing.sm },
   label: {
     fontSize: typography.size.xs,
     color: colors.text.secondary,

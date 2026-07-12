@@ -1,5 +1,6 @@
 import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Image} from 'expo-image';
 import ProgressBar from '../common/ProgressBar';
 import {colors, spacing, typography} from '../../theme';
 import {PollOption as PollOptionType} from '../../types/voting';
@@ -22,6 +23,15 @@ const PollOption = ({option, totalVotes, selected, showResult, onSelect, disable
       onPress={onSelect}
       disabled={disabled}
       activeOpacity={0.8}>
+      {option.imageURL && (
+        <Image
+          source={{uri: option.imageURL}}
+          style={styles.optionImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={120}
+        />
+      )}
       <View style={styles.row}>
         <View style={[styles.radio, selected && styles.radioSelected]} />
         <Text style={styles.label}>{option.label}</Text>
@@ -43,6 +53,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.card,
   },
   selected: {borderColor: colors.gold.default, backgroundColor: `${colors.gold.default}12`},
+  optionImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    backgroundColor: colors.bg.elevated,
+  },
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
   radio: {
     width: 18,
