@@ -10,10 +10,24 @@ import { db } from "./firebase";
 import { AuthenticatedUser } from "./types";
 import { stringField } from "./validation";
 
-type LedgerType = "dues" | "levy" | "fine" | "pledge" | "payment";
+type LedgerType =
+  | "dues"
+  | "levy"
+  | "donation"
+  | "fine"
+  | "pledge"
+  | "other"
+  | "payment";
 type PaidStatus = "unpaid" | "partial" | "paid";
 
-const chargeTypes: LedgerType[] = ["dues", "levy", "fine", "pledge"];
+const chargeTypes: LedgerType[] = [
+  "dues",
+  "levy",
+  "donation",
+  "fine",
+  "pledge",
+  "other",
+];
 
 const recordFromData = (data: unknown): Record<string, unknown> =>
   data && typeof data === "object" ? (data as Record<string, unknown>) : {};

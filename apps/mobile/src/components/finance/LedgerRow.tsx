@@ -15,8 +15,10 @@ import {formatDisplayDate} from '../../utils/formatDate';
 const TYPE_ICONS: Record<LedgerType, string> = {
   dues: 'file-text',
   levy: 'file-text',
+  donation: 'gift',
   fine: 'alert-triangle',
   pledge: 'heart',
+  other: 'file-plus',
   payment: 'arrow-up',
 };
 

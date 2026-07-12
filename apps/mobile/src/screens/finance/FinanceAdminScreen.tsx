@@ -21,7 +21,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
 import { deleteDuesPeriod } from "../../services/financeService";
-import { DuesPeriod } from "../../types/finance";
+import { DuesPeriod, LedgerType } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
@@ -51,6 +51,15 @@ const SummaryTile = ({ label, value }: any) => (
 
 const shortUid = (uid: string) =>
   uid.length > 8 ? `${uid.slice(0, 4)}...${uid.slice(-4)}` : uid;
+
+const chargeButtons: { label: string; value: LedgerType }[] = [
+  { label: "Dues", value: "dues" },
+  { label: "Levies", value: "levy" },
+  { label: "Donations", value: "donation" },
+  { label: "Fines", value: "fine" },
+  { label: "Pledges", value: "pledge" },
+  { label: "Other Charges", value: "other" },
+];
 
 const FinanceAdminScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -221,10 +230,23 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 label="New Dues"
                 onPress={() => navigation.navigate("DuesPeriodForm")}
               />
-              <OutlineButton
-                label="Ad Hoc Charge"
-                onPress={() => navigation.navigate("AdHocCharge")}
-              />
+            </View>
+            <Text style={styles.sectionLabel}>NEW CHARGE</Text>
+            <View style={styles.chargeGrid}>
+              {chargeButtons.map((charge) => (
+                <TouchableOpacity
+                  key={charge.value}
+                  style={styles.chargeButton}
+                  onPress={() =>
+                    navigation.navigate("AdHocCharge", {
+                      chargeType: charge.value,
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.chargeButtonText}>{charge.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
             <Text style={styles.sectionLabel}>ALL CHARGES LEDGER</Text>
             <TouchableOpacity
@@ -378,6 +400,29 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   actionGrid: { gap: spacing.sm },
+  chargeGrid: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  chargeButton: {
+    width: "31%",
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold.default,
+    backgroundColor: colors.bg.card,
+  },
+  chargeButtonText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+    textAlign: "center",
+  },
   duesList: { gap: spacing.md },
   duesScroll: { maxHeight: 320 },
   memberSearch: {

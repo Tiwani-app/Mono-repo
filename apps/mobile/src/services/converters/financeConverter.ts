@@ -14,7 +14,15 @@ import {
   requiredString,
 } from "./shared";
 
-const ledgerTypes: LedgerType[] = ["dues", "levy", "fine", "pledge", "payment"];
+const ledgerTypes: LedgerType[] = [
+  "dues",
+  "levy",
+  "donation",
+  "fine",
+  "pledge",
+  "other",
+  "payment",
+];
 const ledgerPaidStatuses: LedgerPaidStatus[] = ["unpaid", "partial", "paid"];
 const duesStatuses: DuesPeriod["status"][] = ["active", "settled", "overdue"];
 

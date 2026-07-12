@@ -36,10 +36,22 @@ interface FormValues {
 }
 
 const chargeTypes: { label: string; value: LedgerType }[] = [
+  { label: "Dues", value: "dues" },
   { label: "Levy", value: "levy" },
+  { label: "Donation", value: "donation" },
   { label: "Fine", value: "fine" },
   { label: "Pledge", value: "pledge" },
+  { label: "Other", value: "other" },
 ];
+
+const chargeTitles: Partial<Record<LedgerType, string>> = {
+  dues: "New Dues Charge",
+  levy: "New Levy",
+  donation: "New Donation",
+  fine: "New Fine",
+  pledge: "New Pledge",
+  other: "New Charge",
+};
 
 type TargetMode = "all" | "single" | "multiple";
 
@@ -56,10 +68,14 @@ const parseDate = (value: string) => {
 
 const AdHocChargeScreen = ({ navigation, route }: any) => {
   const routeMemberId = route.params?.memberId as string | undefined;
+  // The charge type is chosen on the finance page; the in-form selector only
+  // appears for entry points that don't pass one (e.g. a member's ledger).
+  const routeChargeType = route.params?.chargeType as LedgerType | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { members, error, loading } = useMembers({ enabled: admin });
-  const [type, setType] = useState<LedgerType>("levy");
+  const [type, setType] = useState<LedgerType>(routeChargeType ?? "levy");
+  const screenTitle = chargeTitles[type] ?? "New Charge";
   const [targetMode, setTargetMode] = useState<TargetMode>(
     routeMemberId ? "single" : "all",
   );
@@ -172,14 +188,14 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
-          title="Ad Hoc Charge"
+          title={screenTitle}
           showBack
           onBack={() => safeGoBack(navigation, "FinanceAdmin")}
         />
         <EmptyState
           icon="!"
           title="Admin only"
-          message="Only admins can create ad hoc charges."
+          message="Only admins can create charges."
         />
       </SafeAreaView>
     );
@@ -193,7 +209,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
-          title="Ad Hoc Charge"
+          title={screenTitle}
           showBack
           onBack={() => safeGoBack(navigation, "FinanceAdmin")}
         />
@@ -202,7 +218,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
           title={error ? "Members unavailable" : "No active members"}
           message={
             error ??
-            "Active members are required before creating an ad hoc charge."
+            "Active members are required before creating a charge."
           }
           actionLabel="Back to Finance"
           onAction={() => safeGoBack(navigation, "FinanceAdmin")}
@@ -214,7 +230,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
-        title="Ad Hoc Charge"
+        title={screenTitle}
         showBack
         onBack={() => safeGoBack(navigation, "FinanceAdmin")}
       />
@@ -226,12 +242,16 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.sectionLabel}>CHARGE TYPE</Text>
-          <ChipRow
-            options={chargeTypes}
-            selectedValue={type}
-            onChange={setType}
-          />
+          {!routeChargeType && (
+            <>
+              <Text style={styles.sectionLabel}>CHARGE TYPE</Text>
+              <ChipRow
+                options={chargeTypes}
+                selectedValue={type}
+                onChange={setType}
+              />
+            </>
+          )}
           <Text style={styles.sectionLabel}>TARGET</Text>
           <ChipRow
             options={[
