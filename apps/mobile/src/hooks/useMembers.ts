@@ -81,5 +81,13 @@ export const useMembers = ({
     source,
   ]);
 
-  return useMembersStore();
+  // Per-field selectors: consumers only re-render when a field they read
+  // actually changes, instead of on any store update.
+  return {
+    members: useMembersStore((state) => state.members),
+    loading: useMembersStore((state) => state.loading),
+    error: useMembersStore((state) => state.error),
+    syncState: useMembersStore((state) => state.syncState),
+    lastSyncedAt: useMembersStore((state) => state.lastSyncedAt),
+  };
 };

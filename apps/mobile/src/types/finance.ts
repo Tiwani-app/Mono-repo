@@ -1,4 +1,11 @@
-export type LedgerType = 'dues' | 'levy' | 'fine' | 'pledge' | 'payment';
+export type LedgerType =
+  | 'dues'
+  | 'levy'
+  | 'donation'
+  | 'fine'
+  | 'pledge'
+  | 'other'
+  | 'payment';
 export type LedgerPaidStatus = 'unpaid' | 'partial' | 'paid';
 
 export interface LedgerEntry {

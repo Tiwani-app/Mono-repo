@@ -640,7 +640,10 @@ describe("Firebase service contracts", () => {
         question: "Where should we meet?",
         status: "closed",
         expiresAt: new Date("2026-12-31T23:59:59.000Z"),
-        options: ["Hall", "Garden"],
+        options: [
+        { label: "Hall", imageURL: null },
+        { label: "Garden", imageURL: null },
+      ],
       }),
     ).rejects.toThrow("Create the poll as draft or open");
   });
@@ -651,7 +654,10 @@ describe("Firebase service contracts", () => {
       question: "Where should we meet?",
       status: "open",
       expiresAt: new Date("2026-12-31T23:59:59.000Z"),
-      options: ["Hall", "Garden"],
+      options: [
+        { label: "Hall", imageURL: null },
+        { label: "Garden", imageURL: null },
+      ],
     });
 
     expect(mockUpdatePollCallable).toHaveBeenCalledWith("poll-1", {
@@ -659,7 +665,10 @@ describe("Firebase service contracts", () => {
       question: "Where should we meet?",
       status: "open",
       expiresAt: new Date("2026-12-31T23:59:59.000Z"),
-      options: ["Hall", "Garden"],
+      options: [
+        { label: "Hall", imageURL: null },
+        { label: "Garden", imageURL: null },
+      ],
     });
     expect(mockUpdate).not.toHaveBeenCalled();
   });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -18,6 +18,7 @@ import WeekStrip from "../../components/events/WeekStrip";
 import { useEvents } from "../../hooks/useEvents";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
+import { TiwaniEvent } from "../../types/event";
 import {
   visiblePublishedEvents,
   visibleUpcomingEvents,
@@ -28,6 +29,18 @@ const EventsScreen = ({ navigation }: any) => {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const { error, events, lastSyncedAt, loading, syncState } = useEvents();
   const { user } = useAuthStore();
+
+  const handlePressEvent = useCallback(
+    (event: TiwaniEvent) =>
+      navigation.navigate("EventDetail", { eventId: event.id }),
+    [navigation],
+  );
+  const renderEvent = useCallback(
+    ({ item }: { item: TiwaniEvent }) => (
+      <EventCard event={item} onPress={handlePressEvent} />
+    ),
+    [handlePressEvent],
+  );
 
   const upcomingEvents = visibleUpcomingEvents(events);
   const publishedEvents = visiblePublishedEvents(events);
@@ -82,14 +95,9 @@ const EventsScreen = ({ navigation }: any) => {
             data={visibleEvents}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            renderItem={({ item }) => (
-              <EventCard
-                event={item}
-                onPress={() =>
-                  navigation.navigate("EventDetail", { eventId: item.id })
-                }
-              />
-            )}
+            renderItem={renderEvent}
+            initialNumToRender={10}
+            windowSize={7}
             ListEmptyComponent={
               <EmptyState
                 icon="📅"

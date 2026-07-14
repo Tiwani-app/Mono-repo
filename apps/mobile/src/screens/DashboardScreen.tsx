@@ -24,7 +24,7 @@ import {
 } from "../utils/financeStanding";
 import { getFinanceTotals } from "../utils/financeTotals";
 import { visibleUpcomingEvents } from "../utils/eventGuards";
-import { formatCurrency } from "../utils/formatCurrency";
+import { formatCompactCurrency } from "../utils/formatCurrency";
 import { formatRelativeTime } from "../utils/formatDate";
 import {
   formatPendingReviewCount,
@@ -46,7 +46,14 @@ const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
     style={[styles.statTile, { borderTopColor: accentColor }]}
   >
     <View style={styles.statMainAction}>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text
+        style={styles.statValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
       <View style={styles.statLabelRow}>
         <Text style={styles.statLabel}>{label}</Text>
         {onPress ? (
@@ -104,7 +111,6 @@ const DashboardScreen = ({ navigation }: any) => {
   const admin = isAdmin(user);
   const { events, error: eventsError, loading: eventsLoading } = useEvents();
   const {
-    duesPeriods,
     error: financeError,
     ledgerEntries,
     loading: financeLoading,
@@ -145,8 +151,6 @@ const DashboardScreen = ({ navigation }: any) => {
     user?.outstandingBalance ?? 0,
   );
   const { totalPaid: totalCollected } = getFinanceTotals(ledgerEntries);
-  const currentDuesPeriod =
-    duesPeriods.find((period) => period.status === "active") ?? duesPeriods[0];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -195,13 +199,11 @@ const DashboardScreen = ({ navigation }: any) => {
                 accentColor={colors.status.info}
               />
               <StatTile
-                value={financeLoading ? "…" : formatCurrency(totalCollected)}
-                label="Collected"
-                subLabel={
-                  financeLoading
-                    ? "loading"
-                    : (currentDuesPeriod?.name ?? "all periods")
+                value={
+                  financeLoading ? "…" : formatCompactCurrency(totalCollected)
                 }
+                label="Collected"
+                subLabel={financeLoading ? "loading" : "Total"}
                 accentColor={colors.status.success}
               />
               <StatTile
@@ -311,10 +313,10 @@ const DashboardScreen = ({ navigation }: any) => {
             <EventCard
               key={event.id}
               event={event}
-              onPress={() =>
+              onPress={(pressedEvent) =>
                 navigation.navigate("Events", {
                   screen: "EventDetail",
-                  params: { eventId: event.id },
+                  params: { eventId: pressedEvent.id },
                 })
               }
             />

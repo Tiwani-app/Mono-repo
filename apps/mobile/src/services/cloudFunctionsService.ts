@@ -261,6 +261,18 @@ export const reversePaymentCallable = (paymentId: string, note: string) =>
     { ok: boolean; paymentId: string }
   >("reversePayment", { note, paymentId });
 
+export const deleteFinanceChargeCallable = (chargeEntryId: string) =>
+  callCloudFunction<
+    { chargeEntryId: string },
+    { ok: boolean; chargeEntryId: string }
+  >("deleteFinanceCharge", { chargeEntryId });
+
+export const deleteFinancePeriodCallable = (periodId: string) =>
+  callCloudFunction<
+    { periodId: string },
+    { ok: boolean; periodId: string; deletedCharges: number }
+  >("deleteFinancePeriod", { periodId });
+
 export const recalculateMemberFinanceStandingCallable = (uid: string) =>
   callCloudFunction<
     { uid: string },
@@ -303,6 +315,12 @@ export const updatePollCallable = (pollId: string, data: PollInput) =>
 export const closePollCallable = (pollId: string) =>
   callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
     "closePoll",
+    { pollId },
+  );
+
+export const deletePollCallable = (pollId: string) =>
+  callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
+    "deletePoll",
     { pollId },
   );
 
@@ -351,6 +369,12 @@ export const closeElectionCallable = (electionId: string) =>
     { electionId: string },
     { electionId: string; ok: boolean }
   >("closeElection", { electionId });
+
+export const deleteElectionCallable = (electionId: string) =>
+  callCloudFunction<
+    { electionId: string },
+    { electionId: string; ok: boolean }
+  >("deleteElection", { electionId });
 
 export const castElectionBallotCallable = (
   electionId: string,

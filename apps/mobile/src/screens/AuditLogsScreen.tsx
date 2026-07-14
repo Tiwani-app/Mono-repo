@@ -199,6 +199,8 @@ const AuditLogsScreen = ({ navigation }: any) => {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
+        initialNumToRender={12}
+        windowSize={7}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={

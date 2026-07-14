@@ -14,6 +14,8 @@ import {
   closePollCallable,
   createElectionCallable,
   createPollCallable,
+  deleteElectionCallable,
+  deletePollCallable,
   generateElectionResultsCallable,
   listElectionVoterReceiptsCallable,
   updateElectionCallable,
@@ -23,6 +25,7 @@ import {
   electionFromRecord,
   pollFromRecord,
 } from "./converters/votingConverter";
+import { firebaseStorage } from "../config/firebase";
 import {
   firestore,
   getCurrentOrgId,
@@ -35,7 +38,7 @@ export interface PollInput {
   title: string;
   question: string;
   status: Poll["status"];
-  options: string[];
+  options: { label: string; imageURL: string | null }[];
   expiresAt: Date | null;
 }
 
@@ -112,7 +115,11 @@ const resolveRaces = async (data: ElectionInput): Promise<Race[]> => {
         uid: String(member.id),
         name: String(member.fullName),
         manifestoLine: candidate.manifestoLine.trim(),
-        photoURL: typeof member.photoURL === "string" ? member.photoURL : null,
+        // A photo uploaded on the election form wins over the member's
+        // profile photo.
+        photoURL:
+          candidate.photoURL ??
+          (typeof member.photoURL === "string" ? member.photoURL : null),
       };
     }),
   }));
@@ -189,6 +196,18 @@ export const getElection = async (electionId: string): Promise<Election> => {
   return electionFromRecord({ id: snapshot.id, ...(snapshot.data() ?? {}) });
 };
 
+export const uploadVotingImage = async (file: {
+  uri: string;
+}): Promise<string> => {
+  const orgId = await getCurrentOrgId();
+  const imageId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const ref = firebaseStorage().ref(
+    `organisations/${orgId}/voting/${imageId}/image.jpg`,
+  );
+  await ref.putFile(file.uri, { contentType: "image/jpeg" });
+  return ref.getDownloadURL();
+};
+
 export const createPoll = async (data: PollInput): Promise<Poll> => {
   if (data.status === "closed") {
     throw new Error("Create the poll as draft or open, then close it from the voting hub.");
@@ -206,6 +225,10 @@ export const updatePoll = async (
 
 export const closePoll = async (pollId: string): Promise<void> => {
   await closePollCallable(pollId);
+};
+
+export const deletePoll = async (pollId: string): Promise<void> => {
+  await deletePollCallable(pollId);
 };
 
 export const createElection = async (
@@ -227,6 +250,10 @@ export const updateElection = async (
 
 export const closeElection = async (electionId: string): Promise<void> => {
   await closeElectionCallable(electionId);
+};
+
+export const deleteElection = async (electionId: string): Promise<void> => {
+  await deleteElectionCallable(electionId);
 };
 
 export const getElectionResults = async (

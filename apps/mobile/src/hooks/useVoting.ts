@@ -70,5 +70,14 @@ export const useVoting = () => {
     }
   }, [includeDrafts, setElections, setError, setLastSyncedAt, setLoading, setPolls, setSyncState]);
 
-  return useVotingStore();
+  // Per-field selectors: consumers only re-render when a field they read
+  // actually changes, instead of on any store update.
+  return {
+    polls: useVotingStore((state) => state.polls),
+    elections: useVotingStore((state) => state.elections),
+    loading: useVotingStore((state) => state.loading),
+    error: useVotingStore((state) => state.error),
+    syncState: useVotingStore((state) => state.syncState),
+    lastSyncedAt: useVotingStore((state) => state.lastSyncedAt),
+  };
 };

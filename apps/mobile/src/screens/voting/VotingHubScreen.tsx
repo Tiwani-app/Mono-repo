@@ -17,14 +17,15 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
-import { closeElection, closePoll } from "../../services/votingService";
+import { closeElection, closePoll, deleteElection, deletePoll } from "../../services/votingService";
+import Icon from "../../components/common/FeatherIcon";
 import { colors, spacing, typography } from "../../theme";
 import { Election, Poll } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
 import {
   isVotingItemExpired,
-  partitionExpiredVotingItems,
+  partitionVotingItems,
   votingDisplayStatus,
 } from "../../utils/votingExpiry";
 
@@ -40,12 +41,13 @@ const VotingHubScreen = ({ navigation }: any) => {
     polls,
     syncState,
   } = useVoting();
-  const { active: activeElections, expired: expiredElections } =
-    partitionExpiredVotingItems(elections);
-  const { active: activePolls, expired: expiredPolls } =
-    partitionExpiredVotingItems(polls);
+  const { active: activeElections, closed: closedElections } =
+    partitionVotingItems(elections);
+  const { active: activePolls, closed: closedPolls } =
+    partitionVotingItems(polls);
 
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [modal, setModal] = useState<{
     visible: boolean;
     type: FeedbackModalType;
@@ -81,6 +83,60 @@ const VotingHubScreen = ({ navigation }: any) => {
     });
   };
 
+  const handleDeletePoll = (poll: Poll) => {
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Poll",
+      message: `Permanently delete "${poll.title}"? This cannot be undone.`,
+      primaryLabel: "Delete",
+      onPrimary: () => {
+        closeModal();
+        setDeletingId(poll.id);
+        deletePoll(poll.id)
+          .catch((e: any) => {
+            setModal({
+              visible: true,
+              type: "error",
+              title: "Poll not deleted",
+              message: e?.message ?? "Please try again.",
+              onPrimary: closeModal,
+            });
+          })
+          .finally(() => setDeletingId(null));
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
+  };
+
+  const handleDeleteElection = (election: Election) => {
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Election",
+      message: `Permanently delete "${election.title}"? This cannot be undone.`,
+      primaryLabel: "Delete",
+      onPrimary: () => {
+        closeModal();
+        setDeletingId(election.id);
+        deleteElection(election.id)
+          .catch((e: any) => {
+            setModal({
+              visible: true,
+              type: "error",
+              title: "Election not deleted",
+              message: e?.message ?? "Please try again.",
+              onPrimary: closeModal,
+            });
+          })
+          .finally(() => setDeletingId(null));
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
+  };
+
   const handleCloseElection = (election: Election) => {
     setModal({
       visible: true,
@@ -109,8 +165,10 @@ const VotingHubScreen = ({ navigation }: any) => {
       key={election.id}
       admin={admin}
       closing={closingId === election.id}
+      deleting={deletingId === election.id}
       election={election}
       onClose={() => handleCloseElection(election)}
+      onDelete={() => handleDeleteElection(election)}
       onEdit={() =>
         navigation.navigate("ElectionForm", {
           electionId: election.id,
@@ -134,8 +192,10 @@ const VotingHubScreen = ({ navigation }: any) => {
       key={poll.id}
       admin={admin}
       closing={closingId === poll.id}
+      deleting={deletingId === poll.id}
       poll={poll}
       onClose={() => handleClosePoll(poll)}
+      onDelete={() => handleDeletePoll(poll)}
       onEdit={() => navigation.navigate("PollForm", { pollId: poll.id })}
       onOpen={() => navigation.navigate("PollVote", { pollId: poll.id })}
     />
@@ -212,19 +272,19 @@ const VotingHubScreen = ({ navigation }: any) => {
             ) : (
               activePolls.map(renderPoll)
             )}
-            {expiredElections.length > 0 && (
+            {closedElections.length > 0 && (
               <>
                 <SectionHeader
-                  title="EXPIRED ELECTIONS"
-                  count={expiredElections.length}
+                  title="CLOSED ELECTIONS"
+                  count={closedElections.length}
                 />
-                {expiredElections.map(renderElection)}
+                {closedElections.map(renderElection)}
               </>
             )}
-            {expiredPolls.length > 0 && (
+            {closedPolls.length > 0 && (
               <>
-                <SectionHeader title="EXPIRED POLLS" count={expiredPolls.length} />
-                {expiredPolls.map(renderPoll)}
+                <SectionHeader title="CLOSED POLLS" count={closedPolls.length} />
+                {closedPolls.map(renderPoll)}
               </>
             )}
           </>
@@ -244,15 +304,19 @@ const SectionHeader = ({ count, title }: { count: number; title: string }) => (
 const PollCard = ({
   admin,
   closing,
+  deleting,
   onClose,
+  onDelete,
   onEdit,
   onOpen,
   poll,
 }: {
   admin: boolean;
   closing: boolean;
+  deleting: boolean;
   poll: Poll;
   onClose: () => void;
+  onDelete: () => void;
   onEdit: () => void;
   onOpen: () => void;
 }) => (
@@ -270,6 +334,16 @@ const PollCard = ({
         label={votingDisplayStatus(poll).toUpperCase()}
         color={statusColor(votingDisplayStatus(poll))}
       />
+      {admin && poll.status !== "open" && (
+        <TouchableOpacity
+          style={[styles.deleteIconButton, deleting && styles.deleteIconButtonDisabled]}
+          onPress={onDelete}
+          disabled={deleting}
+          activeOpacity={0.7}
+        >
+          <Icon name="trash-2" size={15} color={colors.status.error} />
+        </TouchableOpacity>
+      )}
     </View>
     <Text style={styles.cardMeta}>
       {poll.options.length} options · {poll.totalVotes} recorded votes
@@ -297,8 +371,10 @@ const PollCard = ({
 const ElectionCard = ({
   admin,
   closing,
+  deleting,
   election,
   onClose,
+  onDelete,
   onEdit,
   onOpen,
   onResults,
@@ -306,8 +382,10 @@ const ElectionCard = ({
 }: {
   admin: boolean;
   closing: boolean;
+  deleting: boolean;
   election: Election;
   onClose: () => void;
+  onDelete: () => void;
   onEdit: () => void;
   onOpen: () => void;
   onResults: () => void;
@@ -330,6 +408,16 @@ const ElectionCard = ({
         label={votingDisplayStatus(election).toUpperCase()}
         color={statusColor(votingDisplayStatus(election))}
       />
+      {admin && election.status !== "open" && (
+        <TouchableOpacity
+          style={[styles.deleteIconButton, deleting && styles.deleteIconButtonDisabled]}
+          onPress={onDelete}
+          disabled={deleting}
+          activeOpacity={0.7}
+        >
+          <Icon name="trash-2" size={15} color={colors.status.error} />
+        </TouchableOpacity>
+      )}
     </View>
     {election.expiresAt && (
       <Text style={styles.expiryMeta}>
@@ -395,7 +483,16 @@ const styles = StyleSheet.create({
     borderColor: colors.status.error,
     backgroundColor: `${colors.status.error}10`,
   },
-  cardHeader: { flexDirection: "row", gap: spacing.md },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  deleteIconButton: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: `${colors.status.error}14`,
+  },
+  deleteIconButtonDisabled: { opacity: 0.4 },
   cardCopy: { flex: 1, gap: spacing.xs },
   cardTitle: {
     fontSize: typography.size.lg,

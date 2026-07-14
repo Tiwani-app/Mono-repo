@@ -4,6 +4,7 @@ import {
   EventStatus,
   TiwaniEvent,
 } from "../types/event";
+import { firebaseFirestoreModule } from "../config/firebase";
 import { DataSyncSnapshotMeta } from "../types/sync";
 import { eventFromRecord } from "./converters/eventConverter";
 import { currentUid, firestore, getCurrentOrgId, startOrgSubscription } from "./firebaseHelpers";
@@ -74,26 +75,57 @@ export const getEventAttendees = async (
   eventId: string,
 ): Promise<EventAttendee[]> => {
   const event = await getEvent(eventId);
-  return Promise.all(
-    event.rsvpList.map(async (uid) => {
+  if (event.rsvpList.length === 0) {
+    return [];
+  }
+  // Batch the directory lookups (30 ids per "in" query) instead of one read
+  // per attendee. The orgId/status filters mirror the directory read rule so
+  // the rules engine can prove list queries compliant; anyone the query
+  // misses (e.g. no longer active) falls back to a tolerant per-doc read.
+  const orgId = await getCurrentOrgId();
+  const documentId = firebaseFirestoreModule().FieldPath.documentId();
+  const chunks: string[][] = [];
+  for (let index = 0; index < event.rsvpList.length; index += 30) {
+    chunks.push(event.rsvpList.slice(index, index + 30));
+  }
+  const memberByUid = new Map<string, Record<string, unknown>>();
+  await Promise.all(
+    chunks.map(async (chunk) => {
       const snapshot = await firestore()
         .collection("member_directory")
-        .doc(uid)
+        .where("orgId", "==", orgId)
+        .where("status", "==", "active")
+        .where(documentId, "in", chunk)
         .get();
-      const fallbackSnapshot = snapshot.exists()
-        ? null
-        : await firestore().collection("users").doc(uid).get();
-      const member = snapshot.data() ?? fallbackSnapshot?.data();
-      return {
-        uid,
-        fullName:
-          typeof member?.fullName === "string" ? member.fullName : "Unknown member",
-        email: typeof member?.email === "string" ? member.email : "",
-        photoURL: typeof member?.photoURL === "string" ? member.photoURL : null,
-        checkedIn: event.attendees.includes(uid),
-      };
+      snapshot.docs.forEach((doc) => memberByUid.set(doc.id, doc.data() ?? {}));
     }),
   );
+  await Promise.all(
+    event.rsvpList
+      .filter((uid) => !memberByUid.has(uid))
+      .map(async (uid) => {
+        try {
+          const fallback = await firestore().collection("users").doc(uid).get();
+          if (fallback.exists()) {
+            memberByUid.set(uid, fallback.data() ?? {});
+          }
+        } catch {
+          // Leave the attendee as "Unknown member" when the profile is
+          // unreadable rather than failing the whole roster.
+        }
+      }),
+  );
+  return event.rsvpList.map((uid) => {
+    const member = memberByUid.get(uid);
+    return {
+      uid,
+      fullName:
+        typeof member?.fullName === "string" ? member.fullName : "Unknown member",
+      email: typeof member?.email === "string" ? member.email : "",
+      photoURL: typeof member?.photoURL === "string" ? member.photoURL : null,
+      checkedIn: event.attendees.includes(uid),
+    };
+  });
 };
 
 export const createEvent = async (data: EventInput): Promise<TiwaniEvent> => {

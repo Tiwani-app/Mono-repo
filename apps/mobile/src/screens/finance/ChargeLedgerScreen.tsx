@@ -59,16 +59,20 @@ type LedgerMonth = {
 
 const typeLabel: Record<LedgerType, string> = {
   dues: "Dues",
+  donation: "Donation",
   fine: "Fine",
   levy: "Levy",
+  other: "Other Charge",
   payment: "Payment",
   pledge: "Pledge",
 };
 
 const typeIcon: Record<LedgerType, string> = {
   dues: "file-text",
+  donation: "gift",
   fine: "alert-triangle",
   levy: "credit-card",
+  other: "file-plus",
   payment: "arrow-up",
   pledge: "heart",
 };

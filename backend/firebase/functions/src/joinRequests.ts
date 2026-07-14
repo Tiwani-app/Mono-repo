@@ -4,6 +4,7 @@ import { auth } from "./firebase";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { db } from "./firebase";
 import { memberProfileFromInput, stringValue } from "./memberProfiles";
+import { assertMemberEmailAvailable } from "./members";
 import { sendPasswordSetupEmail } from "./setupEmail";
 import { normalizeEmail, stringField } from "./validation";
 
@@ -60,6 +61,7 @@ export const approveJoinRequest = onCall(async (request) => {
   }
 
   const email = normalizeEmail(stringValue(joinRequest.email, "email"));
+  await assertMemberEmailAvailable(user.profile.orgId, email);
   try {
     await auth.getUserByEmail(email);
     throw new HttpsError(

@@ -98,50 +98,6 @@ const slug = (value: string, fallback: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || fallback;
 
-const stringArrayField = (
-  data: unknown,
-  field: string,
-  options: { minLength?: number; maxLength?: number; itemMaxLength?: number } = {},
-) => {
-  const value = recordFromData(data)[field];
-  if (!Array.isArray(value)) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be an array.`);
-  }
-  const values = value.map((item) => {
-    if (typeof item !== "string") {
-      throw new HttpsError("invalid-argument", `Field "${field}" must contain strings.`);
-    }
-    const trimmed = item.trim();
-    if (!trimmed) {
-      throw new HttpsError("invalid-argument", `Field "${field}" cannot contain empty values.`);
-    }
-    if (options.itemMaxLength && trimmed.length > options.itemMaxLength) {
-      throw new HttpsError(
-        "invalid-argument",
-        `Field "${field}" items must be ${options.itemMaxLength} characters or fewer.`,
-      );
-    }
-    return trimmed;
-  });
-  const unique = Array.from(new Set(values));
-  if (unique.length !== values.length) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must contain unique values.`);
-  }
-  if (options.minLength && unique.length < options.minLength) {
-    throw new HttpsError(
-      "invalid-argument",
-      `Field "${field}" must contain at least ${options.minLength} values.`,
-    );
-  }
-  if (options.maxLength && unique.length > options.maxLength) {
-    throw new HttpsError(
-      "invalid-argument",
-      `Field "${field}" must contain ${options.maxLength} values or fewer.`,
-    );
-  }
-  return unique;
-};
-
 const pollStatusField = (data: unknown) => {
   const status = stringField(data, "status", { maxLength: 24 });
   if (status !== "draft" && status !== "open" && status !== "closed") {
@@ -166,15 +122,84 @@ const ballotTypeField = (data: unknown) => {
   return ballotType;
 };
 
+interface PollOptionInput {
+  label: string;
+  imageURL: string | null;
+  // Object payloads state the image explicitly (null clears it); legacy
+  // string payloads keep whatever image the option already has.
+  imageAuthoritative: boolean;
+}
+
+// Optional https image URL (e.g. an uploaded voting image); empty means none.
+const optionalImageUrlField = (data: unknown, field: string): string | null => {
+  const value = stringField(data, field, { maxLength: 2048, required: false });
+  if (!value) {
+    return null;
+  }
+  if (!/^https:\/\/\S+$/i.test(value)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Field "${field}" must be an https URL.`,
+    );
+  }
+  return value;
+};
+
+// Accepts option entries as plain label strings (payloads from older app
+// builds) or as { label, imageURL } objects.
+const pollOptionInputsField = (data: unknown): PollOptionInput[] => {
+  const value = recordFromData(data).options;
+  if (!Array.isArray(value)) {
+    throw new HttpsError("invalid-argument", "Field \"options\" must be an array.");
+  }
+  const options = value.map((item) => {
+    if (typeof item === "string") {
+      return { label: item.trim(), imageURL: null, imageAuthoritative: false };
+    }
+    const record = recordFromData(item);
+    const label = typeof record.label === "string" ? record.label.trim() : "";
+    return {
+      label,
+      imageURL: optionalImageUrlField(record, "imageURL"),
+      imageAuthoritative: true,
+    };
+  });
+  options.forEach((option) => {
+    if (!option.label) {
+      throw new HttpsError("invalid-argument", "Poll options cannot be empty.");
+    }
+    if (option.label.length > 120) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Poll options must be 120 characters or fewer.",
+      );
+    }
+  });
+  const uniqueLabels = new Set(options.map((option) => option.label));
+  if (uniqueLabels.size !== options.length) {
+    throw new HttpsError("invalid-argument", "Poll options must be unique.");
+  }
+  if (options.length < 2) {
+    throw new HttpsError("invalid-argument", "Add at least two poll options.");
+  }
+  if (options.length > 12) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Polls can have at most 12 options.",
+    );
+  }
+  return options;
+};
+
 const buildPollOptions = (
-  labels: string[],
+  optionInputs: PollOptionInput[],
   currentOptions: unknown[] = [],
 ) =>
-  labels.map((label, index) => {
+  optionInputs.map((optionInput, index) => {
     const existing = currentOptions.find((option) => {
       const record =
         option && typeof option === "object" ? (option as Record<string, unknown>) : {};
-      return record.label === label;
+      return record.label === optionInput.label;
     });
     const existingRecord =
       existing && typeof existing === "object" ? (existing as Record<string, unknown>) : {};
@@ -182,10 +207,11 @@ const buildPollOptions = (
       optionId:
         typeof existingRecord.optionId === "string" && existingRecord.optionId.trim()
           ? existingRecord.optionId.trim()
-          : slug(label, `option-${index + 1}`),
-      label,
-      imageURL:
-        typeof existingRecord.imageURL === "string"
+          : slug(optionInput.label, `option-${index + 1}`),
+      label: optionInput.label,
+      imageURL: optionInput.imageAuthoritative
+        ? optionInput.imageURL
+        : typeof existingRecord.imageURL === "string"
           ? existingRecord.imageURL
           : null,
       voteCount:
@@ -334,11 +360,7 @@ export const createPoll = onCall(async (request) => {
       "Create the poll as draft or open, then close it from the voting hub.",
     );
   }
-  const options = stringArrayField(request.data, "options", {
-    itemMaxLength: 120,
-    maxLength: 12,
-    minLength: 2,
-  });
+  const options = pollOptionInputsField(request.data);
   const ref = db.collection("polls").doc();
   await ref.set({
     pollId: ref.id,
@@ -396,11 +418,8 @@ export const updatePoll = onCall(async (request) => {
   if (status === "open") {
     assertFutureExpiry(expiresAt, "Poll");
   }
-  const labels = stringArrayField(request.data, "options", {
-    itemMaxLength: 120,
-    maxLength: 12,
-    minLength: 2,
-  });
+  const optionInputs = pollOptionInputsField(request.data);
+  const labels = optionInputs.map((option) => option.label);
   const ref = pollRef(pollId);
 
   await db.runTransaction(async (transaction) => {
@@ -443,7 +462,7 @@ export const updatePoll = onCall(async (request) => {
       title,
       question,
       expiresAt,
-      options: buildPollOptions(labels, currentOptions),
+      options: buildPollOptions(optionInputs, currentOptions),
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: user.uid,
       ...(status === "open" && poll.status === "draft"
@@ -1133,6 +1152,64 @@ export const listElectionVoterReceipts = onCall(async (request) => {
   );
   receipts.sort((left, right) => left.fullName.localeCompare(right.fullName));
   return { electionId, ok: true, receipts };
+});
+
+export const deletePoll = onCall(async (request) => {
+  const user = await requireVotingAdmin(request);
+  const pollId = stringField(request.data, "pollId", { maxLength: 160 });
+  const ref = pollRef(pollId);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const poll = assertVotingRecord(user, snapshot, "Poll not found.");
+    if (poll.status === "open") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Close the poll before deleting it.",
+      );
+    }
+    transaction.delete(ref);
+    transaction.set(db.collection("audit_logs").doc(), {
+      action: "poll.deleted",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: ref.path,
+      details: { pollId },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { ok: true, pollId };
+});
+
+export const deleteElection = onCall(async (request) => {
+  const user = await requireVotingAdmin(request);
+  const electionId = stringField(request.data, "electionId", { maxLength: 160 });
+  const ref = electionRef(electionId);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const election = assertVotingRecord(user, snapshot, "Election not found.");
+    if (election.status === "open") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Close the election before deleting it.",
+      );
+    }
+    transaction.delete(ref);
+    transaction.set(db.collection("audit_logs").doc(), {
+      action: "election.deleted",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: ref.path,
+      details: { electionId },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { electionId, ok: true };
 });
 
 export const publishElectionResults = onCall(async (request) => {

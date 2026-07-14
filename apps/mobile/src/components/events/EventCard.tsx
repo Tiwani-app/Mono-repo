@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<EventStatus, string> = {
 
 interface Props {
   event: TiwaniEvent;
-  onPress: () => void;
+  onPress: (event: TiwaniEvent) => void;
 }
 
 const EventCard = ({ event, onPress }: Props) => {
@@ -30,7 +30,7 @@ const EventCard = ({ event, onPress }: Props) => {
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => onPress(event)}
       activeOpacity={0.8}
       style={[styles.card, { borderLeftColor: categoryColor }]}
     >
@@ -100,4 +100,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EventCard;
+// Memoized so list re-renders skip unchanged event rows.
+export default React.memo(EventCard);

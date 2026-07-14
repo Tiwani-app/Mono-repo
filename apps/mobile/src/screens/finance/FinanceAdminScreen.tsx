@@ -1,8 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,6 +20,8 @@ import DuesPeriodCard from "../../components/finance/DuesPeriodCard";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
+import { deleteDuesPeriod } from "../../services/financeService";
+import { DuesPeriod, LedgerType } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
@@ -47,6 +52,15 @@ const SummaryTile = ({ label, value }: any) => (
 const shortUid = (uid: string) =>
   uid.length > 8 ? `${uid.slice(0, 4)}...${uid.slice(-4)}` : uid;
 
+const chargeButtons: { label: string; value: LedgerType }[] = [
+  { label: "Dues", value: "dues" },
+  { label: "Levies", value: "levy" },
+  { label: "Donations", value: "donation" },
+  { label: "Fines", value: "fine" },
+  { label: "Pledges", value: "pledge" },
+  { label: "Other Charges", value: "other" },
+];
+
 const FinanceAdminScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -65,6 +79,38 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   } = useMembers({
     enabled: admin,
   });
+  const [memberSearch, setMemberSearch] = useState("");
+  const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
+
+  const handleDeletePeriod = (period: DuesPeriod) => {
+    if (deletingPeriodId) {
+      return;
+    }
+    Alert.alert(
+      "Delete Dues Period",
+      `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingPeriodId(period.id);
+              await deleteDuesPeriod(period.id);
+            } catch (error) {
+              Alert.alert(
+                "Dues period not deleted",
+                error instanceof Error ? error.message : "Please try again.",
+              );
+            } finally {
+              setDeletingPeriodId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   useEffect(() => {
     if (user && !admin) {
@@ -129,14 +175,37 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     (sum, balance) => sum + balance.outstanding,
     0,
   );
+  const searchQuery = memberSearch.trim().toLowerCase();
+  const filteredMembers = searchQuery
+    ? members.filter((member) =>
+        `${member.fullName} ${member.email} ${member.phone}`
+          .toLowerCase()
+          .includes(searchQuery),
+      )
+    : members;
+  const duesPeriodCards = duesPeriods.map((period) => (
+    <DuesPeriodCard
+      key={period.id}
+      period={period}
+      onDelete={handleDeletePeriod}
+      onPress={() =>
+        navigation.navigate("DuesPeriodMembers", {
+          duesPeriodId: period.id,
+        })
+      }
+    />
+  ));
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader title="Finance" />
       <FlatList
-        data={members}
+        data={filteredMembers}
         keyExtractor={(item) => item.uid}
+        initialNumToRender={12}
+        windowSize={7}
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <>
             <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
@@ -163,25 +232,25 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 label="New Dues"
                 onPress={() => navigation.navigate("DuesPeriodForm")}
               />
-              <OutlineButton
-                label="Ad Hoc Charge"
-                onPress={() => navigation.navigate("AdHocCharge")}
-              />
             </View>
-            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
-              DUES PERIODS
-            </Text>
-            {duesPeriods.map((period) => (
-              <DuesPeriodCard
-                key={period.id}
-                period={period}
-                onPress={() =>
-                  navigation.navigate("DuesPeriodMembers", {
-                    duesPeriodId: period.id,
-                  })
-                }
-              />
-            ))}
+            <Text style={styles.sectionLabel}>NEW CHARGE</Text>
+            <View style={styles.chargeGrid}>
+              {chargeButtons.map((charge) => (
+                <TouchableOpacity
+                  key={charge.value}
+                  style={styles.chargeButton}
+                  onPress={() =>
+                    navigation.navigate("AdHocCharge", {
+                      chargeType: charge.value,
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.chargeButtonText}>{charge.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.sectionLabel}>ALL CHARGES LEDGER</Text>
             <TouchableOpacity
               activeOpacity={0.84}
               onPress={() => navigation.navigate("ChargeLedger")}
@@ -197,7 +266,30 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 <Badge label="OPEN" color={colors.gold.default} />
               </View>
             </TouchableOpacity>
+            <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
+              DUES PERIODS
+            </Text>
+            {duesPeriods.length > 2 ? (
+              <ScrollView
+                style={styles.duesScroll}
+                contentContainerStyle={styles.duesList}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {duesPeriodCards}
+              </ScrollView>
+            ) : (
+              <View style={styles.duesList}>{duesPeriodCards}</View>
+            )}
             <Text style={styles.sectionLabel}>MEMBER LEDGER</Text>
+            <TextInput
+              value={memberSearch}
+              onChangeText={setMemberSearch}
+              placeholder="Search name, email, or phone"
+              placeholderTextColor={colors.text.tertiary}
+              style={styles.memberSearch}
+              autoCorrect={false}
+            />
           </>
         }
         renderItem={({ item }) => {
@@ -236,6 +328,17 @@ const FinanceAdminScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           );
         }}
+        ListEmptyComponent={
+          <EmptyState
+            icon="🔍"
+            title={memberSearch ? "No results" : "No members"}
+            message={
+              memberSearch
+                ? "No members match your search."
+                : "Members will appear here once they are added."
+            }
+          />
+        }
         ListFooterComponent={
           archivedBalances.length > 0 ? (
             <View style={styles.archivedSection}>
@@ -299,6 +402,41 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   actionGrid: { gap: spacing.sm },
+  chargeGrid: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  chargeButton: {
+    width: "31%",
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold.default,
+    backgroundColor: colors.bg.card,
+  },
+  chargeButtonText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.gold.light,
+    textAlign: "center",
+  },
+  duesList: { gap: spacing.md },
+  duesScroll: { maxHeight: 320 },
+  memberSearch: {
+    minHeight: 48,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+    color: colors.text.primary,
+  },
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,

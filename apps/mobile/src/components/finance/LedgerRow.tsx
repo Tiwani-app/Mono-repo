@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Icon from '../common/FeatherIcon';
 import Badge from '../common/Badge';
 import {colors, spacing, typography} from '../../theme';
@@ -15,16 +15,19 @@ import {formatDisplayDate} from '../../utils/formatDate';
 const TYPE_ICONS: Record<LedgerType, string> = {
   dues: 'file-text',
   levy: 'file-text',
+  donation: 'gift',
   fine: 'alert-triangle',
   pledge: 'heart',
+  other: 'file-plus',
   payment: 'arrow-up',
 };
 
 interface Props {
   entry: LedgerEntry;
+  onDelete?: (entry: LedgerEntry) => void;
 }
 
-const LedgerRow = ({entry}: Props) => {
+const LedgerRow = ({entry, onDelete}: Props) => {
   const isPayment = entry.type === 'payment';
   const date = entry.paidAt ?? entry.dueDate;
   const displayStatus = getChargeDisplayStatus(entry);
@@ -54,6 +57,15 @@ const LedgerRow = ({entry}: Props) => {
           color={badgeColor}
         />
       </View>
+      {onDelete && (
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => onDelete(entry)}
+          activeOpacity={0.8}
+        >
+          <Icon name="trash-2" size={16} color={colors.status.error} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -83,8 +95,17 @@ const styles = StyleSheet.create({
   label: {fontSize: typography.size.base, fontWeight: typography.weight.semibold, color: colors.text.primary},
   date: {fontSize: typography.size.sm, color: colors.text.secondary},
   trailing: {alignItems: 'flex-end', gap: spacing.xs},
+  deleteButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: `${colors.status.error}14`,
+  },
   amount: {fontSize: typography.size.base, fontWeight: typography.weight.bold, color: colors.text.primary},
   paymentAmount: {color: colors.status.success},
 });
 
-export default LedgerRow;
+// Memoized so ledger list re-renders skip unchanged rows.
+export default React.memo(LedgerRow);

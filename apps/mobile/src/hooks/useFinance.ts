@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {getDuesPeriods, subscribeToLedger} from '../services/financeService';
+import {subscribeToDuesPeriods, subscribeToLedger} from '../services/financeService';
 import {DuesPeriod, LedgerEntry} from '../types/finance';
 import {DataSyncState} from '../types/sync';
 import {
@@ -77,20 +77,19 @@ export const useFinance = (uid?: string, includeAll = false) => {
           unsubscribe();
         };
       }
-      getDuesPeriods()
-        .then(periods => {
-          if (!active) {
-            return;
-          }
-          setDuesPeriods(periods);
-          setError(null);
-          duesPeriodsReady = true;
-          finishLoadingIfReady();
-        })
-        .catch(handleError);
+      const unsubscribeDuesPeriods = subscribeToDuesPeriods(periods => {
+        if (!active) {
+          return;
+        }
+        setDuesPeriods(periods);
+        setError(null);
+        duesPeriodsReady = true;
+        finishLoadingIfReady();
+      }, handleError);
       return () => {
         active = false;
         unsubscribe();
+        unsubscribeDuesPeriods();
       };
     } catch (financeError) {
       setError(financeError instanceof Error ? financeError.message : 'Could not load finance data.');

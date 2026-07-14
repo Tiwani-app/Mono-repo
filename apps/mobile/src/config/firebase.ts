@@ -51,6 +51,7 @@ interface NativeFirebaseAppRoot {
 interface NativeFirestoreFactory
   extends NativeFirebaseFactory<FirebaseFirestoreTypes.Module> {
   FieldValue: typeof FirebaseFirestoreTypes.FieldValue;
+  FieldPath: typeof FirebaseFirestoreTypes.FieldPath;
 }
 
 declare const require: (moduleName: string) => unknown;

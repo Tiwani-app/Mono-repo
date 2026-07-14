@@ -75,6 +75,8 @@ const MarketplaceScreen = ({ navigation }: any) => {
         <FlatList
           data={displayedListings}
           keyExtractor={(item) => item.id}
+          initialNumToRender={8}
+          windowSize={7}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
             <>

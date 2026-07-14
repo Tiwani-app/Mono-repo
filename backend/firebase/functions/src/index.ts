@@ -6,6 +6,8 @@ export {
 export {
   createAdHocCharges,
   createFinancePeriod,
+  deleteFinanceCharge,
+  deleteFinancePeriod,
   recalculateMemberFinanceStanding,
   recordBulkPayments,
   recordPayment,
@@ -46,6 +48,8 @@ export {
   closePoll,
   createElection,
   createPoll,
+  deleteElection,
+  deletePoll,
   generateElectionResults,
   listElectionVoterReceipts,
   openElection,

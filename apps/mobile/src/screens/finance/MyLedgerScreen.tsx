@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { FlatList, Linking, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, FlatList, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
@@ -14,6 +14,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
+import { deleteCharge } from "../../services/financeService";
 import {
   getCurrentOrganisationFinanceContact,
   getLedgerCreatorContact,
@@ -25,7 +26,7 @@ import {
   getFinanceStandingBadgeLabel,
   getFinanceStandingColor,
 } from "../../utils/financeStanding";
-import { FinanceContact } from "../../types/finance";
+import { FinanceContact, LedgerEntry } from "../../types/finance";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { canViewLedgerForMember } from "../../utils/financeGuards";
 import { getInitials } from "../../utils/getInitials";
@@ -147,6 +148,48 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
     getFinanceTotals(scopedLedgerEntries);
   const canContactFinance =
     user?.role === "member" || isElectoralChairman(user);
+  const [deletingChargeId, setDeletingChargeId] = useState<string | null>(null);
+
+  const canDeleteEntry = (entry: LedgerEntry) =>
+    adminViewingMember &&
+    entry.type !== "payment" &&
+    !entry.duesPeriodId &&
+    entry.amountPaid <= 0;
+
+  const handleDeleteCharge = useCallback(
+    (entry: LedgerEntry) => {
+      if (deletingChargeId) {
+        return;
+      }
+      Alert.alert(
+        "Delete Charge",
+        `Delete the "${entry.label}" charge of ${formatCurrency(entry.amount)}? This cannot be undone.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                setDeletingChargeId(entry.id);
+                await deleteCharge(entry.id);
+              } catch (deleteError) {
+                Alert.alert(
+                  "Charge not deleted",
+                  deleteError instanceof Error
+                    ? deleteError.message
+                    : "Please try again.",
+                );
+              } finally {
+                setDeletingChargeId(null);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [deletingChargeId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -415,7 +458,14 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
             <Text style={styles.sectionLabel}>TRANSACTION HISTORY</Text>
           </>
         }
-        renderItem={({ item }) => <LedgerRow entry={item} />}
+        renderItem={({ item }) => (
+          <LedgerRow
+            entry={item}
+            onDelete={canDeleteEntry(item) ? handleDeleteCharge : undefined}
+          />
+        )}
+        initialNumToRender={12}
+        windowSize={7}
         ListEmptyComponent={
           <EmptyState
             icon="📄"

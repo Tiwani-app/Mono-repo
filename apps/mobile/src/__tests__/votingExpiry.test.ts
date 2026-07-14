@@ -1,6 +1,6 @@
 import {
   isVotingItemExpired,
-  partitionExpiredVotingItems,
+  partitionVotingItems,
   votingDisplayStatus,
 } from "../utils/votingExpiry";
 
@@ -33,7 +33,7 @@ describe("votingExpiry", () => {
     ).toBe("open");
   });
 
-  it("partitions expired items below active ones, keeping order within each group", () => {
+  it("partitions closed and expired items below active ones, keeping order within each group", () => {
     const items = [
       { id: "expired-1", status: "open" as const, expiresAt: past },
       { id: "open-1", status: "open" as const, expiresAt: future },
@@ -42,13 +42,13 @@ describe("votingExpiry", () => {
       { id: "draft-1", status: "draft" as const, expiresAt: null },
     ];
 
-    const { active, expired } = partitionExpiredVotingItems(items, now);
+    const { active, closed } = partitionVotingItems(items, now);
 
-    expect(active.map((item) => item.id)).toEqual([
-      "open-1",
+    expect(active.map((item) => item.id)).toEqual(["open-1", "draft-1"]);
+    expect(closed.map((item) => item.id)).toEqual([
+      "expired-1",
       "closed-1",
-      "draft-1",
+      "expired-2",
     ]);
-    expect(expired.map((item) => item.id)).toEqual(["expired-1", "expired-2"]);
   });
 });

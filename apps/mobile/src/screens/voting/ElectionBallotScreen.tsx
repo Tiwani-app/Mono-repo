@@ -79,11 +79,13 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
     return photos;
   }, [members]);
 
+  // A custom photo uploaded on the election form wins; otherwise fall back
+  // to the member's current profile photo.
   const withCurrentCandidatePhoto = (candidate: Candidate): Candidate => ({
     ...candidate,
-    photoURL: candidate.uid
-      ? memberPhotoByUid.get(candidate.uid) ?? candidate.photoURL
-      : candidate.photoURL,
+    photoURL:
+      candidate.photoURL ??
+      (candidate.uid ? memberPhotoByUid.get(candidate.uid) ?? null : null),
   });
 
   useEffect(() => {

@@ -56,5 +56,13 @@ export const useMarketplace = (includeArchived = false) => {
     }
   }, [includeArchived, setError, setLastSyncedAt, setListings, setLoading, setSyncState]);
 
-  return useMarketplaceStore();
+  // Per-field selectors: consumers only re-render when a field they read
+  // actually changes, instead of on any store update.
+  return {
+    listings: useMarketplaceStore((state) => state.listings),
+    loading: useMarketplaceStore((state) => state.loading),
+    error: useMarketplaceStore((state) => state.error),
+    syncState: useMarketplaceStore((state) => state.syncState),
+    lastSyncedAt: useMarketplaceStore((state) => state.lastSyncedAt),
+  };
 };

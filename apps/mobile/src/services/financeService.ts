@@ -7,17 +7,14 @@ import {
 import {
   createAdHocChargesCallable,
   createFinancePeriodCallable,
+  deleteFinanceChargeCallable,
+  deleteFinancePeriodCallable,
   recalculateMemberFinanceStandingCallable,
   recordBulkPaymentsCallable,
   recordPaymentCallable,
   reversePaymentCallable,
 } from "./cloudFunctionsService";
-import {
-  firestore,
-  getCurrentOrgId,
-  snapshotRecords,
-  startOrgSubscription,
-} from "./firebaseHelpers";
+import { startOrgSubscription } from "./firebaseHelpers";
 
 export interface PaymentInput {
   uid: string;
@@ -73,13 +70,17 @@ export const subscribeToLedger = (
     onSnapshotMeta,
   );
 
-export const getDuesPeriods = async (): Promise<DuesPeriod[]> => {
-  const snapshot = await firestore()
-    .collection("finance_periods")
-    .where("orgId", "==", await getCurrentOrgId())
-    .get();
-  return snapshotRecords(snapshot).map(duesPeriodFromRecord);
-};
+export const subscribeToDuesPeriods = (
+  callback: (periods: DuesPeriod[]) => void,
+  onError?: (error: Error) => void,
+) =>
+  startOrgSubscription(
+    "finance_periods",
+    duesPeriodFromRecord,
+    callback,
+    undefined,
+    onError,
+  );
 
 export const createDuesPeriod = async (data: DuesPeriodInput): Promise<void> => {
   await createFinancePeriodCallable(data);
@@ -98,6 +99,22 @@ export const recordBulkPayments = async (
 ): Promise<number> => {
   const result = await recordBulkPaymentsCallable(payments);
   return result.count;
+};
+
+export const deleteDuesPeriod = async (periodId: string): Promise<void> => {
+  const id = periodId.trim();
+  if (!id) {
+    throw new Error("Dues period is required.");
+  }
+  await deleteFinancePeriodCallable(id);
+};
+
+export const deleteCharge = async (chargeEntryId: string): Promise<void> => {
+  const id = chargeEntryId.trim();
+  if (!id) {
+    throw new Error("Charge is required.");
+  }
+  await deleteFinanceChargeCallable(id);
 };
 
 export const reversePayment = async ({
