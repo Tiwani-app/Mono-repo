@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -57,6 +58,17 @@ const PollFormScreen = ({ navigation, route }: any) => {
   );
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, handleSubmit, reset, formState, setValue } =
     useForm<FormValues>({
       defaultValues: {
@@ -139,20 +151,17 @@ const PollFormScreen = ({ navigation, route }: any) => {
         return true;
       });
     if (options.length < 2) {
-      Alert.alert("Options required", "Add at least two unique options.");
+      setModal({ visible: true, type: "error", title: "Options required", message: "Add at least two unique options.", onPrimary: closeModal });
       return;
     }
     const expiryDate = parse(values.expiresAt, "yyyy-MM-dd", new Date());
     const expiresAt = endOfDay(expiryDate);
     if (Number.isNaN(expiresAt.getTime())) {
-      Alert.alert("Expiry date required", "Choose a valid expiry date.");
+      setModal({ visible: true, type: "error", title: "Expiry date required", message: "Choose a valid expiry date.", onPrimary: closeModal });
       return;
     }
     if (status === "open" && expiresAt.getTime() <= Date.now()) {
-      Alert.alert(
-        "Expiry date required",
-        "Open polls need an expiry date in the future.",
-      );
+      setModal({ visible: true, type: "error", title: "Expiry date required", message: "Open polls need an expiry date in the future.", onPrimary: closeModal });
       return;
     }
 
@@ -172,10 +181,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
       }
       safeGoBack(navigation, "VotingHub");
     } catch (error) {
-      Alert.alert(
-        "Poll not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Poll not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -223,6 +229,18 @@ const PollFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={pollId ? "Edit Poll" : "New Poll"}
         showBack

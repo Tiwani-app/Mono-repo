@@ -527,6 +527,142 @@ export const recordPayment = onCall(async (request) => {
   return { ok: true, paymentId };
 });
 
+export const recordBulkPayments = onCall(async (request) => {
+  const user = await requireActiveUser(request, ["admin"]);
+  const paymentsData = recordFromData(request.data).payments;
+  if (!Array.isArray(paymentsData) || paymentsData.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Field \"payments\" must be a non-empty array.",
+    );
+  }
+  if (paymentsData.length > 50) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Cannot record more than 50 payments at once.",
+    );
+  }
+
+  const results: { ok: boolean; paymentId: string; uid: string }[] = [];
+
+  for (const item of paymentsData) {
+    const uid = stringField(item, "uid", { maxLength: 160 });
+    const chargeEntryId = stringField(item, "chargeEntryId", { maxLength: 160 });
+    const amount = positiveAmountField(item, "amount");
+    const paymentMethod = stringField(item, "paymentMethod", { maxLength: 100 });
+    const reference = optionalStringField(item, "reference", { maxLength: 160 });
+    const note = optionalStringField(item, "note", { maxLength: 500 });
+
+    const memberRef = db.collection("users").doc(uid);
+    const unpaidSnapshot = await db
+      .collection("finance")
+      .where("orgId", "==", user.profile.orgId)
+      .where("memberId", "==", uid)
+      .where("paidStatus", "in", ["unpaid", "partial"])
+      .get();
+
+    let paymentId = "";
+    await db.runTransaction(async (transaction) => {
+      const [member, ...chargeSnapshots] = await Promise.all([
+        transaction.get(memberRef),
+        ...unpaidSnapshot.docs.map((entry) => transaction.get(entry.ref)),
+      ]);
+      assertMemberInOrg(user, member);
+      const charges = chargeSnapshots
+        .flatMap((snapshot) => {
+          const record = snapshot.data() ?? {};
+          return record.orgId === user.profile.orgId
+            ? [{ record, snapshot }]
+            : [];
+        })
+        .sort((left, right) => {
+          const leftMillis = millisFromDateValue(left.record.dueDate);
+          const rightMillis = millisFromDateValue(right.record.dueDate);
+          return leftMillis - rightMillis;
+        });
+      const selectedCharge = charges.find(({ record, snapshot: snap }) => {
+        return snap.id === chargeEntryId || record.entryId === chargeEntryId;
+      });
+      if (!selectedCharge) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Selected charge is not open for member ${uid}.`,
+        );
+      }
+      const selectedPaidBefore =
+        typeof selectedCharge.record.amountPaid === "number"
+          ? selectedCharge.record.amountPaid
+          : 0;
+      const selectedAmount =
+        typeof selectedCharge.record.amount === "number"
+          ? selectedCharge.record.amount
+          : 0;
+      const selectedOwedBefore = Math.max(0, selectedAmount - selectedPaidBefore);
+      if (amount > selectedOwedBefore) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Payment amount exceeds the selected charge balance for member ${uid}.`,
+        );
+      }
+
+      const amountPaid = selectedPaidBefore + amount;
+      const paidStatus = paidStatusFor(selectedAmount, amountPaid);
+      transaction.update(selectedCharge.snapshot.ref, { amountPaid, paidStatus });
+      if (
+        paidStatus === "paid" &&
+        typeof selectedCharge.record.duesPeriodId === "string"
+      ) {
+        transaction.update(
+          db.collection("finance_periods").doc(selectedCharge.record.duesPeriodId),
+          { paidCount: FieldValue.increment(1) },
+        );
+      }
+
+      const paymentRef = db.collection("finance").doc();
+      paymentId = paymentRef.id;
+      transaction.set(paymentRef, {
+        entryId: paymentRef.id,
+        orgId: user.profile.orgId,
+        memberId: uid,
+        type: "payment",
+        label: paymentMethod,
+        amount,
+        amountPaid: amount,
+        dueDate: null,
+        paidStatus: "paid",
+        paymentMethod,
+        reference: reference || null,
+        appliedChargeId: chargeEntryId,
+        appliedChargeLabel: selectedCharge.record.label,
+        note,
+        recordedBy: user.uid,
+        createdAt: FieldValue.serverTimestamp(),
+        paidAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(
+        memberRef,
+        recalculateMemberFinance(chargeSnapshots, {
+          amountPaid,
+          refPath: selectedCharge.snapshot.ref.path,
+        }),
+      );
+      transaction.set(db.collection("audit_logs").doc(), {
+        action: "finance_payment.recorded",
+        actorUid: user.uid,
+        actorRole: user.profile.role,
+        orgId: user.profile.orgId,
+        targetPath: paymentRef.path,
+        details: { amount, chargeEntryId, paymentId: paymentRef.id, uid },
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    results.push({ ok: true, paymentId, uid });
+  }
+
+  return { ok: true, count: results.length, results };
+});
+
 export const reversePayment = onCall(async (request: CallableRequest<unknown>) => {
   const user = await requireActiveUser(request, ["admin"]);
   const paymentId = stringField(request.data, "paymentId", { maxLength: 160 });

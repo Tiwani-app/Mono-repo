@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -55,6 +55,17 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   const [rsvpPending, setRsvpPending] = useState(false);
   const [cancelPending, setCancelPending] = useState(false);
   const { user } = useAuthStore();
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   // Refetches whenever the screen regains focus (e.g. returning from the
   // edit form) so changes appear without a manual reload.
@@ -138,10 +149,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
       setEvent(nextEvent);
       setAttendees(nextAttendees);
     } catch (error) {
-      Alert.alert(
-        "RSVP not updated",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "RSVP not updated", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setRsvpPending(false);
     }
@@ -151,7 +159,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     try {
       await Linking.openURL(getMapsSearchUrl(event.location));
     } catch {
-      Alert.alert("Maps unavailable", "This location could not be opened.");
+      setModal({ visible: true, type: "error", title: "Maps unavailable", message: "This location could not be opened.", onPrimary: closeModal });
     }
   };
 
@@ -159,42 +167,54 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     const link = event.meetingLink?.trim();
     // Only ever open https links stored on the event.
     if (!link || !link.toLowerCase().startsWith("https://")) {
-      Alert.alert("Link unavailable", "This meeting link could not be opened.");
+      setModal({ visible: true, type: "error", title: "Link unavailable", message: "This meeting link could not be opened.", onPrimary: closeModal });
       return;
     }
     try {
       await Linking.openURL(link);
     } catch {
-      Alert.alert("Link unavailable", "This meeting link could not be opened.");
+      setModal({ visible: true, type: "error", title: "Link unavailable", message: "This meeting link could not be opened.", onPrimary: closeModal });
     }
   };
 
   const handleCancelEvent = () => {
-    Alert.alert("Cancel Event", "Cancel this event?", [
-      { text: "Keep Event", style: "cancel" },
-      {
-        text: "Cancel Event",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setCancelPending(true);
-            await cancelEvent(event.id);
-            setEvent({ ...event, status: "cancelled" });
-          } catch (error) {
-            Alert.alert(
-              "Event not cancelled",
-              error instanceof Error ? error.message : "Please try again.",
-            );
-          } finally {
-            setCancelPending(false);
-          }
-        },
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Cancel Event",
+      message: "Cancel this event?",
+      secondaryLabel: "Keep Event",
+      onSecondary: closeModal,
+      primaryLabel: "Cancel Event",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setCancelPending(true);
+          await cancelEvent(event.id);
+          setEvent({ ...event, status: "cancelled" });
+        } catch (error) {
+          setModal({ visible: true, type: "error", title: "Event not cancelled", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setCancelPending(false);
+        }
       },
-    ]);
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Event"
         showBack

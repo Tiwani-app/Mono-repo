@@ -14,6 +14,8 @@ import {
   closePollCallable,
   createElectionCallable,
   createPollCallable,
+  deleteElectionCallable,
+  deletePollCallable,
   generateElectionResultsCallable,
   listElectionVoterReceiptsCallable,
   updateElectionCallable,
@@ -225,6 +227,10 @@ export const closePoll = async (pollId: string): Promise<void> => {
   await closePollCallable(pollId);
 };
 
+export const deletePoll = async (pollId: string): Promise<void> => {
+  await deletePollCallable(pollId);
+};
+
 export const createElection = async (
   data: ElectionInput,
 ): Promise<Election> => {
@@ -244,6 +250,10 @@ export const updateElection = async (
 
 export const closeElection = async (electionId: string): Promise<void> => {
   await closeElectionCallable(electionId);
+};
+
+export const deleteElection = async (electionId: string): Promise<void> => {
+  await deleteElectionCallable(electionId);
 };
 
 export const getElectionResults = async (

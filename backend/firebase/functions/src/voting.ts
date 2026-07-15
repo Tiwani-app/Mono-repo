@@ -447,6 +447,17 @@ export const updatePoll = onCall(async (request) => {
     if (status === "closed" && poll.status !== "open") {
       throw new HttpsError("failed-precondition", "Open this poll before closing it.");
     }
+    if (
+      status === "draft" &&
+      poll.status === "open" &&
+      typeof poll.totalVotes === "number" &&
+      poll.totalVotes > 0
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cannot revert to draft after voting has started.",
+      );
+    }
     transaction.update(ref, {
       title,
       question,
@@ -468,7 +479,7 @@ export const updatePoll = onCall(async (request) => {
             closedBy: user.uid,
           }
         : {}),
-      ...(status === "draft" && poll.status === "draft" ? { status: "draft" } : {}),
+      ...(status === "draft" ? { status: "draft" } : {}),
     });
     transaction.set(db.collection("audit_logs").doc(), {
       action: "poll.updated",
@@ -882,6 +893,14 @@ export const updateElection = onCall(async (request) => {
     if (status === "closed" && election.status !== "open") {
       throw new HttpsError("failed-precondition", "Open this election before closing it.");
     }
+    if (status === "draft" && election.status === "open") {
+      if (await hasElectionVotes(transaction, ref)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cannot revert to draft after voting has started.",
+        );
+      }
+    }
     transaction.update(ref, {
       title,
       ballotType,
@@ -903,9 +922,7 @@ export const updateElection = onCall(async (request) => {
             closedBy: user.uid,
           }
         : {}),
-      ...(status === "draft" && election.status === "draft"
-        ? { status: "draft" }
-        : {}),
+      ...(status === "draft" ? { status: "draft" } : {}),
     });
     transaction.set(db.collection("audit_logs").doc(), {
       action: "election.updated",
@@ -1135,6 +1152,64 @@ export const listElectionVoterReceipts = onCall(async (request) => {
   );
   receipts.sort((left, right) => left.fullName.localeCompare(right.fullName));
   return { electionId, ok: true, receipts };
+});
+
+export const deletePoll = onCall(async (request) => {
+  const user = await requireVotingAdmin(request);
+  const pollId = stringField(request.data, "pollId", { maxLength: 160 });
+  const ref = pollRef(pollId);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const poll = assertVotingRecord(user, snapshot, "Poll not found.");
+    if (poll.status === "open") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Close the poll before deleting it.",
+      );
+    }
+    transaction.delete(ref);
+    transaction.set(db.collection("audit_logs").doc(), {
+      action: "poll.deleted",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: ref.path,
+      details: { pollId },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { ok: true, pollId };
+});
+
+export const deleteElection = onCall(async (request) => {
+  const user = await requireVotingAdmin(request);
+  const electionId = stringField(request.data, "electionId", { maxLength: 160 });
+  const ref = electionRef(electionId);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const election = assertVotingRecord(user, snapshot, "Election not found.");
+    if (election.status === "open") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Close the election before deleting it.",
+      );
+    }
+    transaction.delete(ref);
+    transaction.set(db.collection("audit_logs").doc(), {
+      action: "election.deleted",
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+      targetPath: ref.path,
+      details: { electionId },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { electionId, ok: true };
 });
 
 export const publishElectionResults = onCall(async (request) => {

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -23,25 +23,33 @@ const AccountDeletionRequestScreen = ({ navigation }: any) => {
   const [confirmed, setConfirmed] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const openDeletionPage = async () => {
     const url = env.accountDeletionUrl.trim();
     if (!url) {
-      Alert.alert(
-        "Deletion page unavailable",
-        "The public deletion request page has not been configured for this build yet.",
-      );
+      setModal({ visible: true, type: "error", title: "Deletion page unavailable", message: "The public deletion request page has not been configured for this build yet.", onPrimary: closeModal });
       return;
     }
     try {
       const supported = await Linking.canOpenURL(url);
       if (!supported) {
-        Alert.alert("Deletion page unavailable", "This link could not be opened.");
+        setModal({ visible: true, type: "error", title: "Deletion page unavailable", message: "This link could not be opened.", onPrimary: closeModal });
         return;
       }
       await Linking.openURL(url);
     } catch {
-      Alert.alert("Deletion page unavailable", "This link could not be opened.");
+      setModal({ visible: true, type: "error", title: "Deletion page unavailable", message: "This link could not be opened.", onPrimary: closeModal });
     }
   };
 
@@ -50,36 +58,25 @@ const AccountDeletionRequestScreen = ({ navigation }: any) => {
       return;
     }
     if (!confirmed) {
-      Alert.alert(
-        "Confirmation required",
-        "Confirm that you understand this request will be reviewed before account data is deleted or anonymised.",
-      );
+      setModal({ visible: true, type: "error", title: "Confirmation required", message: "Confirm that you understand this request will be reviewed before account data is deleted or anonymised.", onPrimary: closeModal });
       return;
     }
 
     try {
       setSubmitting(true);
       await requestAccountDeletion({ reason });
-      Alert.alert(
-        "Request submitted",
-        "Your account deletion request has been recorded. An administrator will review it before any account data is removed.",
-        [
-          {
-            text: "Sign Out",
-            style: "destructive",
-            onPress: signOut,
-          },
-          {
-            text: "Back to Settings",
-            onPress: () => safeGoBack(navigation, "Settings"),
-          },
-        ],
-      );
+      setModal({
+        visible: true,
+        type: "success",
+        title: "Request submitted",
+        message: "Your account deletion request has been recorded. An administrator will review it before any account data is removed.",
+        secondaryLabel: "Sign Out",
+        onSecondary: () => { closeModal(); signOut(); },
+        primaryLabel: "Back to Settings",
+        onPrimary: () => { closeModal(); safeGoBack(navigation, "Settings"); },
+      });
     } catch (error) {
-      Alert.alert(
-        "Request not submitted",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Request not submitted", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -87,6 +84,18 @@ const AccountDeletionRequestScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Account Deletion"
         showBack

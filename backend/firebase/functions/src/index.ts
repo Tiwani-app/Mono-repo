@@ -9,6 +9,7 @@ export {
   deleteFinanceCharge,
   deleteFinancePeriod,
   recalculateMemberFinanceStanding,
+  recordBulkPayments,
   recordPayment,
   reversePayment,
 } from "./finance";
@@ -47,6 +48,8 @@ export {
   closePoll,
   createElection,
   createPoll,
+  deleteElection,
+  deletePoll,
   generateElectionResults,
   listElectionVoterReceipts,
   openElection,

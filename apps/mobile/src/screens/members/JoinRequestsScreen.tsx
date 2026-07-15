@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -74,6 +74,17 @@ const JoinRequestsScreen = ({ navigation }: any) => {
   const { error, loading, requests } = useJoinRequests({ enabled: admin });
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RequestFilter>("all");
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const filteredRequests = requests.filter((request) =>
     matchesRequestFilter(request, filter),
   );
@@ -83,36 +94,40 @@ const JoinRequestsScreen = ({ navigation }: any) => {
     status: "approved" | "declined",
   ) => {
     const verb = status === "approved" ? "Approve" : "Decline";
-    Alert.alert(`${verb} Request`, `${verb} ${request.fullName}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: verb,
-        style: status === "declined" ? "destructive" : "default",
-        onPress: async () => {
-          try {
-            setReviewingId(request.id);
-            const delivery = await reviewJoinRequest(
-              request.id,
-              status,
-              user?.uid ?? "admin",
-            );
-            const message = setupDeliveryMessage(delivery);
-            if (message) {
-              Alert.alert("Request approved", message);
-            }
-          } catch (reviewError) {
-            Alert.alert(
-              "Request not updated",
-              reviewError instanceof Error
-                ? reviewError.message
-                : "Please try again.",
-            );
-          } finally {
-            setReviewingId(null);
+    setModal({
+      visible: true,
+      type: "warning",
+      title: `${verb} Request`,
+      message: `${verb} ${request.fullName}?`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: verb,
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setReviewingId(request.id);
+          const delivery = await reviewJoinRequest(
+            request.id,
+            status,
+            user?.uid ?? "admin",
+          );
+          const message = setupDeliveryMessage(delivery);
+          if (message) {
+            setModal({ visible: true, type: "success", title: "Request approved", message, onPrimary: closeModal });
           }
-        },
+        } catch (reviewError) {
+          setModal({
+            visible: true,
+            type: "error",
+            title: "Request not updated",
+            message: reviewError instanceof Error ? reviewError.message : "Please try again.",
+            onPrimary: closeModal,
+          });
+        } finally {
+          setReviewingId(null);
+        }
       },
-    ]);
+    });
   };
 
   if (!admin) {
@@ -151,6 +166,18 @@ const JoinRequestsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Join Requests"
         showBack

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AttachmentField from "../../components/common/AttachmentField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -62,6 +62,17 @@ const ListingFormScreen = ({ navigation, route }: any) => {
     useState<ListingImageUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const admin = isAdmin(user);
   const { control, handleSubmit, reset, setValue, formState, watch } =
     useForm<FormValues>({
@@ -104,10 +115,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
-        "Photo access needed",
-        "Allow photo library access to choose a listing image.",
-      );
+      setModal({ visible: true, type: "error", title: "Photo access needed", message: "Allow photo library access to choose a listing image.", onPrimary: closeModal });
       return;
     }
 
@@ -142,7 +150,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
     }
     const price = Number(values.price.replace(/,/g, ""));
     if (!Number.isFinite(price) || price <= 0) {
-      Alert.alert("Price required", "Enter a price greater than zero.");
+      setModal({ visible: true, type: "error", title: "Price required", message: "Enter a price greater than zero.", onPrimary: closeModal });
       return;
     }
 
@@ -165,10 +173,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
       }
       safeGoBack(navigation, "Marketplace");
     } catch (error) {
-      Alert.alert(
-        "Listing not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Listing not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -216,6 +221,18 @@ const ListingFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={listingId ? "Edit Listing" : "Add Listing"}
         showBack

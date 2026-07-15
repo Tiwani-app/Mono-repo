@@ -9,6 +9,7 @@ import type {
   MemberInput,
 } from "./membersService";
 import type {
+  BulkPaymentItem,
   ChargeInput,
   DuesPeriodInput,
   PaymentInput,
@@ -244,6 +245,16 @@ export const recordPaymentCallable = (data: PaymentInput) =>
     data,
   );
 
+export const recordBulkPaymentsCallable = (payments: BulkPaymentItem[]) =>
+  callCloudFunction<
+    { payments: BulkPaymentItem[] },
+    {
+      count: number;
+      ok: boolean;
+      results: { ok: boolean; paymentId: string; uid: string }[];
+    }
+  >("recordBulkPayments", { payments });
+
 export const reversePaymentCallable = (paymentId: string, note: string) =>
   callCloudFunction<
     { note: string; paymentId: string },
@@ -307,6 +318,12 @@ export const closePollCallable = (pollId: string) =>
     { pollId },
   );
 
+export const deletePollCallable = (pollId: string) =>
+  callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
+    "deletePoll",
+    { pollId },
+  );
+
 export const castPollVoteCallable = (pollId: string, optionId: string) =>
   callCloudFunction<
     { optionId: string; pollId: string },
@@ -352,6 +369,12 @@ export const closeElectionCallable = (electionId: string) =>
     { electionId: string },
     { electionId: string; ok: boolean }
   >("closeElection", { electionId });
+
+export const deleteElectionCallable = (electionId: string) =>
+  callCloudFunction<
+    { electionId: string },
+    { electionId: string; ok: boolean }
+  >("deleteElection", { electionId });
 
 export const castElectionBallotCallable = (
   electionId: string,

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,7 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -87,6 +87,17 @@ const MemberFormScreen = ({ navigation, route }: any) => {
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
   const admin = isAdmin(user);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
       fullName: "",
@@ -145,10 +156,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       values.outstandingBalance.replace(/,/g, ""),
     );
     if (!Number.isFinite(outstandingBalance) || outstandingBalance < 0) {
-      Alert.alert(
-        "Balance invalid",
-        "Outstanding balance must be zero or more.",
-      );
+      setModal({ visible: true, type: "error", title: "Balance invalid", message: "Outstanding balance must be zero or more.", onPrimary: closeModal });
       return;
     }
     const children = values.children
@@ -158,7 +166,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       }))
       .filter((child) => child.name || child.dateOfBirth);
     if (children.some((child) => !child.name)) {
-      Alert.alert("Child name required", "Enter a name for each child.");
+      setModal({ visible: true, type: "error", title: "Child name required", message: "Enter a name for each child.", onPrimary: closeModal });
       return;
     }
     try {
@@ -184,9 +192,11 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         const createdMember = await createMember(payload);
         if (createdMember.setupDelivery) {
           const delivery = createdMember.setupDelivery;
-          Alert.alert(
-            "Member created",
-            delivery.setupEmailSent
+          setModal({
+            visible: true,
+            type: "success",
+            title: "Member created",
+            message: delivery.setupEmailSent
               ? "The setup email was sent to the new member."
               : [
                   "The member was created, but the setup email was not sent.",
@@ -197,15 +207,14 @@ const MemberFormScreen = ({ navigation, route }: any) => {
                 ]
                   .filter(Boolean)
                   .join("\n\n"),
-          );
+            onPrimary: () => { closeModal(); safeGoBack(navigation, "MembersList"); },
+          });
+          return;
         }
       }
       safeGoBack(navigation, "MembersList");
     } catch (error) {
-      Alert.alert(
-        "Member not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Member not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -253,6 +262,18 @@ const MemberFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={memberId ? "Edit Member" : "Add Member"}
         showBack

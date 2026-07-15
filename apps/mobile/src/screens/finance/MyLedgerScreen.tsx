@@ -5,6 +5,7 @@ import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import BalanceBanner from "../../components/finance/BalanceBanner";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -109,6 +110,17 @@ const openFinanceSms = async ({
 
 const MyLedgerScreen = ({ navigation, route }: any) => {
   const { user } = useAuthStore();
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const [duesCreatorContact, setDuesCreatorContact] =
     useState<FinanceContact | null>(null);
   const [treasurerContact, setTreasurerContact] =
@@ -242,25 +254,27 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
       await openFinanceSms(payload);
     } catch {
       const fallback = contact.email ?? contact.phone ?? "the finance contact";
-      Alert.alert("Contact unavailable", `Please contact ${fallback}.`);
+      setModal({ visible: true, type: "error", title: "Contact unavailable", message: `Please contact ${fallback}.`, onPrimary: closeModal });
     }
   };
 
   const handleContactFinance = (contact: FinanceContact | null) => {
     if (!contact) {
-      Alert.alert(
-        "Finance contact unavailable",
-        "Please contact an admin to review this balance.",
-      );
+      setModal({ visible: true, type: "info", title: "Finance contact unavailable", message: "Please contact an admin to review this balance.", onPrimary: closeModal });
       return;
     }
 
     if (contact.email && contact.phone) {
-      Alert.alert(`Contact ${contact.name}`, "Choose how to send your message.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Email", onPress: () => openContactRoute(contact, "email") },
-        { text: "Text Message", onPress: () => openContactRoute(contact, "sms") },
-      ]);
+      setModal({
+        visible: true,
+        type: "info",
+        title: `Contact ${contact.name}`,
+        message: "Choose how to send your message.",
+        primaryLabel: "Email",
+        onPrimary: () => { closeModal(); openContactRoute(contact, "email"); },
+        secondaryLabel: "Text Message",
+        onSecondary: () => { closeModal(); openContactRoute(contact, "sms"); },
+      });
       return;
     }
 
@@ -319,6 +333,18 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={adminViewingMember ? "Member Finances" : "My Finances"}
         showBack

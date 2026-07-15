@@ -10,12 +10,22 @@ import {
   deleteFinanceChargeCallable,
   deleteFinancePeriodCallable,
   recalculateMemberFinanceStandingCallable,
+  recordBulkPaymentsCallable,
   recordPaymentCallable,
   reversePaymentCallable,
 } from "./cloudFunctionsService";
 import { startOrgSubscription } from "./firebaseHelpers";
 
 export interface PaymentInput {
+  uid: string;
+  chargeEntryId: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string;
+  note: string;
+}
+
+export interface BulkPaymentItem {
   uid: string;
   chargeEntryId: string;
   amount: number;
@@ -82,6 +92,13 @@ export const createAdHocCharge = async (data: ChargeInput): Promise<void> => {
 
 export const recordPayment = async (data: PaymentInput): Promise<void> => {
   await recordPaymentCallable(data);
+};
+
+export const recordBulkPayments = async (
+  payments: BulkPaymentItem[],
+): Promise<number> => {
+  const result = await recordBulkPaymentsCallable(payments);
+  return result.count;
 };
 
 export const deleteDuesPeriod = async (periodId: string): Promise<void> => {

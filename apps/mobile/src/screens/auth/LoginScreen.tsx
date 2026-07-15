@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import Icon from "../../components/common/FeatherIcon";
 import { env } from "../../config/env";
@@ -29,6 +29,17 @@ const LoginScreen = ({ navigation }: any) => {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, getValues, handleSubmit, formState, trigger } =
     useForm<FormValues>({
       defaultValues: {
@@ -88,9 +99,9 @@ const LoginScreen = ({ navigation }: any) => {
       setLoginError(null);
       setResetSubmitting(true);
       await sendPasswordReset(getValues("email"));
-      Alert.alert("Check your email", "A password reset link has been sent.");
+      setModal({ visible: true, type: "success", title: "Check your email", message: "A password reset link has been sent.", onPrimary: closeModal });
     } catch (error) {
-      Alert.alert("Reset not sent", getAuthErrorMessage(error));
+      setModal({ visible: true, type: "error", title: "Reset not sent", message: getAuthErrorMessage(error), onPrimary: closeModal });
     } finally {
       setResetSubmitting(false);
     }
@@ -98,6 +109,18 @@ const LoginScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}

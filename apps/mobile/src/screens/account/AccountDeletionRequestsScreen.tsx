@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -50,69 +51,72 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
     enabled: admin,
   });
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const handleComplete = (request: AccountDeletionRequest) => {
-    Alert.alert(
-      "Complete deletion?",
-      `This will delete the Firebase Auth account for ${request.fullName}, remove their member profile from the app, and remove their device tokens. Finance, governance, and audit records are preserved where required. This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Complete Deletion",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setReviewingId(request.requestId);
-              const result = await completeAccountDeletion(request.requestId);
-              Alert.alert(
-                "Deletion completed",
-                result.authDeleted
-                  ? "The account was deleted and the member profile was removed from the app."
-                  : "The Auth account was already gone. The member profile was removed from the app.",
-              );
-            } catch (reviewError) {
-              Alert.alert(
-                "Deletion not completed",
-                reviewError instanceof Error
-                  ? reviewError.message
-                  : "Please try again.",
-              );
-            } finally {
-              setReviewingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Complete deletion?",
+      message: `This will delete the Firebase Auth account for ${request.fullName}, remove their member profile from the app, and remove their device tokens. Finance, governance, and audit records are preserved where required. This cannot be undone.`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Complete Deletion",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setReviewingId(request.requestId);
+          const result = await completeAccountDeletion(request.requestId);
+          setModal({
+            visible: true,
+            type: "success",
+            title: "Deletion completed",
+            message: result.authDeleted
+              ? "The account was deleted and the member profile was removed from the app."
+              : "The Auth account was already gone. The member profile was removed from the app.",
+            onPrimary: closeModal,
+          });
+        } catch (reviewError) {
+          setModal({ visible: true, type: "error", title: "Deletion not completed", message: reviewError instanceof Error ? reviewError.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setReviewingId(null);
+        }
+      },
+    });
   };
 
   const handleDecline = (request: AccountDeletionRequest) => {
-    Alert.alert(
-      "Decline deletion request?",
-      `Keep ${request.fullName}'s account active and close this deletion request?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Decline Request",
-          onPress: async () => {
-            try {
-              setReviewingId(request.requestId);
-              await declineAccountDeletion(request.requestId);
-              Alert.alert("Request declined", "The account remains active.");
-            } catch (reviewError) {
-              Alert.alert(
-                "Request not declined",
-                reviewError instanceof Error
-                  ? reviewError.message
-                  : "Please try again.",
-              );
-            } finally {
-              setReviewingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Decline deletion request?",
+      message: `Keep ${request.fullName}'s account active and close this deletion request?`,
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Decline Request",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setReviewingId(request.requestId);
+          await declineAccountDeletion(request.requestId);
+          setModal({ visible: true, type: "success", title: "Request declined", message: "The account remains active.", onPrimary: closeModal });
+        } catch (reviewError) {
+          setModal({ visible: true, type: "error", title: "Request not declined", message: reviewError instanceof Error ? reviewError.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setReviewingId(null);
+        }
+      },
+    });
   };
 
   if (!admin) {
@@ -155,6 +159,18 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title="Deletion Requests"
         showBack

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
+import FeedbackModal, { FeedbackModalType } from "../common/FeedbackModal";
 import GoldButton from "../common/GoldButton";
 import OutlineButton from "../common/OutlineButton";
 import ListingMedia from "./ListingMedia";
@@ -31,6 +32,17 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
   const sold = listing.status === "sold";
   const archived = listing.status === "archived";
   const [pendingAction, setPendingAction] = useState<"delete" | "status" | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const runAction = async (
     actionName: "delete" | "status",
@@ -41,29 +53,43 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
       setPendingAction(actionName);
       await action();
     } catch (error) {
-      Alert.alert(
-        failureTitle,
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: failureTitle, message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Listing", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () =>
-          runAction("delete", () => deleteListing(listing.id), "Listing not deleted"),
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Listing",
+      message: "Are you sure?",
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+      primaryLabel: "Delete",
+      onPrimary: () => {
+        closeModal();
+        runAction("delete", () => deleteListing(listing.id), "Listing not deleted");
       },
-    ]);
+    });
   };
 
   return (
-    <View style={styles.card}>
+    <>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
+      <View style={styles.card}>
       <View style={styles.row}>
         <ListingMedia listing={listing} size={64} />
         <View style={styles.content}>
@@ -153,6 +179,7 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
         />
       </View>
     </View>
+    </>
   );
 };
 

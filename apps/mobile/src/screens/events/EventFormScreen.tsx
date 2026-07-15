@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,6 +16,7 @@ import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -125,6 +125,17 @@ const EventFormScreen = ({ navigation, route }: any) => {
   const { user } = useAuthStore();
   const upsertEvent = useEventsStore((state) => state.upsertEvent);
   const admin = isAdmin(user);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: {
       title: "",
@@ -171,18 +182,12 @@ const EventFormScreen = ({ navigation, route }: any) => {
     }
     const dateTime = parseDateTime(values.date, values.time);
     if (!dateTime) {
-      Alert.alert(
-        "Date required",
-        "Use date format YYYY-MM-DD and time format HH:mm.",
-      );
+      setModal({ visible: true, type: "error", title: "Date required", message: "Use date format YYYY-MM-DD and time format HH:mm.", onPrimary: closeModal });
       return;
     }
     const capacity = Number(values.capacity);
     if (!Number.isInteger(capacity) || capacity < 0) {
-      Alert.alert(
-        "Capacity required",
-        "Capacity must be zero or a positive whole number.",
-      );
+      setModal({ visible: true, type: "error", title: "Capacity required", message: "Capacity must be zero or a positive whole number.", onPrimary: closeModal });
       return;
     }
 
@@ -209,10 +214,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
       upsertEvent(savedEvent);
       safeGoBack(navigation, "EventsList");
     } catch (error) {
-      Alert.alert(
-        "Event not saved",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Event not saved", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setSubmitting(false);
     }
@@ -260,6 +262,18 @@ const EventFormScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader
         title={eventId ? "Edit Event" : "New Event"}
         showBack
