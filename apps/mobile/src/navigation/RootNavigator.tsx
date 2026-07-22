@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useRef} from "react";
 import {AppState, AppStateStatus} from "react-native";
 import {
   CommonActions,
+  DarkTheme,
   NavigationContainer,
   createNavigationContainerRef,
 } from "@react-navigation/native";
@@ -16,10 +17,24 @@ import {
   readLastActiveAt,
 } from "../services/sessionService";
 import {useAuthStore} from "../store/authStore";
+import {colors} from "../theme";
 import {getTabRootResetState} from "./tabRoutes";
 import {AppTabParamList} from "./types";
 
 const navigationRef = createNavigationContainerRef<AppTabParamList>();
+
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.bg.secondary,
+    card: colors.bg.secondary,
+    border: colors.border.subtle,
+    primary: colors.gold.default,
+    text: colors.text.primary,
+    notification: colors.gold.default,
+  },
+};
 
 const RootNavigator = () => {
   const {loading, setLoading, setUser, user} = useAuthStore();
@@ -106,7 +121,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       {user ? (
         <>
           <PushNotificationRegistrar />

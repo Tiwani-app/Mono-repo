@@ -25,11 +25,17 @@ export type VotingStackParamList = {
 export type FinanceStackParamList = {
   FinanceAdmin: undefined;
   MyLedger: { memberId?: string } | undefined;
+  MyContributions: { memberId?: string } | undefined;
   ChargeLedger: undefined;
   DuesPeriodForm: { duesPeriodId?: string } | undefined;
   DuesPeriodMembers: { duesPeriodId: string };
   RecordPayment: { memberId?: string } | undefined;
   AdHocCharge: { memberId?: string } | undefined;
+  ContributionPoolForm: undefined;
+  RecordContribution: { memberId?: string } | undefined;
+  WithdrawRequests: undefined;
+  RequestWithdrawal: { poolId?: string } | undefined;
+  ContributionPoolMembers: { poolId: string };
 };
 
 export type DashboardStackParamList = {

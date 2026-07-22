@@ -24,6 +24,7 @@ const targetRoutes: NotificationTarget["route"][] = [
   "poll_vote",
   "election_ballot",
   "my_ledger",
+  "my_contributions",
   "marketplace",
   "library",
 ];
@@ -41,7 +42,8 @@ const targetFromRecord = (value: unknown): NotificationTarget | undefined => {
       return { route, pollId: requiredString(record, "pollId") };
     case "election_ballot":
       return { route, electionId: requiredString(record, "electionId") };
-    case "my_ledger": {
+    case "my_ledger":
+    case "my_contributions": {
       const memberId =
         typeof record.memberId === "string" && record.memberId.trim()
           ? record.memberId

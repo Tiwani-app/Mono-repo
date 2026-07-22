@@ -15,6 +15,12 @@ import type {
   PaymentInput,
 } from "./financeService";
 import type {
+  BulkContributionInput,
+  ContributionPoolInput,
+  RecordContributionInput,
+  WithdrawRequestInput,
+} from "./contributionsService";
+import type {
   ElectionInput,
   ElectionVoterReceiptPayload,
   PollInput,
@@ -283,6 +289,78 @@ export const recalculateMemberFinanceStandingCallable = (uid: string) =>
       uid: string;
     }
   >("recalculateMemberFinanceStanding", { uid });
+
+export const createContributionPoolCallable = (data: ContributionPoolInput) =>
+  callCloudFunction<
+    {
+      endDate: string | null;
+      expectedAmount: number;
+      name: string;
+      note: string;
+    },
+    { ok: boolean; poolId: string }
+  >("createContributionPool", {
+    endDate: data.endDate ? data.endDate.toISOString() : null,
+    expectedAmount: data.expectedAmount,
+    name: data.name,
+    note: data.note,
+  });
+
+export const closeContributionPoolCallable = (poolId: string) =>
+  callCloudFunction<{ poolId: string }, { ok: boolean; poolId: string }>(
+    "closeContributionPool",
+    { poolId },
+  );
+
+export const recordContributionCallable = (data: RecordContributionInput) =>
+  callCloudFunction<
+    RecordContributionInput,
+    { entryId: string; ok: boolean; poolId: string }
+  >("recordContribution", data);
+
+export const recordBulkContributionsCallable = (data: BulkContributionInput) =>
+  callCloudFunction<
+    BulkContributionInput,
+    {
+      count: number;
+      ok: boolean;
+      results: { entryId: string; memberId: string; ok: boolean }[];
+    }
+  >("recordBulkContributions", data);
+
+export const requestContributionWithdrawalCallable = (
+  data: WithdrawRequestInput,
+) =>
+  callCloudFunction<WithdrawRequestInput, { ok: boolean; requestId: string }>(
+    "requestContributionWithdrawal",
+    data,
+  );
+
+export const reviewContributionWithdrawalCallable = (
+  requestId: string,
+  decision: "approve" | "reject",
+  reviewNote: string,
+) =>
+  callCloudFunction<
+    { decision: "approve" | "reject"; requestId: string; reviewNote: string },
+    { ok: boolean; requestId: string; status: string }
+  >("reviewContributionWithdrawal", { decision, requestId, reviewNote });
+
+export const recordContributionPayoutCallable = (data: {
+  note: string;
+  paymentMethod: string;
+  reference: string;
+  requestId: string;
+}) =>
+  callCloudFunction<
+    {
+      note: string;
+      paymentMethod: string;
+      reference: string;
+      requestId: string;
+    },
+    { ok: boolean; payoutEntryId: string; requestId: string }
+  >("recordContributionPayout", data);
 
 export const openPollCallable = (pollId: string) =>
   callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(

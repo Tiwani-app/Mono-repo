@@ -13,6 +13,15 @@ export {
   recordPayment,
   reversePayment,
 } from "./finance";
+export {
+  closeContributionPool,
+  createContributionPool,
+  recordBulkContributions,
+  recordContribution,
+  recordContributionPayout,
+  requestContributionWithdrawal,
+  reviewContributionWithdrawal,
+} from "./contributions";
 export { approveJoinRequest, declineJoinRequest } from "./joinRequests";
 export {
   createMemberAccount,

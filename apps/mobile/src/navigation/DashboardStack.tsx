@@ -16,12 +16,18 @@ import MemberProfileScreen from "../screens/members/MemberProfileScreen";
 import MembersListScreen from "../screens/members/MembersListScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import { colors } from "../theme";
 import { DashboardStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<DashboardStackParamList>();
 
 const DashboardStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+      contentStyle: { backgroundColor: colors.bg.secondary },
+    }}
+  >
     <Stack.Screen name="DashboardHome" component={DashboardScreen} />
     <Stack.Screen name="Notifications" component={NotificationsScreen} />
     <Stack.Screen name="AnnouncementForm" component={AnnouncementFormScreen} />
