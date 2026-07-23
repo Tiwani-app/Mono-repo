@@ -4,12 +4,17 @@ import EventCheckInScreen from '../screens/events/EventCheckInScreen';
 import EventDetailScreen from '../screens/events/EventDetailScreen';
 import EventFormScreen from '../screens/events/EventFormScreen';
 import EventsScreen from '../screens/events/EventsScreen';
+import {colors} from '../theme';
 import {EventsStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<EventsStackParamList>();
 
 const EventsStack = () => (
-  <Stack.Navigator screenOptions={{headerShown: false}}>
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+      contentStyle: {backgroundColor: colors.bg.secondary},
+    }}>
     <Stack.Screen name="EventsList" component={EventsScreen} />
     <Stack.Screen name="EventDetail" component={EventDetailScreen} />
     <Stack.Screen name="EventForm" component={EventFormScreen} />

@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import BalanceBanner from "../../components/finance/BalanceBanner";
+import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
@@ -350,6 +351,18 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
         showBack
         onBack={handleBack}
       />
+      {!adminViewingMember ? (
+        <View style={styles.tabsWrap}>
+          <FinanceDomainTabs
+            value="dues"
+            onChange={(next) => {
+              if (next === "contributions") {
+                navigation.replace("MyContributions");
+              }
+            }}
+          />
+        </View>
+      ) : null}
       <FlatList
         data={scopedLedgerEntries}
         keyExtractor={(item) => item.id}
@@ -497,6 +510,7 @@ const SummaryStat = ({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },
   memberFinanceCard: {
     gap: spacing.md,

@@ -68,6 +68,13 @@ export const navigateToNotificationTarget = (
     });
     return;
   }
+  if (target.route === "my_contributions") {
+    navigation.navigate("Finance", {
+      screen: "MyContributions",
+      params: { memberId: target.memberId },
+    });
+    return;
+  }
   if (target.route === "marketplace") {
     const parentNavigation = navigation.getParent?.();
     if (parentNavigation?.dispatch) {

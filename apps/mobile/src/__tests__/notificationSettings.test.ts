@@ -120,6 +120,10 @@ describe("notification helpers", () => {
       route: "my_ledger",
       memberId: "member-1",
     });
+    navigateToNotificationTarget(navigation, {
+      route: "my_contributions",
+      memberId: "member-2",
+    });
     navigateToNotificationTarget(navigation, { route: "marketplace" });
     navigateToNotificationTarget(navigation, { route: "library" });
     navigateToNotificationTarget(navigation);
@@ -140,6 +144,10 @@ describe("notification helpers", () => {
       screen: "MyLedger",
       params: { memberId: "member-1" },
     });
+    expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Finance", {
+      screen: "MyContributions",
+      params: { memberId: "member-2" },
+    });
     expect(navigation.dispatch).not.toHaveBeenCalled();
     expect(parentNavigation.dispatch).toHaveBeenCalledTimes(1);
     expect(parentNavigation.dispatch.mock.calls[0][0]).toMatchObject({
@@ -155,8 +163,8 @@ describe("notification helpers", () => {
       },
       type: "RESET",
     });
-    expect(navigation.navigate).toHaveBeenNthCalledWith(5, "Library");
-    expect(navigation.navigate).toHaveBeenCalledTimes(5);
+    expect(navigation.navigate).toHaveBeenNthCalledWith(6, "Library");
+    expect(navigation.navigate).toHaveBeenCalledTimes(6);
   });
 
   it("falls back to nested Marketplace navigation without a parent navigator", () => {

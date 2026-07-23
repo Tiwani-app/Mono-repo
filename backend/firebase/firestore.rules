@@ -175,6 +175,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /contribution_pools/{poolId} {
+      allow read: if sameOrgExisting();
+      allow create, update, delete: if false;
+    }
+
+    match /contributions/{entryId} {
+      allow read: if sameOrgExisting() && (isAdmin() || resource.data.memberId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /contribution_withdraw_requests/{requestId} {
+      allow read: if sameOrgExisting() && (isAdmin() || resource.data.memberId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /library_documents/{documentId} {
       allow read: if sameOrgExisting() && (
         isAdmin() ||

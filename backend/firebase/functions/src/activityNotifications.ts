@@ -23,6 +23,7 @@ type NotificationTarget =
   | { route: "poll_vote"; pollId: string }
   | { route: "election_ballot"; electionId: string }
   | { route: "my_ledger"; memberId?: string }
+  | { route: "my_contributions"; memberId?: string }
   | { route: "marketplace" }
   | { route: "library" };
 

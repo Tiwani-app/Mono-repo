@@ -17,10 +17,13 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import DuesPeriodCard from "../../components/finance/DuesPeriodCard";
+import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
+import ContributionsAdminPanel from "./ContributionsAdminPanel";
 import { useFinance } from "../../hooks/useFinance";
 import { deleteDuesPeriod } from "../../services/financeService";
+import { FinanceDomain } from "../../types/contributions";
 import { DuesPeriod, LedgerType } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
@@ -81,6 +84,8 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   });
   const [memberSearch, setMemberSearch] = useState("");
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
+  const [domain, setDomain] = useState<FinanceDomain>("dues");
+
 
   const handleDeletePeriod = (period: DuesPeriod) => {
     if (deletingPeriodId) {
@@ -122,14 +127,17 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     return <LoadingSpinner />;
   }
 
-  if (financeLoading || membersLoading) {
+  if (domain === "dues" && (financeLoading || membersLoading)) {
     return <LoadingSpinner />;
   }
 
-  if (financeError || membersError) {
+  if (domain === "dues" && (financeError || membersError)) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader title="Finance" />
+        <View style={styles.tabsWrap}>
+          <FinanceDomainTabs value={domain} onChange={setDomain} />
+        </View>
         <EmptyState
           icon="!"
           title="Finance unavailable"
@@ -138,6 +146,19 @@ const FinanceAdminScreen = ({ navigation }: any) => {
       </SafeAreaView>
     );
   }
+
+  if (domain === "contributions") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Finance" />
+        <View style={styles.tabsWrap}>
+          <FinanceDomainTabs value={domain} onChange={setDomain} />
+        </View>
+        <ContributionsAdminPanel navigation={navigation} />
+      </SafeAreaView>
+    );
+  }
+
 
   const {
     outstanding,
@@ -199,6 +220,9 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader title="Finance" />
+      <View style={styles.tabsWrap}>
+        <FinanceDomainTabs value={domain} onChange={setDomain} />
+      </View>
       <FlatList
         data={filteredMembers}
         keyExtractor={(item) => item.uid}
@@ -386,6 +410,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
+  tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },
   summaryRow: { flexDirection: "row", gap: spacing.sm },
   summaryTile: {
@@ -401,7 +426,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
-  actionGrid: { gap: spacing.sm },
+  actionGrid: { marginTop: spacing.lg, gap: spacing.sm },
   chargeGrid: {
     marginTop: spacing.sm,
     flexDirection: "row",

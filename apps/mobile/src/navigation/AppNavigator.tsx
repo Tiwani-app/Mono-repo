@@ -91,6 +91,7 @@ const AppNavigator = () => (
     })}
     screenOptions={({ route }) => ({
       headerShown: false,
+      sceneContainerStyle: { backgroundColor: colors.bg.secondary },
       tabBarStyle: {
         backgroundColor: colors.bg.secondary,
         borderTopColor: colors.border.subtle,
