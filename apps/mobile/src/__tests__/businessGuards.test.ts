@@ -48,6 +48,7 @@ import {
   findFinanciallyBlockedCandidateNames,
 } from "../utils/votingGuards";
 import { User } from "../types/user";
+import { EMPTY_ADDRESS } from "../utils/address";
 import { canViewElectionResults } from "../utils/roleGuard";
 
 const election: Election = {
@@ -143,7 +144,7 @@ const user = (uid: string, role: User["role"]): User => ({
   status: "active",
   financialStatus: "green",
   outstandingBalance: 0,
-  address: "",
+  address: EMPTY_ADDRESS,
   maritalStatus: "single",
   dateOfBirth: "",
   spouseName: null,

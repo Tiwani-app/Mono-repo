@@ -2,12 +2,14 @@ import { env } from "../config/env";
 import { DataSyncSnapshotMeta } from "../types/sync";
 import {
   AccountDeletionRequest,
+  Address,
   FinancialStatus,
   JoinRequest,
   MemberStatus,
   Role,
   User,
 } from "../types/user";
+import { normalizeAddress } from "../utils/address";
 import {
   accountDeletionRequestFromRecord,
   joinRequestFromRecord,
@@ -43,7 +45,8 @@ export interface MemberInput {
   status: MemberStatus;
   financialStatus: FinancialStatus;
   outstandingBalance: number;
-  address: string;
+  address: Address;
+  dateOfBirth?: string;
   maritalStatus?: User["maritalStatus"];
   spouseName?: string | null;
   spouseDateOfBirth?: string | null;
@@ -168,7 +171,12 @@ const memberUpdates = (data: Partial<MemberInput>) => ({
   ...(data.fullName !== undefined ? { fullName: data.fullName.trim() } : {}),
   ...(data.email !== undefined ? { email: normalizeEmail(data.email) } : {}),
   ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
-  ...(data.address !== undefined ? { address: data.address.trim() } : {}),
+  ...(data.address !== undefined
+    ? { address: normalizeAddress(data.address) }
+    : {}),
+  ...(data.dateOfBirth !== undefined
+    ? { dateOfBirth: data.dateOfBirth.trim() }
+    : {}),
   ...(data.spouseName !== undefined
     ? { spouseName: data.spouseName?.trim() || null }
     : {}),
@@ -316,7 +324,9 @@ export const updateMemberProfile = async (
     ...data,
     ...(data.fullName !== undefined ? { fullName: data.fullName.trim() } : {}),
     ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
-    ...(data.address !== undefined ? { address: data.address.trim() } : {}),
+    ...(data.address !== undefined
+      ? { address: normalizeAddress(data.address) }
+      : {}),
     ...(data.dateOfBirth !== undefined
       ? { dateOfBirth: data.dateOfBirth.trim() }
       : {}),

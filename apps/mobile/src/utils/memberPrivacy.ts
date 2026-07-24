@@ -1,4 +1,5 @@
 import { User } from "../types/user";
+import { formatAddress } from "./address";
 import { isAdmin } from "./roleGuard";
 
 export interface SanitizedMemberProfile {
@@ -6,6 +7,7 @@ export interface SanitizedMemberProfile {
   email: string;
   phone: string;
   address: string;
+  dateOfBirth: string;
   maritalStatus: string;
   memberSince: Date | null;
   spouseName: string | null;
@@ -57,7 +59,8 @@ export const sanitizeMemberProfile = (
     displayName: fallbackText(member.fullName, "Unnamed member"),
     email: fallbackText(member.email),
     phone: fallbackText(member.phone),
-    address: fallbackText(member.address),
+    address: fallbackText(member.address && formatAddress(member.address)),
+    dateOfBirth: fallbackText(member.dateOfBirth),
     maritalStatus: fallbackText(member.maritalStatus),
     memberSince:
       memberSince && !Number.isNaN(memberSince.getTime()) ? memberSince : null,

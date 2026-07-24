@@ -27,12 +27,14 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { colors, spacing, typography } from "../../theme";
 import {
+  Address,
   Child,
   FinancialStatus,
   MemberStatus,
   Role,
   User,
 } from "../../types/user";
+import { EMPTY_ADDRESS, normalizeAddress } from "../../utils/address";
 import { emailRules } from "../../utils/validators";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
@@ -41,7 +43,8 @@ interface FormValues {
   fullName: string;
   email: string;
   phone: string;
-  address: string;
+  address: Address;
+  dateOfBirth: string;
   outstandingBalance: string;
   spouseName: string;
   spouseDateOfBirth: string;
@@ -103,7 +106,8 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       fullName: "",
       email: "",
       phone: "",
-      address: "",
+      address: EMPTY_ADDRESS,
+      dateOfBirth: "",
       outstandingBalance: "0",
       spouseName: "",
       spouseDateOfBirth: "",
@@ -127,6 +131,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
           email: member.email,
           phone: member.phone,
           address: member.address,
+          dateOfBirth: member.dateOfBirth ?? "",
           outstandingBalance: String(member.outstandingBalance),
           spouseName: member.spouseName ?? "",
           spouseDateOfBirth: member.spouseDateOfBirth ?? "",
@@ -175,7 +180,8 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         fullName: values.fullName.trim(),
         email: values.email.trim(),
         phone: values.phone.trim(),
-        address: values.address.trim(),
+        address: normalizeAddress(values.address),
+        dateOfBirth: values.dateOfBirth.trim(),
         outstandingBalance,
         role,
         status,
@@ -318,12 +324,55 @@ const MemberFormScreen = ({ navigation, route }: any) => {
             name="phone"
             rules={{ required: "Phone number is required." }}
           />
+          <Controller
+            control={control}
+            name="dateOfBirth"
+            render={({ field: { onChange, value } }) => (
+              <CalendarDateField
+                allowEmpty
+                value={value}
+                onChange={onChange}
+                label="DATE OF BIRTH"
+                placeholder="Choose member's birthday"
+              />
+            )}
+          />
+          <Text style={styles.sectionLabel}>ADDRESS</Text>
           <Field
             control={control}
-            error={formState.errors.address?.message}
-            label="ADDRESS"
-            multiline
-            name="address"
+            error={formState.errors.address?.street?.message}
+            label="STREET NAME"
+            name="address.street"
+          />
+          <Field
+            control={control}
+            error={formState.errors.address?.apartment?.message}
+            label="APARTMENT / UNIT NUMBER"
+            name="address.apartment"
+          />
+          <Field
+            control={control}
+            error={formState.errors.address?.city?.message}
+            label="CITY"
+            name="address.city"
+          />
+          <Field
+            control={control}
+            error={formState.errors.address?.state?.message}
+            label="STATE"
+            name="address.state"
+          />
+          <Field
+            control={control}
+            error={formState.errors.address?.country?.message}
+            label="COUNTRY"
+            name="address.country"
+          />
+          <Field
+            control={control}
+            error={formState.errors.address?.postalCode?.message}
+            label="ZIP / POSTAL CODE"
+            name="address.postalCode"
           />
           <Text style={styles.sectionLabel}>ROLE</Text>
           <ChipRow

@@ -26,6 +26,7 @@ export interface UserProfileInput {
   financialStatus?: unknown;
   outstandingBalance?: unknown;
   address?: unknown;
+  dateOfBirth?: unknown;
   maritalStatus?: unknown;
   spouseName?: unknown;
   spouseDateOfBirth?: unknown;

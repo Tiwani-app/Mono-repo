@@ -16,6 +16,7 @@ import {
   getCurrentOrgId,
   snapshotRecords,
 } from "./firebaseHelpers";
+import { RawRecord } from "./converters/shared";
 
 export type PushRegistrationStatus = "registered" | "denied" | "unavailable";
 
@@ -95,6 +96,21 @@ export const subscribeToNotifications = (
     });
   };
 
+  const parseNotifications = (
+    records: RawRecord[],
+  ): TiwaniNotification[] =>
+    records.flatMap((record) => {
+      try {
+        return [notificationFromRecord(record)];
+      } catch (error) {
+        console.warn(
+          `Skipped malformed announcement record ${String(record.id)}.`,
+          error,
+        );
+        return [];
+      }
+    });
+
   const emit = () => {
     try {
       const merged = new Map(
@@ -136,7 +152,7 @@ export const subscribeToNotifications = (
                 hasPendingWrites: snapshot.metadata.hasPendingWrites,
               };
               emitSnapshotMeta();
-              allNotifications = snapshotRecords(snapshot).map(notificationFromRecord);
+              allNotifications = parseNotifications(snapshotRecords(snapshot));
               emit();
             } catch (error) {
               handleError(error);
@@ -153,7 +169,7 @@ export const subscribeToNotifications = (
                 hasPendingWrites: snapshot.metadata.hasPendingWrites,
               };
               emitSnapshotMeta();
-              personalNotifications = snapshotRecords(snapshot).map(notificationFromRecord);
+              personalNotifications = parseNotifications(snapshotRecords(snapshot));
               emit();
             } catch (error) {
               handleError(error);

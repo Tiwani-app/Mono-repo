@@ -34,6 +34,7 @@ import {
 import { useAuthStore } from "../store/authStore";
 import { colors, spacing, typography } from "../theme";
 import { NotificationPreferences, User } from "../types/user";
+import { EMPTY_ADDRESS } from "../utils/address";
 import { getInitials } from "../utils/getInitials";
 import { formatTimezoneLabel } from "../utils/locale";
 import { safeGoBack } from "../utils/navigation";
@@ -91,7 +92,7 @@ const SettingsScreen = ({ navigation }: any) => {
       values: {
         fullName: user?.fullName ?? "",
         phone: user?.phone ?? "",
-        address: user?.address ?? "",
+        address: user?.address ?? EMPTY_ADDRESS,
         photoURL: user?.photoURL ?? "",
         maritalStatus: user?.maritalStatus ?? "single",
         dateOfBirth: user?.dateOfBirth ?? "",
@@ -363,12 +364,42 @@ const SettingsScreen = ({ navigation }: any) => {
                 name="phone"
                 rules={{ required: "Phone number is required." }}
               />
+              <Text style={styles.sectionLabel}>ADDRESS</Text>
               <ProfileField
                 control={control}
-                error={formState.errors.address?.message}
-                label="ADDRESS"
-                multiline
-                name="address"
+                error={formState.errors.address?.street?.message}
+                label="STREET NAME"
+                name="address.street"
+              />
+              <ProfileField
+                control={control}
+                error={formState.errors.address?.apartment?.message}
+                label="APARTMENT / UNIT NUMBER"
+                name="address.apartment"
+              />
+              <ProfileField
+                control={control}
+                error={formState.errors.address?.city?.message}
+                label="CITY"
+                name="address.city"
+              />
+              <ProfileField
+                control={control}
+                error={formState.errors.address?.state?.message}
+                label="STATE"
+                name="address.state"
+              />
+              <ProfileField
+                control={control}
+                error={formState.errors.address?.country?.message}
+                label="COUNTRY"
+                name="address.country"
+              />
+              <ProfileField
+                control={control}
+                error={formState.errors.address?.postalCode?.message}
+                label="ZIP / POSTAL CODE"
+                name="address.postalCode"
               />
               <Controller
                 control={control}

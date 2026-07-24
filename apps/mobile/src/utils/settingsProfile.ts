@@ -1,9 +1,10 @@
-import { Child, NotificationPreferences, User } from "../types/user";
+import { Address, Child, NotificationPreferences, User } from "../types/user";
+import { normalizeAddress } from "./address";
 
 export interface ProfileFormValues {
   fullName: string;
   phone: string;
-  address: string;
+  address: Address;
   photoURL: string;
   maritalStatus: User["maritalStatus"];
   dateOfBirth: string;
@@ -37,7 +38,7 @@ export const getPreviousProfile = (user: User) => ({
 export const buildProfileUpdate = (values: ProfileFormValues) => ({
   fullName: values.fullName.trim(),
   phone: values.phone.trim(),
-  address: values.address.trim(),
+  address: normalizeAddress(values.address),
   photoURL: values.photoURL.trim() || null,
   maritalStatus: values.maritalStatus,
   dateOfBirth: values.dateOfBirth.trim(),

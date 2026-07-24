@@ -1,5 +1,6 @@
 import {
   AccountDeletionRequest,
+  Address,
   Child,
   FinancialStatus,
   JoinRequest,
@@ -18,6 +19,7 @@ import {
   requiredString,
 } from "./shared";
 import { DEFAULT_CURRENCY_SYMBOL, getLocalTimezone } from "../../utils/locale";
+import { EMPTY_ADDRESS } from "../../utils/address";
 
 const roles: Role[] = ["admin", "electoral_chairman", "member"];
 const memberStatuses: MemberStatus[] = [
@@ -50,6 +52,22 @@ const preferencesFromRecord = (value: unknown): NotificationPreferences => {
     events: record.events !== false,
     finance: record.finance !== false,
     voting: record.voting !== false,
+  };
+};
+
+const addressFromRecord = (value: unknown): Address => {
+  if (typeof value === "string") {
+    return { ...EMPTY_ADDRESS, street: value };
+  }
+  const record = value && typeof value === "object" ? (value as RawRecord) : {};
+  return {
+    street: typeof record.street === "string" ? record.street : "",
+    apartment: typeof record.apartment === "string" ? record.apartment : "",
+    city: typeof record.city === "string" ? record.city : "",
+    state: typeof record.state === "string" ? record.state : "",
+    country: typeof record.country === "string" ? record.country : "",
+    postalCode:
+      typeof record.postalCode === "string" ? record.postalCode : "",
   };
 };
 
@@ -97,7 +115,7 @@ export const userFromRecord = (record: RawRecord): User => ({
     "financialStatus",
   ),
   outstandingBalance: asNumber(record.outstandingBalance, 0),
-  address: typeof record.address === "string" ? record.address : "",
+  address: addressFromRecord(record.address),
   maritalStatus: requiredEnum(
     record.maritalStatus,
     maritalStatuses,
@@ -152,7 +170,7 @@ export const memberDirectoryFromRecord = (record: RawRecord): User => ({
   status: requiredEnum(record.status, memberStatuses, "status"),
   financialStatus: "green",
   outstandingBalance: 0,
-  address: "",
+  address: EMPTY_ADDRESS,
   maritalStatus: requiredEnum(
     record.maritalStatus,
     maritalStatuses,

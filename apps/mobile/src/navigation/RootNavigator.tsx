@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useRef} from "react";
 import {AppState, AppStateStatus} from "react-native";
 import {
-  CommonActions,
   DarkTheme,
   NavigationContainer,
   createNavigationContainerRef,
@@ -18,7 +17,6 @@ import {
 } from "../services/sessionService";
 import {useAuthStore} from "../store/authStore";
 import {colors} from "../theme";
-import {getTabRootResetState} from "./tabRoutes";
 import {AppTabParamList} from "./types";
 
 const navigationRef = createNavigationContainerRef<AppTabParamList>();
@@ -53,35 +51,20 @@ const RootNavigator = () => {
     return () => unsubscribe();
   }, [setLoading, setUser]);
 
-  const resetToDashboard = useCallback(() => {
-    if (!navigationRef.isReady()) {
+  const restoreOrExpireSession = useCallback(async (uid: string) => {
+    const lastActiveAt = await readLastActiveAt(uid);
+    if (isSessionExpired(lastActiveAt)) {
+      await signOut();
       return;
     }
-    navigationRef.dispatch(
-      CommonActions.reset(getTabRootResetState("Dashboard")),
-    );
+    await markSessionActive(uid);
   }, []);
-
-  const restoreOrExpireSession = useCallback(
-    async (uid: string, shouldResetToDashboard: boolean) => {
-      const lastActiveAt = await readLastActiveAt(uid);
-      if (isSessionExpired(lastActiveAt)) {
-        await signOut();
-        return;
-      }
-      await markSessionActive(uid);
-      if (shouldResetToDashboard) {
-        resetToDashboard();
-      }
-    },
-    [resetToDashboard],
-  );
 
   useEffect(() => {
     if (!user) {
       return;
     }
-    restoreOrExpireSession(user.uid, false).catch(error => {
+    restoreOrExpireSession(user.uid).catch(error => {
       console.warn("Could not restore session activity.", error);
     });
   }, [restoreOrExpireSession, user]);
@@ -107,7 +90,7 @@ const RootNavigator = () => {
         nextAppState === "active" &&
         (previousAppState === "background" || previousAppState === "inactive")
       ) {
-        restoreOrExpireSession(activeUser.uid, true).catch(error => {
+        restoreOrExpireSession(activeUser.uid).catch(error => {
           console.warn("Could not resume session.", error);
         });
       }

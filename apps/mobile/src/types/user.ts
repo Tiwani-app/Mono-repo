@@ -7,6 +7,15 @@ export interface Child {
   dateOfBirth: string;
 }
 
+export interface Address {
+  street: string;
+  apartment: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+}
+
 export interface NotificationPreferences {
   events: boolean;
   finance: boolean;
@@ -23,7 +32,7 @@ export interface User {
   status: MemberStatus;
   financialStatus: FinancialStatus;
   outstandingBalance: number;
-  address: string;
+  address: Address;
   maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
   dateOfBirth: string;
   spouseName: string | null;

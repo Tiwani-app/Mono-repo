@@ -131,6 +131,65 @@ describe("backend converters", () => {
     });
   });
 
+  it("migrates a legacy plain-string address into the street field", () => {
+    expect(
+      userFromRecord({
+        id: "member-1",
+        fullName: "Test Member",
+        email: "member@example.com",
+        role: "member",
+        status: "active",
+        financialStatus: "green",
+        outstandingBalance: 0,
+        maritalStatus: "single",
+        memberSince: "2026-01-01",
+        address: "8 Unity Avenue",
+      }),
+    ).toMatchObject({
+      address: {
+        street: "8 Unity Avenue",
+        apartment: "",
+        city: "",
+        state: "",
+        country: "",
+        postalCode: "",
+      },
+    });
+  });
+
+  it("preserves a structured address from newer records", () => {
+    expect(
+      userFromRecord({
+        id: "member-1",
+        fullName: "Test Member",
+        email: "member@example.com",
+        role: "member",
+        status: "active",
+        financialStatus: "green",
+        outstandingBalance: 0,
+        maritalStatus: "single",
+        memberSince: "2026-01-01",
+        address: {
+          street: "12 Marina Road",
+          apartment: "Flat 3",
+          city: "Lagos",
+          state: "Lagos State",
+          country: "Nigeria",
+          postalCode: "100001",
+        },
+      }),
+    ).toMatchObject({
+      address: {
+        street: "12 Marina Road",
+        apartment: "Flat 3",
+        city: "Lagos",
+        state: "Lagos State",
+        country: "Nigeria",
+        postalCode: "100001",
+      },
+    });
+  });
+
   it("allows existing member profiles to omit a phone number", () => {
     expect(
       userFromRecord({

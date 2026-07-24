@@ -129,6 +129,7 @@ import {
   uploadProfilePhoto,
 } from "../services/membersService";
 import { sendAnnouncement } from "../services/notificationsService";
+import { EMPTY_ADDRESS } from "../utils/address";
 import {
   castElectionBallot,
   createPoll,
@@ -569,7 +570,7 @@ describe("Firebase service contracts", () => {
       status: "active",
       financialStatus: "green",
       outstandingBalance: 0,
-      address: "",
+      address: EMPTY_ADDRESS,
       maritalStatus: "single",
       children: [],
     });

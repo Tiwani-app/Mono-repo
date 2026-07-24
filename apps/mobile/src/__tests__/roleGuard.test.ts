@@ -1,4 +1,5 @@
 import { User } from "../types/user";
+import { EMPTY_ADDRESS } from "../utils/address";
 import { isAdmin } from "../utils/roleGuard";
 
 const baseUser: User = {
@@ -11,7 +12,7 @@ const baseUser: User = {
   status: "active",
   financialStatus: "green",
   outstandingBalance: 0,
-  address: "",
+  address: EMPTY_ADDRESS,
   maritalStatus: "single",
   dateOfBirth: "",
   spouseName: null,

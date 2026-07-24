@@ -62,6 +62,20 @@ export const outstandingBalanceValue = (value: unknown): number => {
   return value;
 };
 
+export const addressValue = (value: unknown) => {
+  const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const field = (key: string) =>
+    typeof record[key] === "string" ? (record[key] as string).trim() : "";
+  return {
+    street: field("street"),
+    apartment: field("apartment"),
+    city: field("city"),
+    state: field("state"),
+    country: field("country"),
+    postalCode: field("postalCode"),
+  };
+};
+
 export const maritalStatusValue = (value: unknown): typeof maritalStatuses[number] => {
   if (typeof value === "string" && maritalStatuses.includes(value as typeof maritalStatuses[number])) {
     return value as typeof maritalStatuses[number];
@@ -108,9 +122,10 @@ export const memberProfileFromInput = (
   status: memberStatusValue(input.status),
   financialStatus: financialStatusValue(input.financialStatus),
   outstandingBalance: outstandingBalanceValue(input.outstandingBalance),
-  address: typeof input.address === "string" ? input.address.trim() : "",
+  address: addressValue(input.address),
   maritalStatus: maritalStatusValue(input.maritalStatus),
-  dateOfBirth: "",
+  dateOfBirth:
+    typeof input.dateOfBirth === "string" ? input.dateOfBirth.trim() : "",
   spouseName: optionalStringValue(input.spouseName),
   spouseDateOfBirth: optionalStringValue(input.spouseDateOfBirth),
   weddingAnniversary: optionalStringValue(input.weddingAnniversary),

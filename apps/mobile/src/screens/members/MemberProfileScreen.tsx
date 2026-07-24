@@ -65,7 +65,7 @@ const getAgeFromDateOfBirth = (dateOfBirth: string): number | null => {
   return age >= 0 ? age : null;
 };
 
-const formatChildDateOfBirth = (dateOfBirth: string): string => {
+const formatDateOfBirth = (dateOfBirth: string): string => {
   const age = getAgeFromDateOfBirth(dateOfBirth);
   if (age === null) {
     return dateOfBirth;
@@ -276,6 +276,12 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
             <Info label="Phone" value={profile.phone} />
             <Info label="Email" value={profile.email} />
             {canViewPrivate && <Info label="Address" value={profile.address} />}
+            {canViewPrivate && (
+              <Info
+                label="Date of Birth"
+                value={formatDateOfBirth(profile.dateOfBirth)}
+              />
+            )}
             {canViewFamily && (
               <Info label="Marital Status" value={profile.maritalStatus} />
             )}
@@ -304,7 +310,7 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
                 <Info
                   key={child.name}
                   label={child.name}
-                  value={formatChildDateOfBirth(child.dateOfBirth)}
+                  value={formatDateOfBirth(child.dateOfBirth)}
                 />
               ))
             )}
