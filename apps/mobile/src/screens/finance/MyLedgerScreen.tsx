@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Linking, StyleSheet, Text, View } from "react-native";
+import { FlatList, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
@@ -162,32 +162,26 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
       if (deletingChargeId) {
         return;
       }
-      Alert.alert(
-        "Delete Charge",
-        `Delete the "${entry.label}" charge of ${formatCurrency(entry.amount)}? This cannot be undone.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                setDeletingChargeId(entry.id);
-                await deleteCharge(entry.id);
-              } catch (deleteError) {
-                Alert.alert(
-                  "Charge not deleted",
-                  deleteError instanceof Error
-                    ? deleteError.message
-                    : "Please try again.",
-                );
-              } finally {
-                setDeletingChargeId(null);
-              }
-            },
-          },
-        ],
-      );
+      setModal({
+        visible: true,
+        type: "warning",
+        title: "Delete Charge",
+        message: `Delete the "${entry.label}" charge of ${formatCurrency(entry.amount)}? This cannot be undone.`,
+        primaryLabel: "Delete",
+        onPrimary: async () => {
+          closeModal();
+          try {
+            setDeletingChargeId(entry.id);
+            await deleteCharge(entry.id);
+          } catch (deleteError) {
+            setModal({ visible: true, type: "error", title: "Charge not deleted", message: deleteError instanceof Error ? deleteError.message : "Please try again.", onPrimary: closeModal });
+          } finally {
+            setDeletingChargeId(null);
+          }
+        },
+        secondaryLabel: "Cancel",
+        onSecondary: closeModal,
+      });
     },
     [deletingChargeId],
   );

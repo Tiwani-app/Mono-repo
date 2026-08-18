@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import {
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -55,6 +55,17 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
   });
   const [memberSearch, setMemberSearch] = useState("");
   const [closingPoolId, setClosingPoolId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const pendingRequests = useMemo(
     () =>
@@ -71,32 +82,26 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
     if (closingPoolId) {
       return;
     }
-    Alert.alert(
-      "Close contribution pool",
-      `Close "${pool.name}"? Members will no longer be able to contribute or request withdrawals.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Close",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setClosingPoolId(pool.id);
-              await closeContributionPool(pool.id);
-            } catch (closeError) {
-              Alert.alert(
-                "Pool not closed",
-                closeError instanceof Error
-                  ? closeError.message
-                  : "Please try again.",
-              );
-            } finally {
-              setClosingPoolId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Close contribution pool",
+      message: `Close "${pool.name}"? Members will no longer be able to contribute or request withdrawals.`,
+      primaryLabel: "Close",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setClosingPoolId(pool.id);
+          await closeContributionPool(pool.id);
+        } catch (closeError) {
+          setModal({ visible: true, type: "error", title: "Pool not closed", message: closeError instanceof Error ? closeError.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setClosingPoolId(null);
+        }
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
   };
 
   if (loading || membersLoading) {
@@ -122,7 +127,7 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       )
     : members;
 
-  return (
+  const list = (
     <FlatList
       data={filteredMembers}
       keyExtractor={(item) => item.uid}
@@ -267,6 +272,24 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
         />
       }
     />
+  );
+
+  return (
+    <>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
+      {list}
+    </>
   );
 };
 

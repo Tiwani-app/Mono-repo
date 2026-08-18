@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -85,36 +85,43 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   const [memberSearch, setMemberSearch] = useState("");
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
   const [domain, setDomain] = useState<FinanceDomain>("dues");
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
 
   const handleDeletePeriod = (period: DuesPeriod) => {
     if (deletingPeriodId) {
       return;
     }
-    Alert.alert(
-      "Delete Dues Period",
-      `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeletingPeriodId(period.id);
-              await deleteDuesPeriod(period.id);
-            } catch (error) {
-              Alert.alert(
-                "Dues period not deleted",
-                error instanceof Error ? error.message : "Please try again.",
-              );
-            } finally {
-              setDeletingPeriodId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Dues Period",
+      message: `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
+      primaryLabel: "Delete",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setDeletingPeriodId(period.id);
+          await deleteDuesPeriod(period.id);
+        } catch (error) {
+          setModal({ visible: true, type: "error", title: "Dues period not deleted", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setDeletingPeriodId(null);
+        }
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
   };
 
   useEffect(() => {
@@ -219,6 +226,18 @@ const FinanceAdminScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
       <ScreenHeader title="Finance" />
       <View style={styles.tabsWrap}>
         <FinanceDomainTabs value={domain} onChange={setDomain} />

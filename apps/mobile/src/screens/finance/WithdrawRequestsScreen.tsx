@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -67,7 +66,10 @@ const WithdrawRequestsScreen = ({ navigation }: any) => {
     type: FeedbackModalType;
     title: string;
     message: string;
+    primaryLabel?: string;
     onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
   } | null>(null);
   const closeModal = () => setModal(null);
 
@@ -206,7 +208,10 @@ const WithdrawRequestsScreen = ({ navigation }: any) => {
           type={modal.type}
           title={modal.title}
           message={modal.message}
+          primaryLabel={modal.primaryLabel}
           onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
         />
       )}
       <ScreenHeader
@@ -286,18 +291,19 @@ const WithdrawRequestsScreen = ({ navigation }: any) => {
                 <OutlineButton
                   label="Reject"
                   onPress={() =>
-                    Alert.alert(
-                      "Reject request",
-                      "Reject this withdrawal request?",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Reject",
-                          style: "destructive",
-                          onPress: () => handleReview(item.id, "reject"),
-                        },
-                      ],
-                    )
+                    setModal({
+                      visible: true,
+                      type: "warning",
+                      title: "Reject request",
+                      message: "Reject this withdrawal request?",
+                      primaryLabel: "Reject",
+                      onPrimary: () => {
+                        closeModal();
+                        handleReview(item.id, "reject");
+                      },
+                      secondaryLabel: "Cancel",
+                      onSecondary: closeModal,
+                    })
                   }
                 />
               </View>
