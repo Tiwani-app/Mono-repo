@@ -99,6 +99,15 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   const [breakdownMetric, setBreakdownMetric] = useState<
     "charged" | "collected" | "outstanding" | null
   >(null);
+  const [breakdownType, setBreakdownType] = useState<LedgerType | null>(null);
+  const openBreakdown = (metric: "charged" | "collected" | "outstanding") => {
+    setBreakdownType(null);
+    setBreakdownMetric(metric);
+  };
+  const closeBreakdown = () => {
+    setBreakdownType(null);
+    setBreakdownMetric(null);
+  };
 
 
   const handleDeletePeriod = (period: DuesPeriod) => {
@@ -212,6 +221,45 @@ const FinanceAdminScreen = ({ navigation }: any) => {
       : breakdownMetric === "collected"
         ? totalCollected
         : outstanding;
+  const metricTitle =
+    breakdownMetric === "charged"
+      ? "Charged"
+      : breakdownMetric === "collected"
+        ? "Collected"
+        : "Outstanding";
+  const selectedTypeRow = typeBreakdown.find(
+    (row) => row.type === breakdownType,
+  );
+  const memberNameByUid = new Map(
+    members.map((member) => [member.uid, member.fullName]),
+  );
+  const resolveMemberName = (uid: string) =>
+    memberNameByUid.get(uid) ?? `Archived · ${shortUid(uid)}`;
+  const personBreakdown =
+    breakdownMetric && breakdownType
+      ? Array.from(
+          ledgerEntries
+            .filter((entry) => entry.type === breakdownType)
+            .reduce((totals, entry) => {
+              const amount =
+                breakdownMetric === "charged"
+                  ? entry.amount
+                  : breakdownMetric === "collected"
+                    ? getChargeAmountPaid(entry)
+                    : getChargeOutstanding(entry);
+              totals.set(entry.uid, (totals.get(entry.uid) ?? 0) + amount);
+              return totals;
+            }, new Map<string, number>())
+            .entries(),
+        )
+          .filter(([, amount]) => amount > 0)
+          .map(([uid, amount]) => ({ uid, amount }))
+          .sort((left, right) => right.amount - left.amount)
+      : [];
+  const breakdownDisplayTotal =
+    breakdownType && breakdownMetric && selectedTypeRow
+      ? selectedTypeRow[breakdownMetric]
+      : breakdownTotal;
   const activeMemberIds = new Set(members.map((member) => member.uid));
   const archivedBalances = ledgerEntries
     .filter(
@@ -282,39 +330,91 @@ const FinanceAdminScreen = ({ navigation }: any) => {
         visible={breakdownMetric !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setBreakdownMetric(null)}
+        onRequestClose={closeBreakdown}
       >
         <View style={styles.breakdownBackdrop}>
           <View style={styles.breakdownSheet}>
             <View style={styles.breakdownHeader}>
-              <Text style={styles.breakdownTitle}>
-                {breakdownMetric === "charged"
-                  ? "Charged"
-                  : breakdownMetric === "collected"
-                    ? "Collected"
-                    : "Outstanding"}{" "}
-                by charge type
+              {breakdownType && (
+                <TouchableOpacity
+                  style={styles.breakdownBack}
+                  onPress={() => setBreakdownType(null)}
+                  activeOpacity={0.8}
+                >
+                  <Icon
+                    name="arrow-left"
+                    size={20}
+                    color={colors.gold.default}
+                  />
+                </TouchableOpacity>
+              )}
+              <Text style={styles.breakdownTitle} numberOfLines={1}>
+                {metricTitle}
+                {breakdownType
+                  ? ` · ${selectedTypeRow?.label ?? ""}`
+                  : " by charge type"}
               </Text>
               <TouchableOpacity
                 style={styles.breakdownClose}
-                onPress={() => setBreakdownMetric(null)}
+                onPress={closeBreakdown}
                 activeOpacity={0.8}
               >
                 <Icon name="x" size={20} color={colors.text.secondary} />
               </TouchableOpacity>
             </View>
-            {typeBreakdown.map((row) => (
-              <View key={row.type} style={styles.breakdownRow}>
-                <Text style={styles.breakdownRowLabel}>{row.label}</Text>
-                <Text style={styles.breakdownRowValue}>
-                  {formatCurrency(breakdownMetric ? row[breakdownMetric] : 0)}
-                </Text>
-              </View>
-            ))}
+            <ScrollView
+              style={styles.breakdownScroll}
+              contentContainerStyle={styles.breakdownScrollContent}
+            >
+              {breakdownType ? (
+                personBreakdown.length > 0 ? (
+                  personBreakdown.map((row) => (
+                    <View key={row.uid} style={styles.breakdownRow}>
+                      <Text
+                        style={styles.breakdownRowLabel}
+                        numberOfLines={1}
+                      >
+                        {resolveMemberName(row.uid)}
+                      </Text>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(row.amount)}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.recentEmpty}>
+                    No members for this charge type.
+                  </Text>
+                )
+              ) : (
+                typeBreakdown.map((row) => (
+                  <TouchableOpacity
+                    key={row.type}
+                    style={styles.breakdownRow}
+                    activeOpacity={0.8}
+                    onPress={() => setBreakdownType(row.type)}
+                  >
+                    <Text style={styles.breakdownRowLabel}>{row.label}</Text>
+                    <View style={styles.breakdownRowRight}>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(
+                          breakdownMetric ? row[breakdownMetric] : 0,
+                        )}
+                      </Text>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        color={colors.text.tertiary}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
             <View style={styles.breakdownTotalRow}>
               <Text style={styles.breakdownTotalLabel}>Total</Text>
               <Text style={styles.breakdownTotalValue}>
-                {formatCurrency(breakdownTotal)}
+                {formatCurrency(breakdownDisplayTotal)}
               </Text>
             </View>
           </View>
@@ -338,7 +438,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
               <TouchableOpacity
                 style={styles.heroMain}
                 activeOpacity={0.85}
-                onPress={() => setBreakdownMetric("outstanding")}
+                onPress={() => openBreakdown("outstanding")}
               >
                 <Text style={styles.heroLabel}>Outstanding balance</Text>
                 <Text style={styles.heroValue}>
@@ -350,7 +450,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 <TouchableOpacity
                   style={styles.heroStat}
                   activeOpacity={0.85}
-                  onPress={() => setBreakdownMetric("charged")}
+                  onPress={() => openBreakdown("charged")}
                 >
                   <Text style={styles.heroStatLabel}>Charged</Text>
                   <Text style={styles.heroStatValue}>
@@ -361,7 +461,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 <TouchableOpacity
                   style={styles.heroStat}
                   activeOpacity={0.85}
-                  onPress={() => setBreakdownMetric("collected")}
+                  onPress={() => openBreakdown("collected")}
                 >
                   <Text style={styles.heroStatLabel}>Collected</Text>
                   <Text style={styles.heroStatValue}>
@@ -632,6 +732,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.bg.card,
   },
+  breakdownBack: {
+    width: 36,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breakdownScroll: { maxHeight: 400 },
+  breakdownScrollContent: { gap: spacing.xs },
+  breakdownRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   breakdownRow: {
     minHeight: 44,
     flexDirection: "row",
@@ -642,6 +755,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.card,
   },
   breakdownRowLabel: {
+    flex: 1,
+    marginRight: spacing.md,
     fontSize: typography.size.base,
     color: colors.text.primary,
   },
