@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   FlatList,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +13,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import DuesPeriodCard from "../../components/finance/DuesPeriodCard";
 import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
+import LedgerRow from "../../components/finance/LedgerRow";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import ContributionsAdminPanel from "./ContributionsAdminPanel";
@@ -34,7 +37,11 @@ import {
   getFinanceStandingColor,
 } from "../../utils/financeStanding";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { getChargeOutstanding, getFinanceTotals } from "../../utils/financeTotals";
+import {
+  getChargeAmountPaid,
+  getChargeOutstanding,
+  getFinanceTotals,
+} from "../../utils/financeTotals";
 import { getInitials } from "../../utils/getInitials";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -44,17 +51,6 @@ type ArchivedBalance = {
   outstanding: number;
   uid: string;
 };
-
-const SummaryTile = ({ label, value }: any) => {
-  const colors = useThemeColors();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.summaryTile}>
-    <Text style={styles.summaryValue}>{value}</Text>
-    <Text style={styles.summaryLabel}>{label}</Text>
-  </View>
-  );
-}
 
 const shortUid = (uid: string) =>
   uid.length > 8 ? `${uid.slice(0, 4)}...${uid.slice(-4)}` : uid;
@@ -92,37 +88,64 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   const [memberSearch, setMemberSearch] = useState("");
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
   const [domain, setDomain] = useState<FinanceDomain>("dues");
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
+  const [breakdownMetric, setBreakdownMetric] = useState<
+    "charged" | "collected" | "outstanding" | null
+  >(null);
+  const [breakdownType, setBreakdownType] = useState<LedgerType | null>(null);
+  const openBreakdown = (metric: "charged" | "collected" | "outstanding") => {
+    setBreakdownType(null);
+    setBreakdownMetric(metric);
+  };
+  const closeBreakdown = () => {
+    setBreakdownType(null);
+    setBreakdownMetric(null);
+  };
 
 
   const handleDeletePeriod = (period: DuesPeriod) => {
     if (deletingPeriodId) {
       return;
     }
-    Alert.alert(
-      "Delete Dues Period",
-      `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeletingPeriodId(period.id);
-              await deleteDuesPeriod(period.id);
-            } catch (error) {
-              Alert.alert(
-                "Dues period not deleted",
-                error instanceof Error ? error.message : "Please try again.",
-              );
-            } finally {
-              setDeletingPeriodId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Delete Dues Period",
+      message: `Delete "${period.name}" and its unpaid charges for all members? This cannot be undone.`,
+      primaryLabel: "Delete",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setDeletingPeriodId(period.id);
+          await deleteDuesPeriod(period.id);
+        } catch (error) {
+          setModal({ visible: true, type: "error", title: "Dues period not deleted", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setDeletingPeriodId(null);
+        }
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
   };
+
+  const myLedgerButton = (
+    <OutlineButton
+      label="My Ledger"
+      size="sm"
+      onPress={() => navigation.navigate("MyLedger")}
+    />
+  );
 
   useEffect(() => {
     if (user && !admin) {
@@ -141,7 +164,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   if (domain === "dues" && (financeError || membersError)) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Finance" />
+        <ScreenHeader title="Finance" rightElement={myLedgerButton} />
         <View style={styles.tabsWrap}>
           <FinanceDomainTabs value={domain} onChange={setDomain} />
         </View>
@@ -157,7 +180,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   if (domain === "contributions") {
     return (
       <SafeAreaView style={styles.safe}>
-        <ScreenHeader title="Finance" />
+        <ScreenHeader title="Finance" rightElement={myLedgerButton} />
         <View style={styles.tabsWrap}>
           <FinanceDomainTabs value={domain} onChange={setDomain} />
         </View>
@@ -172,6 +195,74 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     totalCharged,
     totalPaid: totalCollected,
   } = getFinanceTotals(ledgerEntries);
+  const typeBreakdown = chargeButtons.map(({ label, value }) => {
+    const typeCharges = ledgerEntries.filter((entry) => entry.type === value);
+    return {
+      type: value,
+      label,
+      charged: typeCharges.reduce((sum, entry) => sum + entry.amount, 0),
+      collected: typeCharges.reduce(
+        (sum, entry) => sum + getChargeAmountPaid(entry),
+        0,
+      ),
+      outstanding: typeCharges.reduce(
+        (sum, entry) => sum + getChargeOutstanding(entry),
+        0,
+      ),
+    };
+  });
+  const recentTransactions = [...ledgerEntries]
+    .sort(
+      (left, right) =>
+        ((right.paidAt ?? right.dueDate)?.getTime() ?? 0) -
+        ((left.paidAt ?? left.dueDate)?.getTime() ?? 0),
+    )
+    .slice(0, 4);
+  const breakdownTotal =
+    breakdownMetric === "charged"
+      ? totalCharged
+      : breakdownMetric === "collected"
+        ? totalCollected
+        : outstanding;
+  const metricTitle =
+    breakdownMetric === "charged"
+      ? "Charged"
+      : breakdownMetric === "collected"
+        ? "Collected"
+        : "Outstanding";
+  const selectedTypeRow = typeBreakdown.find(
+    (row) => row.type === breakdownType,
+  );
+  const memberNameByUid = new Map(
+    members.map((member) => [member.uid, member.fullName]),
+  );
+  const resolveMemberName = (uid: string) =>
+    memberNameByUid.get(uid) ?? `Archived · ${shortUid(uid)}`;
+  const personBreakdown =
+    breakdownMetric && breakdownType
+      ? Array.from(
+          ledgerEntries
+            .filter((entry) => entry.type === breakdownType)
+            .reduce((totals, entry) => {
+              const amount =
+                breakdownMetric === "charged"
+                  ? entry.amount
+                  : breakdownMetric === "collected"
+                    ? getChargeAmountPaid(entry)
+                    : getChargeOutstanding(entry);
+              totals.set(entry.uid, (totals.get(entry.uid) ?? 0) + amount);
+              return totals;
+            }, new Map<string, number>())
+            .entries(),
+        )
+          .filter(([, amount]) => amount > 0)
+          .map(([uid, amount]) => ({ uid, amount }))
+          .sort((left, right) => right.amount - left.amount)
+      : [];
+  const breakdownDisplayTotal =
+    breakdownType && breakdownMetric && selectedTypeRow
+      ? selectedTypeRow[breakdownMetric]
+      : breakdownTotal;
   const activeMemberIds = new Set(members.map((member) => member.uid));
   const archivedBalances = ledgerEntries
     .filter(
@@ -226,7 +317,113 @@ const FinanceAdminScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Finance" />
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
+      <Modal
+        visible={breakdownMetric !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeBreakdown}
+      >
+        <View style={styles.breakdownBackdrop}>
+          <View style={styles.breakdownSheet}>
+            <View style={styles.breakdownHeader}>
+              {breakdownType && (
+                <TouchableOpacity
+                  style={styles.breakdownBack}
+                  onPress={() => setBreakdownType(null)}
+                  activeOpacity={0.8}
+                >
+                  <Icon
+                    name="arrow-left"
+                    size={20}
+                    color={colors.gold.default}
+                  />
+                </TouchableOpacity>
+              )}
+              <Text style={styles.breakdownTitle} numberOfLines={1}>
+                {metricTitle}
+                {breakdownType
+                  ? ` · ${selectedTypeRow?.label ?? ""}`
+                  : " by charge type"}
+              </Text>
+              <TouchableOpacity
+                style={styles.breakdownClose}
+                onPress={closeBreakdown}
+                activeOpacity={0.8}
+              >
+                <Icon name="x" size={20} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.breakdownScroll}
+              contentContainerStyle={styles.breakdownScrollContent}
+            >
+              {breakdownType ? (
+                personBreakdown.length > 0 ? (
+                  personBreakdown.map((row) => (
+                    <View key={row.uid} style={styles.breakdownRow}>
+                      <Text
+                        style={styles.breakdownRowLabel}
+                        numberOfLines={1}
+                      >
+                        {resolveMemberName(row.uid)}
+                      </Text>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(row.amount)}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.recentEmpty}>
+                    No members for this charge type.
+                  </Text>
+                )
+              ) : (
+                typeBreakdown.map((row) => (
+                  <TouchableOpacity
+                    key={row.type}
+                    style={styles.breakdownRow}
+                    activeOpacity={0.8}
+                    onPress={() => setBreakdownType(row.type)}
+                  >
+                    <Text style={styles.breakdownRowLabel}>{row.label}</Text>
+                    <View style={styles.breakdownRowRight}>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(
+                          breakdownMetric ? row[breakdownMetric] : 0,
+                        )}
+                      </Text>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        color={colors.text.tertiary}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+            <View style={styles.breakdownTotalRow}>
+              <Text style={styles.breakdownTotalLabel}>Total</Text>
+              <Text style={styles.breakdownTotalValue}>
+                {formatCurrency(breakdownDisplayTotal)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <ScreenHeader title="Finance" rightElement={myLedgerButton} />
       <View style={styles.tabsWrap}>
         <FinanceDomainTabs value={domain} onChange={setDomain} />
       </View>
@@ -240,19 +437,44 @@ const FinanceAdminScreen = ({ navigation }: any) => {
         ListHeaderComponent={
           <>
             <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
-            <View style={styles.summaryRow}>
-              <SummaryTile
-                label="Charged"
-                value={formatCurrency(totalCharged)}
-              />
-              <SummaryTile
-                label="Collected"
-                value={formatCurrency(totalCollected)}
-              />
-              <SummaryTile
-                label="Outstanding"
-                value={formatCurrency(outstanding)}
-              />
+            <View style={styles.heroCard}>
+              <TouchableOpacity
+                style={styles.heroMain}
+                activeOpacity={0.85}
+                onPress={() => openBreakdown("outstanding")}
+              >
+                <Text style={styles.heroLabel}>Outstanding balance</Text>
+                <Text style={styles.heroValue}>
+                  {formatCurrency(outstanding)}
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.heroDivider} />
+              <View style={styles.heroSplitRow}>
+                <TouchableOpacity
+                  style={styles.heroStat}
+                  activeOpacity={0.85}
+                  onPress={() => openBreakdown("charged")}
+                >
+                  <Text style={styles.heroStatLabel}>Charged</Text>
+                  <Text style={styles.heroStatValue}>
+                    {formatCurrency(totalCharged)}
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.heroStatDivider} />
+                <TouchableOpacity
+                  style={styles.heroStat}
+                  activeOpacity={0.85}
+                  onPress={() => openBreakdown("collected")}
+                >
+                  <Text style={styles.heroStatLabel}>Collected</Text>
+                  <Text style={styles.heroStatValue}>
+                    {formatCurrency(totalCollected)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.heroHint}>
+                Tap any figure for a breakdown by charge type
+              </Text>
             </View>
             <View style={styles.actionGrid}>
               <GoldButton
@@ -281,22 +503,26 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={styles.sectionLabel}>ALL CHARGES LEDGER</Text>
-            <TouchableOpacity
-              activeOpacity={0.84}
-              onPress={() => navigation.navigate("ChargeLedger")}
-              style={styles.chargeLedgerButton}
-            >
-              <View style={styles.chargeLedgerCopy}>
-                <Text style={styles.chargeLedgerTitle}>All Charges Ledger</Text>
-                <Text style={styles.chargeLedgerMeta}>
-                  Monthly totals, all-time totals, payments, and outstanding charges.
-                </Text>
+            <View style={styles.recentHeader}>
+              <Text style={[styles.sectionLabel, { marginTop: 0 }]}>
+                RECENT TRANSACTIONS
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate("ChargeLedger")}
+              >
+                <Text style={styles.viewAllLink}>View all</Text>
+              </TouchableOpacity>
+            </View>
+            {recentTransactions.length > 0 ? (
+              <View style={styles.recentList}>
+                {recentTransactions.map((entry) => (
+                  <LedgerRow key={entry.id} entry={entry} />
+                ))}
               </View>
-              <View style={styles.chargeLedgerBadge}>
-                <Badge label="OPEN" color={colors.gold.default} />
-              </View>
-            </TouchableOpacity>
+            ) : (
+              <Text style={styles.recentEmpty}>No transactions yet.</Text>
+            )}
             <Text style={[styles.sectionLabel, { marginBottom: spacing.sm }]}>
               DUES PERIODS
             </Text>
@@ -419,20 +645,149 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },
-  summaryRow: { flexDirection: "row", gap: spacing.sm },
-  summaryTile: {
+  heroCard: {
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: 16,
+    backgroundColor: colors.gold.default,
+    gap: spacing.md,
+  },
+  heroMain: { gap: spacing.xs },
+  heroLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: "rgba(5,12,7,0.7)",
+    letterSpacing: 0.3,
+  },
+  heroValue: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: typography.weight.black,
+    color: colors.text.onGold,
+  },
+  heroDivider: { height: 1, backgroundColor: "rgba(5,12,7,0.15)" },
+  heroSplitRow: { flexDirection: "row", alignItems: "center" },
+  heroStat: { flex: 1, gap: spacing.xs },
+  heroStatDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "rgba(5,12,7,0.15)",
+    marginHorizontal: spacing.md,
+  },
+  heroStatLabel: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: "rgba(5,12,7,0.7)",
+  },
+  heroStatValue: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.onGold,
+  },
+  heroHint: { fontSize: typography.size.xs, color: "rgba(5,12,7,0.6)" },
+  recentHeader: {
+    marginTop: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  viewAllLink: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.gold.light,
+  },
+  recentList: { marginTop: spacing.sm, gap: spacing.sm },
+  recentEmpty: {
+    marginTop: spacing.sm,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  breakdownBackdrop: {
     flex: 1,
-    minHeight: 78,
-    padding: spacing.md,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  breakdownSheet: {
+    gap: spacing.xs,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: colors.bg.secondary,
+  },
+  breakdownHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  breakdownTitle: {
+    flex: 1,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  breakdownClose: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: colors.bg.card,
+  },
+  breakdownBack: {
+    width: 36,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breakdownScroll: { maxHeight: 400 },
+  breakdownScrollContent: { gap: spacing.xs },
+  breakdownRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  breakdownRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
-  summaryValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.black,
+  breakdownRowLabel: {
+    flex: 1,
+    marginRight: spacing.md,
+    fontSize: typography.size.base,
     color: colors.text.primary,
   },
-  summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
+  breakdownRowValue: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  breakdownTotalRow: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+  breakdownTotalLabel: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+  },
+  breakdownTotalValue: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.black,
+    color: colors.gold.light,
+  },
   actionGrid: { marginTop: spacing.lg, gap: spacing.sm },
   chargeGrid: {
     marginTop: spacing.sm,
@@ -492,35 +847,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.text.primary,
   },
   memberMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
-  chargeLedgerButton: {
-    minHeight: 96,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gold.default,
-    backgroundColor: colors.bg.card,
-  },
-  chargeLedgerCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  chargeLedgerBadge: {
-    flexShrink: 0,
-  },
-  chargeLedgerTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.black,
-    color: colors.text.primary,
-  },
-  chargeLedgerMeta: {
-    marginTop: spacing.xs,
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-  },
   archivedSection: { gap: spacing.md },
   archivedHeader: {
     flexDirection: "row",

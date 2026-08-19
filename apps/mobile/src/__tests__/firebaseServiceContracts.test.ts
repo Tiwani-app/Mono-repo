@@ -52,6 +52,7 @@ jest.mock("../config/firebase", () => ({
   firebaseFirestoreModule: () => ({
     FieldValue: { increment: (value: number) => ({ increment: value }) },
   }),
+  firestoreDocumentId: jest.fn(),
   firebaseFunctions: jest.fn(),
   firebaseMessaging: jest.fn(),
   firebaseMessagingModule: jest.fn(),

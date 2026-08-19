@@ -170,10 +170,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       const photoURL = await uploadVotingImage(picked);
       setValue(`candidates.${index}.photoURL`, photoURL, { shouldDirty: true });
     } catch (error) {
-      Alert.alert(
-        "Photo not uploaded",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Photo not uploaded", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setUploadingPhotoIndex(null);
     }

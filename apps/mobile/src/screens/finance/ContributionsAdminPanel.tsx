@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +12,8 @@ import {
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
@@ -27,17 +30,6 @@ import {
 } from "../../utils/contributionTotals";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { getInitials } from "../../utils/getInitials";
-
-const SummaryTile = ({ label, value }: { label: string; value: string }) => {
-  const colors = useThemeColors();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.summaryTile}>
-    <Text style={styles.summaryValue}>{value}</Text>
-    <Text style={styles.summaryLabel}>{label}</Text>
-  </View>
-  );
-}
 
 interface Props {
   navigation: any;
@@ -62,6 +54,21 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
   });
   const [memberSearch, setMemberSearch] = useState("");
   const [closingPoolId, setClosingPoolId] = useState<string | null>(null);
+  const [breakdownMetric, setBreakdownMetric] = useState<
+    "contributed" | "withdrawn" | "available" | null
+  >(null);
+  const closeBreakdown = () => setBreakdownMetric(null);
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: FeedbackModalType;
+    title: string;
+    message: string;
+    primaryLabel?: string;
+    onPrimary: () => void;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
+  } | null>(null);
+  const closeModal = () => setModal(null);
 
   const pendingRequests = useMemo(
     () =>
@@ -78,32 +85,26 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
     if (closingPoolId) {
       return;
     }
-    Alert.alert(
-      "Close contribution pool",
-      `Close "${pool.name}"? Members will no longer be able to contribute or request withdrawals.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Close",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setClosingPoolId(pool.id);
-              await closeContributionPool(pool.id);
-            } catch (closeError) {
-              Alert.alert(
-                "Pool not closed",
-                closeError instanceof Error
-                  ? closeError.message
-                  : "Please try again.",
-              );
-            } finally {
-              setClosingPoolId(null);
-            }
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: "warning",
+      title: "Close contribution pool",
+      message: `Close "${pool.name}"? Members will no longer be able to contribute or request withdrawals.`,
+      primaryLabel: "Close",
+      onPrimary: async () => {
+        closeModal();
+        try {
+          setClosingPoolId(pool.id);
+          await closeContributionPool(pool.id);
+        } catch (closeError) {
+          setModal({ visible: true, type: "error", title: "Pool not closed", message: closeError instanceof Error ? closeError.message : "Please try again.", onPrimary: closeModal });
+        } finally {
+          setClosingPoolId(null);
+        }
+      },
+      secondaryLabel: "Cancel",
+      onSecondary: closeModal,
+    });
   };
 
   if (loading || membersLoading) {
@@ -129,7 +130,55 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       )
     : members;
 
-  return (
+  const metricTitle =
+    breakdownMetric === "contributed"
+      ? "Contributed"
+      : breakdownMetric === "withdrawn"
+        ? "Withdrawn"
+        : "Pool balance";
+  const memberNameByUid = new Map(
+    members.map((member) => [member.uid, member.fullName]),
+  );
+  const resolveMemberName = (uid: string) =>
+    memberNameByUid.get(uid) ?? `Former member · ${uid.slice(0, 4)}`;
+  const personBreakdown = breakdownMetric
+    ? Array.from(
+        entries
+          .reduce((totalsByUid, entry) => {
+            const current = totalsByUid.get(entry.uid) ?? {
+              contributed: 0,
+              withdrawn: 0,
+            };
+            if (entry.type === "contribution") {
+              current.contributed += entry.amount;
+            } else if (entry.type === "payout") {
+              current.withdrawn += entry.amount;
+            }
+            totalsByUid.set(entry.uid, current);
+            return totalsByUid;
+          }, new Map<string, { contributed: number; withdrawn: number }>())
+          .entries(),
+      )
+        .map(([uid, memberTotals]) => ({
+          uid,
+          amount:
+            breakdownMetric === "contributed"
+              ? memberTotals.contributed
+              : breakdownMetric === "withdrawn"
+                ? memberTotals.withdrawn
+                : memberTotals.contributed - memberTotals.withdrawn,
+        }))
+        .filter((row) => row.amount > 0)
+        .sort((left, right) => right.amount - left.amount)
+    : [];
+  const breakdownTotal =
+    breakdownMetric === "contributed"
+      ? totals.totalContributed
+      : breakdownMetric === "withdrawn"
+        ? totals.totalWithdrawn
+        : totals.available;
+
+  const list = (
     <FlatList
       data={filteredMembers}
       keyExtractor={(item) => item.uid}
@@ -140,19 +189,44 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       ListHeaderComponent={
         <>
           <SyncStatusBanner state={syncState} lastSyncedAt={lastSyncedAt} />
-          <View style={styles.summaryRow}>
-            <SummaryTile
-              label="Contributed"
-              value={formatCurrency(totals.totalContributed)}
-            />
-            <SummaryTile
-              label="Withdrawn"
-              value={formatCurrency(totals.totalWithdrawn)}
-            />
-            <SummaryTile
-              label="Pool balance"
-              value={formatCurrency(totals.available)}
-            />
+          <View style={styles.heroCard}>
+            <TouchableOpacity
+              style={styles.heroMain}
+              activeOpacity={0.85}
+              onPress={() => setBreakdownMetric("available")}
+            >
+              <Text style={styles.heroLabel}>Pool balance</Text>
+              <Text style={styles.heroValue}>
+                {formatCurrency(totals.available)}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroSplitRow}>
+              <TouchableOpacity
+                style={styles.heroStat}
+                activeOpacity={0.85}
+                onPress={() => setBreakdownMetric("contributed")}
+              >
+                <Text style={styles.heroStatLabel}>Contributed</Text>
+                <Text style={styles.heroStatValue}>
+                  {formatCurrency(totals.totalContributed)}
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.heroStatDivider} />
+              <TouchableOpacity
+                style={styles.heroStat}
+                activeOpacity={0.85}
+                onPress={() => setBreakdownMetric("withdrawn")}
+              >
+                <Text style={styles.heroStatLabel}>Withdrawn</Text>
+                <Text style={styles.heroStatValue}>
+                  {formatCurrency(totals.totalWithdrawn)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.heroHint}>
+              Tap any figure for a breakdown by member
+            </Text>
           </View>
           <View style={styles.actionGrid}>
             <GoldButton
@@ -275,24 +349,199 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       }
     />
   );
-}
+
+  return (
+    <>
+      {modal && (
+        <FeedbackModal
+          visible={modal.visible}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          primaryLabel={modal.primaryLabel}
+          onPrimary={modal.onPrimary}
+          secondaryLabel={modal.secondaryLabel}
+          onSecondary={modal.onSecondary}
+        />
+      )}
+      <Modal
+        visible={breakdownMetric !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeBreakdown}
+      >
+        <View style={styles.breakdownBackdrop}>
+          <View style={styles.breakdownSheet}>
+            <View style={styles.breakdownHeader}>
+              <Text style={styles.breakdownTitle} numberOfLines={1}>
+                {metricTitle} by member
+              </Text>
+              <TouchableOpacity
+                style={styles.breakdownClose}
+                onPress={closeBreakdown}
+                activeOpacity={0.8}
+              >
+                <Icon name="x" size={20} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.breakdownScroll}
+              contentContainerStyle={styles.breakdownScrollContent}
+            >
+              {personBreakdown.length > 0 ? (
+                personBreakdown.map((row) => (
+                  <View key={row.uid} style={styles.breakdownRow}>
+                    <Text style={styles.breakdownRowLabel} numberOfLines={1}>
+                      {resolveMemberName(row.uid)}
+                    </Text>
+                    <Text style={styles.breakdownRowValue}>
+                      {formatCurrency(row.amount)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.breakdownEmpty}>
+                  No members for this figure.
+                </Text>
+              )}
+            </ScrollView>
+            <View style={styles.breakdownTotalRow}>
+              <Text style={styles.breakdownTotalLabel}>Total</Text>
+              <Text style={styles.breakdownTotalValue}>
+                {formatCurrency(breakdownTotal)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {list}
+    </>
+  );
+};
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
-  summaryRow: { flexDirection: "row", gap: spacing.sm },
-  summaryTile: {
+  heroCard: {
+    marginTop: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: 16,
+    backgroundColor: colors.gold.default,
+    gap: spacing.md,
+  },
+  heroMain: { gap: spacing.xs },
+  heroLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: "rgba(5,12,7,0.7)",
+    letterSpacing: 0.3,
+  },
+  heroValue: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: typography.weight.black,
+    color: colors.text.onGold,
+  },
+  heroDivider: { height: 1, backgroundColor: "rgba(5,12,7,0.15)" },
+  heroSplitRow: { flexDirection: "row", alignItems: "center" },
+  heroStat: { flex: 1, gap: spacing.xs },
+  heroStatDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "rgba(5,12,7,0.15)",
+    marginHorizontal: spacing.md,
+  },
+  heroStatLabel: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: "rgba(5,12,7,0.7)",
+  },
+  heroStatValue: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.onGold,
+  },
+  heroHint: { fontSize: typography.size.xs, color: "rgba(5,12,7,0.6)" },
+  breakdownBackdrop: {
     flex: 1,
-    minHeight: 78,
-    padding: spacing.md,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  breakdownSheet: {
+    gap: spacing.xs,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: colors.bg.secondary,
+  },
+  breakdownHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  breakdownTitle: {
+    flex: 1,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  breakdownClose: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: colors.bg.card,
+  },
+  breakdownScroll: { maxHeight: 400 },
+  breakdownScrollContent: { gap: spacing.xs },
+  breakdownRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
-  summaryValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.black,
+  breakdownRowLabel: {
+    flex: 1,
+    marginRight: spacing.md,
+    fontSize: typography.size.base,
     color: colors.text.primary,
   },
-  summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
+  breakdownRowValue: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  breakdownTotalRow: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+  breakdownTotalLabel: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+  },
+  breakdownTotalValue: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.black,
+    color: colors.gold.light,
+  },
+  breakdownEmpty: {
+    paddingVertical: spacing.md,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    textAlign: "center",
+  },
   actionGrid: { marginTop: spacing.lg, gap: spacing.sm },
   requestsButton: {
     minHeight: 84,

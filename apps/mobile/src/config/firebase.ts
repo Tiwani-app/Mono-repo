@@ -51,7 +51,6 @@ interface NativeFirebaseAppRoot {
 interface NativeFirestoreFactory
   extends NativeFirebaseFactory<FirebaseFirestoreTypes.Module> {
   FieldValue: typeof FirebaseFirestoreTypes.FieldValue;
-  FieldPath: typeof FirebaseFirestoreTypes.FieldPath;
 }
 
 declare const require: (moduleName: string) => unknown;
@@ -104,6 +103,14 @@ const loadNativeFactory = <T>(
   moduleName: NativeFirebaseModuleName,
 ): NativeFirebaseFactory<T> =>
   loadNativeDefault<NativeFirebaseFactory<T>>(moduleName);
+
+const loadNativeModule = <T>(moduleName: NativeFirebaseModuleName): T => {
+  try {
+    return nativeFirebaseModules[moduleName]() as T;
+  } catch {
+    throw new Error(nativeFirebaseUnavailableMessage);
+  }
+};
 
 let firebaseEmulatorsConfigured = false;
 let firebaseRuntimeServicesPromise: Promise<void> | null = null;
@@ -325,6 +332,13 @@ export const firebaseFirestoreModule = (): NativeFirestoreFactory =>
   loadNativeFactory<FirebaseFirestoreTypes.Module>(
     "@react-native-firebase/firestore",
   ) as NativeFirestoreFactory;
+
+// The namespaced FieldPath.documentId() static was removed in the modular
+// migration; documentId() is now a top-level modular export on the module.
+export const firestoreDocumentId = (): FirebaseFirestoreTypes.FieldPath =>
+  loadNativeModule<{
+    documentId: () => FirebaseFirestoreTypes.FieldPath;
+  }>("@react-native-firebase/firestore").documentId();
 
 export const firebaseFunctions = (): FirebaseFunctionsTypes.Module =>
   loadNativeFactory<FirebaseFunctionsTypes.Module>(

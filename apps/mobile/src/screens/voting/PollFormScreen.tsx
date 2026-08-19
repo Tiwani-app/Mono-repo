@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -127,10 +126,7 @@ const PollFormScreen = ({ navigation, route }: any) => {
       const imageURL = await uploadVotingImage(picked);
       setValue(`options.${index}.imageURL`, imageURL, { shouldDirty: true });
     } catch (error) {
-      Alert.alert(
-        "Image not uploaded",
-        error instanceof Error ? error.message : "Please try again.",
-      );
+      setModal({ visible: true, type: "error", title: "Image not uploaded", message: error instanceof Error ? error.message : "Please try again.", onPrimary: closeModal });
     } finally {
       setUploadingImageIndex(null);
     }

@@ -4,7 +4,7 @@ import {
   EventStatus,
   TiwaniEvent,
 } from "../types/event";
-import { firebaseFirestoreModule } from "../config/firebase";
+import { firestoreDocumentId } from "../config/firebase";
 import { DataSyncSnapshotMeta } from "../types/sync";
 import { eventFromRecord } from "./converters/eventConverter";
 import { currentUid, firestore, getCurrentOrgId, startOrgSubscription } from "./firebaseHelpers";
@@ -83,7 +83,7 @@ export const getEventAttendees = async (
   // the rules engine can prove list queries compliant; anyone the query
   // misses (e.g. no longer active) falls back to a tolerant per-doc read.
   const orgId = await getCurrentOrgId();
-  const documentId = firebaseFirestoreModule().FieldPath.documentId();
+  const documentId = firestoreDocumentId();
   const chunks: string[][] = [];
   for (let index = 0; index < event.rsvpList.length; index += 30) {
     chunks.push(event.rsvpList.slice(index, index + 30));
