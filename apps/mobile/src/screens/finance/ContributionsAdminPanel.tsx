@@ -29,6 +29,7 @@ import {
   getMemberContributionAvailable,
 } from "../../utils/contributionTotals";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
 
 interface Props {
@@ -54,7 +55,17 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
   const [breakdownMetric, setBreakdownMetric] = useState<
     "contributed" | "withdrawn" | "available" | null
   >(null);
-  const closeBreakdown = () => setBreakdownMetric(null);
+  const [breakdownUid, setBreakdownUid] = useState<string | null>(null);
+  const openBreakdown = (
+    metric: "contributed" | "withdrawn" | "available",
+  ) => {
+    setBreakdownUid(null);
+    setBreakdownMetric(metric);
+  };
+  const closeBreakdown = () => {
+    setBreakdownUid(null);
+    setBreakdownMetric(null);
+  };
   const [modal, setModal] = useState<{
     visible: boolean;
     type: FeedbackModalType;
@@ -174,6 +185,37 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       : breakdownMetric === "withdrawn"
         ? totals.totalWithdrawn
         : totals.available;
+  const entryBreakdown =
+    breakdownMetric && breakdownUid
+      ? entries
+          .filter((entry) => {
+            if (entry.uid !== breakdownUid) {
+              return false;
+            }
+            if (breakdownMetric === "contributed") {
+              return entry.type === "contribution";
+            }
+            if (breakdownMetric === "withdrawn") {
+              return entry.type === "payout";
+            }
+            return true;
+          })
+          .map((entry) => ({
+            id: entry.id,
+            label: entry.label,
+            date: entry.paidAt ?? entry.createdAt,
+            kind: entry.type,
+            amount:
+              breakdownMetric === "available" && entry.type === "payout"
+                ? -entry.amount
+                : entry.amount,
+          }))
+          .sort((left, right) => Math.abs(right.amount) - Math.abs(left.amount))
+      : [];
+  const entryBreakdownTotal = entryBreakdown.reduce(
+    (sum, entry) => sum + entry.amount,
+    0,
+  );
 
   const list = (
     <FlatList
@@ -190,7 +232,7 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
             <TouchableOpacity
               style={styles.heroMain}
               activeOpacity={0.85}
-              onPress={() => setBreakdownMetric("available")}
+              onPress={() => openBreakdown("available")}
             >
               <Text style={styles.heroLabel}>Pool balance</Text>
               <Text style={styles.heroValue}>
@@ -202,7 +244,7 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
               <TouchableOpacity
                 style={styles.heroStat}
                 activeOpacity={0.85}
-                onPress={() => setBreakdownMetric("contributed")}
+                onPress={() => openBreakdown("contributed")}
               >
                 <Text style={styles.heroStatLabel}>Contributed</Text>
                 <Text style={styles.heroStatValue}>
@@ -213,7 +255,7 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
               <TouchableOpacity
                 style={styles.heroStat}
                 activeOpacity={0.85}
-                onPress={() => setBreakdownMetric("withdrawn")}
+                onPress={() => openBreakdown("withdrawn")}
               >
                 <Text style={styles.heroStatLabel}>Withdrawn</Text>
                 <Text style={styles.heroStatValue}>
@@ -370,8 +412,23 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
         <View style={styles.breakdownBackdrop}>
           <View style={styles.breakdownSheet}>
             <View style={styles.breakdownHeader}>
+              {breakdownUid && (
+                <TouchableOpacity
+                  style={styles.breakdownBack}
+                  onPress={() => setBreakdownUid(null)}
+                  activeOpacity={0.8}
+                >
+                  <Icon
+                    name="arrow-left"
+                    size={20}
+                    color={colors.gold.default}
+                  />
+                </TouchableOpacity>
+              )}
               <Text style={styles.breakdownTitle} numberOfLines={1}>
-                {metricTitle} by member
+                {breakdownUid
+                  ? `${resolveMemberName(breakdownUid)} · ${metricTitle}`
+                  : `${metricTitle} by member`}
               </Text>
               <TouchableOpacity
                 style={styles.breakdownClose}
@@ -385,16 +442,64 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
               style={styles.breakdownScroll}
               contentContainerStyle={styles.breakdownScrollContent}
             >
-              {personBreakdown.length > 0 ? (
+              {breakdownUid ? (
+                entryBreakdown.length > 0 ? (
+                  entryBreakdown.map((entry) => (
+                    <View key={entry.id} style={styles.breakdownRow}>
+                      <View style={styles.breakdownRowMain}>
+                        <Text
+                          style={styles.breakdownRowName}
+                          numberOfLines={1}
+                        >
+                          {entry.label?.trim()
+                            ? entry.label
+                            : entry.kind === "contribution"
+                              ? "Contribution"
+                              : "Withdrawal"}
+                        </Text>
+                        {entry.date && (
+                          <Text
+                            style={styles.breakdownRowSub}
+                            numberOfLines={1}
+                          >
+                            {formatDisplayDate(entry.date)}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(entry.amount)}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.breakdownEmpty}>
+                    No entries for this figure.
+                  </Text>
+                )
+              ) : personBreakdown.length > 0 ? (
                 personBreakdown.map((row) => (
-                  <View key={row.uid} style={styles.breakdownRow}>
-                    <Text style={styles.breakdownRowLabel} numberOfLines={1}>
-                      {resolveMemberName(row.uid)}
-                    </Text>
-                    <Text style={styles.breakdownRowValue}>
-                      {formatCurrency(row.amount)}
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    key={row.uid}
+                    style={styles.breakdownRow}
+                    activeOpacity={0.8}
+                    onPress={() => setBreakdownUid(row.uid)}
+                  >
+                    <View style={styles.breakdownRowMain}>
+                      <Text style={styles.breakdownRowName} numberOfLines={1}>
+                        {resolveMemberName(row.uid)}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownRowRight}>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(row.amount)}
+                      </Text>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        color={colors.text.tertiary}
+                      />
+                    </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <Text style={styles.breakdownEmpty}>
@@ -405,7 +510,9 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
             <View style={styles.breakdownTotalRow}>
               <Text style={styles.breakdownTotalLabel}>Total</Text>
               <Text style={styles.breakdownTotalValue}>
-                {formatCurrency(breakdownTotal)}
+                {formatCurrency(
+                  breakdownUid ? entryBreakdownTotal : breakdownTotal,
+                )}
               </Text>
             </View>
           </View>
@@ -491,6 +598,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.bg.card,
   },
+  breakdownBack: {
+    width: 36,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breakdownRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   breakdownScroll: { maxHeight: 400 },
   breakdownScrollContent: { gap: spacing.xs },
   breakdownRow: {
@@ -499,14 +617,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
-  breakdownRowLabel: {
-    flex: 1,
-    marginRight: spacing.md,
+  breakdownRowMain: { flex: 1, marginRight: spacing.md },
+  breakdownRowName: {
     fontSize: typography.size.base,
     color: colors.text.primary,
+  },
+  breakdownRowSub: {
+    marginTop: 2,
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
   },
   breakdownRowValue: {
     fontSize: typography.size.base,

@@ -42,6 +42,7 @@ import {
   getChargeOutstanding,
   getFinanceTotals,
 } from "../../utils/financeTotals";
+import { formatDisplayDate } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -100,11 +101,14 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     "charged" | "collected" | "outstanding" | null
   >(null);
   const [breakdownType, setBreakdownType] = useState<LedgerType | null>(null);
+  const [breakdownUid, setBreakdownUid] = useState<string | null>(null);
   const openBreakdown = (metric: "charged" | "collected" | "outstanding") => {
+    setBreakdownUid(null);
     setBreakdownType(null);
     setBreakdownMetric(metric);
   };
   const closeBreakdown = () => {
+    setBreakdownUid(null);
     setBreakdownType(null);
     setBreakdownMetric(null);
   };
@@ -260,6 +264,31 @@ const FinanceAdminScreen = ({ navigation }: any) => {
     breakdownType && breakdownMetric && selectedTypeRow
       ? selectedTypeRow[breakdownMetric]
       : breakdownTotal;
+  const chargeBreakdown =
+    breakdownMetric && breakdownType && breakdownUid
+      ? ledgerEntries
+          .filter(
+            (entry) =>
+              entry.type === breakdownType && entry.uid === breakdownUid,
+          )
+          .map((entry) => ({
+            id: entry.id,
+            label: entry.label,
+            dueDate: entry.dueDate,
+            amount:
+              breakdownMetric === "charged"
+                ? entry.amount
+                : breakdownMetric === "collected"
+                  ? getChargeAmountPaid(entry)
+                  : getChargeOutstanding(entry),
+          }))
+          .filter((charge) => charge.amount > 0)
+          .sort((left, right) => right.amount - left.amount)
+      : [];
+  const chargeBreakdownTotal = chargeBreakdown.reduce(
+    (sum, charge) => sum + charge.amount,
+    0,
+  );
   const activeMemberIds = new Set(members.map((member) => member.uid));
   const archivedBalances = ledgerEntries
     .filter(
@@ -338,7 +367,11 @@ const FinanceAdminScreen = ({ navigation }: any) => {
               {breakdownType && (
                 <TouchableOpacity
                   style={styles.breakdownBack}
-                  onPress={() => setBreakdownType(null)}
+                  onPress={() =>
+                    breakdownUid
+                      ? setBreakdownUid(null)
+                      : setBreakdownType(null)
+                  }
                   activeOpacity={0.8}
                 >
                   <Icon
@@ -349,10 +382,11 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               )}
               <Text style={styles.breakdownTitle} numberOfLines={1}>
-                {metricTitle}
-                {breakdownType
-                  ? ` · ${selectedTypeRow?.label ?? ""}`
-                  : " by charge type"}
+                {breakdownUid
+                  ? `${resolveMemberName(breakdownUid)} · ${selectedTypeRow?.label ?? ""}`
+                  : breakdownType
+                    ? `${metricTitle} · ${selectedTypeRow?.label ?? ""}`
+                    : `${metricTitle} by charge type`}
               </Text>
               <TouchableOpacity
                 style={styles.breakdownClose}
@@ -366,20 +400,60 @@ const FinanceAdminScreen = ({ navigation }: any) => {
               style={styles.breakdownScroll}
               contentContainerStyle={styles.breakdownScrollContent}
             >
-              {breakdownType ? (
+              {breakdownUid ? (
+                chargeBreakdown.length > 0 ? (
+                  chargeBreakdown.map((charge) => (
+                    <View key={charge.id} style={styles.breakdownRow}>
+                      <View style={styles.breakdownRowMain}>
+                        <Text
+                          style={styles.breakdownRowName}
+                          numberOfLines={1}
+                        >
+                          {charge.label}
+                        </Text>
+                        {charge.dueDate && (
+                          <Text
+                            style={styles.breakdownRowSub}
+                            numberOfLines={1}
+                          >
+                            Due {formatDisplayDate(charge.dueDate)}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.breakdownRowValue}>
+                        {formatCurrency(charge.amount)}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.recentEmpty}>No matching charges.</Text>
+                )
+              ) : breakdownType ? (
                 personBreakdown.length > 0 ? (
                   personBreakdown.map((row) => (
-                    <View key={row.uid} style={styles.breakdownRow}>
+                    <TouchableOpacity
+                      key={row.uid}
+                      style={styles.breakdownRow}
+                      activeOpacity={0.8}
+                      onPress={() => setBreakdownUid(row.uid)}
+                    >
                       <Text
                         style={styles.breakdownRowLabel}
                         numberOfLines={1}
                       >
                         {resolveMemberName(row.uid)}
                       </Text>
-                      <Text style={styles.breakdownRowValue}>
-                        {formatCurrency(row.amount)}
-                      </Text>
-                    </View>
+                      <View style={styles.breakdownRowRight}>
+                        <Text style={styles.breakdownRowValue}>
+                          {formatCurrency(row.amount)}
+                        </Text>
+                        <Icon
+                          name="chevron-right"
+                          size={16}
+                          color={colors.text.tertiary}
+                        />
+                      </View>
+                    </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.recentEmpty}>
@@ -414,7 +488,9 @@ const FinanceAdminScreen = ({ navigation }: any) => {
             <View style={styles.breakdownTotalRow}>
               <Text style={styles.breakdownTotalLabel}>Total</Text>
               <Text style={styles.breakdownTotalValue}>
-                {formatCurrency(breakdownDisplayTotal)}
+                {formatCurrency(
+                  breakdownUid ? chargeBreakdownTotal : breakdownDisplayTotal,
+                )}
               </Text>
             </View>
           </View>
@@ -751,6 +827,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 8,
     backgroundColor: colors.bg.card,
   },
@@ -759,6 +836,16 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
     fontSize: typography.size.base,
     color: colors.text.primary,
+  },
+  breakdownRowMain: { flex: 1, marginRight: spacing.md },
+  breakdownRowName: {
+    fontSize: typography.size.base,
+    color: colors.text.primary,
+  },
+  breakdownRowSub: {
+    marginTop: 2,
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
   },
   breakdownRowValue: {
     fontSize: typography.size.base,

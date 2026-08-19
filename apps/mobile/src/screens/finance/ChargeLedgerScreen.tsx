@@ -181,9 +181,20 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
       ),
     [monthOptions],
   );
-  const monthsForSelectedYear = monthOptions
-    .filter((month) => month.date.getFullYear() === selectedYear)
-    .sort((left, right) => left.date.getMonth() - right.date.getMonth());
+  const lowerBoundMonth = monthOptions[0]?.date ?? LEDGER_START_MONTH;
+  const upperBoundMonth =
+    monthOptions[monthOptions.length - 1]?.date ?? selectedMonth.date;
+  const monthWindow = [-1, 0, 1].map((offset) => {
+    const date = addMonths(selectedMonth.date, offset);
+    return {
+      date,
+      key: monthKey(date),
+      isSelected: offset === 0,
+      inRange:
+        date.getTime() >= lowerBoundMonth.getTime() &&
+        date.getTime() <= upperBoundMonth.getTime(),
+    };
+  });
 
   const selectYear = (year: number) => {
     setSelectedYear(year);
@@ -322,19 +333,26 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
                 })}
               </ScrollView>
               <View style={styles.monthGrid}>
-                {monthsForSelectedYear.map((month) => {
-                  const selected = month.key === selectedMonth.key;
+                {monthWindow.map((month) => {
+                  const disabled = !month.isSelected && !month.inRange;
                   return (
                     <TouchableOpacity
                       key={month.key}
                       activeOpacity={0.84}
-                      onPress={() => selectMonth(month)}
-                      style={[styles.monthChip, selected && styles.monthChipActive]}
+                      disabled={disabled}
+                      onPress={() =>
+                        selectMonth({ date: month.date, key: month.key })
+                      }
+                      style={[
+                        styles.monthChip,
+                        month.isSelected && styles.monthChipActive,
+                        disabled && styles.monthChipDisabled,
+                      ]}
                     >
                       <Text
                         style={[
                           styles.monthChipText,
-                          selected && styles.monthChipTextActive,
+                          month.isSelected && styles.monthChipTextActive,
                         ]}
                       >
                         {format(month.date, "MMM")}
@@ -342,7 +360,7 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
                       <Text
                         style={[
                           styles.monthChipMeta,
-                          selected && styles.monthChipMetaActive,
+                          month.isSelected && styles.monthChipMetaActive,
                         ]}
                       >
                         {format(month.date, "yyyy")}
@@ -559,6 +577,9 @@ const styles = StyleSheet.create({
   monthChipActive: {
     borderColor: colors.gold.default,
     backgroundColor: colors.gold.default,
+  },
+  monthChipDisabled: {
+    opacity: 0.4,
   },
   monthChipText: {
     fontSize: typography.size.sm,
