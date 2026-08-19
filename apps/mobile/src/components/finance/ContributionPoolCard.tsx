@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Badge from "../common/Badge";
 import Icon from "../common/FeatherIcon";
 import ProgressBar from "../common/ProgressBar";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { ContributionPool } from "../../types/contributions";
 import { formatCurrency } from "../../utils/formatCurrency";
 
@@ -14,6 +14,9 @@ interface Props {
 }
 
 const ContributionPoolCard = ({ onClose, onPress, pool }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const statusColor =
     pool.status === "closed" ? colors.text.secondary : colors.gold.default;
   const balance = Math.max(0, pool.totalContributed - pool.totalWithdrawn);
@@ -66,9 +69,9 @@ const ContributionPoolCard = ({ onClose, onPress, pool }: Props) => {
       <ProgressBar value={progress} color={statusColor} />
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.md,
     padding: spacing.lg,

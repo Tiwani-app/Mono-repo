@@ -8,7 +8,7 @@ import ScreenHeader from "../components/common/ScreenHeader";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { useMembers } from "../hooks/useMembers";
 import { useAuthStore } from "../store/authStore";
-import { colors, spacing, typography } from "../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../theme';
 import { AuditLog } from "../types/audit";
 import { User } from "../types/user";
 import { formatDisplayDate, formatEventTime } from "../utils/formatDate";
@@ -138,8 +138,11 @@ const AuditCard = ({
 }: {
   item: AuditLog;
   peopleByUid: Map<string, User>;
-}) => (
-  <View style={styles.card}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.card}>
     <View style={styles.cardHeader}>
       <View style={styles.titleBlock}>
         <Text style={styles.action}>{actionLabel(item.action)}</Text>
@@ -153,9 +156,13 @@ const AuditCard = ({
     <Text style={styles.actor}>Actor: {personLabel(item.actorUid, peopleByUid)}</Text>
     <Text style={styles.details}>{formatDetails(item.details, peopleByUid)}</Text>
   </View>
-);
+  );
+}
 
 const AuditLogsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { error, loading, logs } = useAuditLogs({ enabled: admin });
@@ -225,9 +232,9 @@ const AuditLogsScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   notice: {

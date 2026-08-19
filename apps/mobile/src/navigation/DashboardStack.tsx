@@ -16,13 +16,15 @@ import MemberProfileScreen from "../screens/members/MemberProfileScreen";
 import MembersListScreen from "../screens/members/MembersListScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
-import { colors } from "../theme";
+import { useThemeColors } from '../theme';
 import { DashboardStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<DashboardStackParamList>();
 
-const DashboardStack = () => (
-  <Stack.Navigator
+const DashboardStack = () => {
+  const colors = useThemeColors();
+  return (
+    <Stack.Navigator
     screenOptions={{
       headerShown: false,
       contentStyle: { backgroundColor: colors.bg.secondary },
@@ -51,6 +53,7 @@ const DashboardStack = () => (
     <Stack.Screen name="LibraryManage" component={LibraryManageScreen} />
     <Stack.Screen name="DocumentForm" component={DocumentFormScreen} />
   </Stack.Navigator>
-);
+  );
+};
 
 export default DashboardStack;

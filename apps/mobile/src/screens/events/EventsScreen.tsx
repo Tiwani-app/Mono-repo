@@ -17,7 +17,7 @@ import EventCard from "../../components/events/EventCard";
 import WeekStrip from "../../components/events/WeekStrip";
 import { useEvents } from "../../hooks/useEvents";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { TiwaniEvent } from "../../types/event";
 import {
   visiblePublishedEvents,
@@ -26,6 +26,9 @@ import {
 import { isAdmin } from "../../utils/roleGuard";
 
 const EventsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const { error, events, lastSyncedAt, loading, syncState } = useEvents();
   const { user } = useAuthStore();
@@ -116,9 +119,9 @@ const EventsScreen = ({ navigation }: any) => {
       </View>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { flex: 1, paddingHorizontal: spacing.lg, gap: spacing.lg },
   iconButton: {

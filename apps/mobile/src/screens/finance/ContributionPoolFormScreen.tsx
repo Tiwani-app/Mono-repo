@@ -19,7 +19,7 @@ import GoldButton from "../../components/common/GoldButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { createContributionPool } from "../../services/contributionsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
@@ -42,6 +42,9 @@ const parseDate = (value: string) => {
 };
 
 const ContributionPoolFormScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState<{
@@ -221,10 +224,13 @@ const ContributionPoolFormScreen = ({ navigation }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
-const Field = ({ control, error, keyboardType, label, name, rules }: any) => (
-  <View style={styles.field}>
+const Field = ({ control, error, keyboardType, label, name, rules }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -243,9 +249,10 @@ const Field = ({ control, error, keyboardType, label, name, rules }: any) => (
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

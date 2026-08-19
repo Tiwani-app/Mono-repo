@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Badge from "../common/Badge";
 import Icon from "../common/FeatherIcon";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   LIBRARY_TYPE_LABELS,
   LibraryDocument,
@@ -25,7 +25,7 @@ const formatFileSize = (size: number | null) => {
   return `${(size / 1000000).toFixed(1)} MB`;
 };
 
-const statusColor = (status: LibraryDocument["status"]) => {
+const statusColor = (status: LibraryDocument["status"], colors: AppColors) => {
   if (status === "published") {
     return colors.status.success;
   }
@@ -36,6 +36,9 @@ const statusColor = (status: LibraryDocument["status"]) => {
 };
 
 const DocumentCard = ({ document, onPress, showStatus }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const date = document.documentDate ?? document.uploadedAt;
 
   return (
@@ -53,7 +56,7 @@ const DocumentCard = ({ document, onPress, showStatus }: Props) => {
           {showStatus && (
             <Badge
               label={document.status.toUpperCase()}
-              color={statusColor(document.status)}
+              color={statusColor(document.status, colors)}
             />
           )}
         </View>
@@ -68,9 +71,9 @@ const DocumentCard = ({ document, onPress, showStatus }: Props) => {
       </View>
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     gap: spacing.md,

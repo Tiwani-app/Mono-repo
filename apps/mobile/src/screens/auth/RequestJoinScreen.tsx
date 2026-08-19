@@ -22,7 +22,7 @@ import {
   CountryCallingCode,
 } from '../../constants/countryCallingCodes';
 import { createJoinRequest } from '../../services/membersService';
-import { colors, spacing, typography } from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { emailRules } from '../../utils/validators';
 import { safeGoBack } from '../../utils/navigation';
 
@@ -35,6 +35,9 @@ interface FormValues {
 }
 
 const RequestJoinScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -161,7 +164,7 @@ const RequestJoinScreen = ({ navigation }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const CountryCodeField = ({
   control,
@@ -174,6 +177,9 @@ const CountryCodeField = ({
   name: string;
   rules: any;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const filteredCountries = useMemo(() => {
@@ -303,7 +309,7 @@ const CountryCodeField = ({
       {error && <Text style={styles.errorText}>{error}</Text>}
     </>
   );
-};
+}
 
 const Field = ({
   control,
@@ -313,8 +319,11 @@ const Field = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -339,9 +348,10 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

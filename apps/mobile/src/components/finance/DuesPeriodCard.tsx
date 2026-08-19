@@ -3,7 +3,7 @@ import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Badge from '../common/Badge';
 import Icon from '../common/FeatherIcon';
 import ProgressBar from '../common/ProgressBar';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {DuesPeriod} from '../../types/finance';
 import {formatCurrency} from '../../utils/formatCurrency';
 
@@ -14,6 +14,9 @@ interface Props {
 }
 
 const DuesPeriodCard = ({onDelete, onPress, period}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const statusColor =
     period.status === 'settled'
       ? colors.status.success
@@ -55,9 +58,9 @@ const DuesPeriodCard = ({onDelete, onPress, period}: Props) => {
       <ProgressBar value={period.totalMembers > 0 ? period.paidCount / period.totalMembers : 0} color={statusColor} />
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.md,
     padding: spacing.lg,

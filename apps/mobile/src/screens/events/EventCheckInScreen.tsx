@@ -18,7 +18,7 @@ import {
   getEventAttendees,
 } from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { EventAttendee, TiwaniEvent } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 import { getInitials } from "../../utils/getInitials";
@@ -26,6 +26,9 @@ import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
 const EventCheckInScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const eventId = route.params?.eventId as string | undefined;
   const { user } = useAuthStore();
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
@@ -264,9 +267,9 @@ const EventCheckInScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   summary: {

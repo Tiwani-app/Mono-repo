@@ -1,6 +1,6 @@
 import React from 'react';
 import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
-import {colors} from '../../theme';
+import {useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {FinancialStatus} from '../../types/user';
 
 interface Props {
@@ -8,17 +8,21 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-const StatusDot = ({status, style}: Props) => (
-  <View
+const StatusDot = ({status, style}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View
     style={[
       styles.dot,
       {backgroundColor: status === 'green' ? colors.status.success : colors.status.error},
       style,
     ]}
   />
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   dot: {
     width: 12,
     height: 12,

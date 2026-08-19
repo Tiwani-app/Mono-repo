@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { FinanceDomain } from "../../types/contributions";
 
 interface Props {
@@ -13,8 +13,11 @@ const tabs: { label: string; value: FinanceDomain }[] = [
   { label: "Dues", value: "dues" },
 ];
 
-const FinanceDomainTabs = ({ value, onChange }: Props) => (
-  <View style={styles.row}>
+const FinanceDomainTabs = ({ value, onChange }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.row}>
     {tabs.map((tab) => {
       const active = tab.value === value;
       return (
@@ -31,9 +34,10 @@ const FinanceDomainTabs = ({ value, onChange }: Props) => (
       );
     })}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: spacing.sm,

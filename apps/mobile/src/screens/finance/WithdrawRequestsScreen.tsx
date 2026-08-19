@@ -25,14 +25,17 @@ import {
   reviewContributionWithdrawal,
 } from "../../services/contributionsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { ContributionWithdrawRequest } from "../../types/contributions";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDisplayDate } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
-const statusColor = (status: ContributionWithdrawRequest["status"]) => {
+const statusColor = (
+  status: ContributionWithdrawRequest["status"],
+  colors: AppColors,
+) => {
   switch (status) {
     case "pending":
       return colors.gold.default;
@@ -48,6 +51,9 @@ const statusColor = (status: ContributionWithdrawRequest["status"]) => {
 };
 
 const WithdrawRequestsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const {
@@ -273,7 +279,7 @@ const WithdrawRequestsScreen = ({ navigation }: any) => {
               </View>
               <Badge
                 label={item.status.toUpperCase()}
-                color={statusColor(item.status)}
+                color={statusColor(item.status, colors)}
               />
             </View>
             {item.status === "pending" ? (
@@ -351,9 +357,9 @@ const WithdrawRequestsScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   filterRow: {
     flexDirection: "row",

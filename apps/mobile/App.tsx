@@ -6,6 +6,7 @@ import {
   recordCrashlyticsError,
 } from './src/config/firebase';
 import RootNavigator from './src/navigation/RootNavigator';
+import {ThemeBootstrap} from './src/theme';
 
 const App = () => {
   const [runtimeReady, setRuntimeReady] = useState(false);
@@ -36,7 +37,11 @@ const App = () => {
     return <LoadingSpinner />;
   }
 
-  return <RootNavigator />;
+  return (
+    <ThemeBootstrap fallback={<LoadingSpinner />}>
+      <RootNavigator />
+    </ThemeBootstrap>
+  );
 };
 
 export default App;

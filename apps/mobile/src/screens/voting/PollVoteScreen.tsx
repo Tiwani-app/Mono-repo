@@ -14,13 +14,16 @@ import {
   getPollVoterState,
 } from "../../services/votingService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { Poll, PollVoterState } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { safeGoBack } from "../../utils/navigation";
 import { canAcceptVotingInput, isVotingItemExpired } from "../../utils/votingExpiry";
 
 const PollVoteScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const pollId = route.params?.pollId as string | undefined;
   const { user } = useAuthStore();
   const [poll, setPoll] = useState<Poll | null>(null);
@@ -185,9 +188,9 @@ const PollVoteScreen = ({ navigation, route }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   headerCard: {

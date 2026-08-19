@@ -20,7 +20,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useContributions } from "../../hooks/useContributions";
 import { requestContributionWithdrawal } from "../../services/contributionsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { getMemberContributionAvailable } from "../../utils/contributionTotals";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { safeGoBack } from "../../utils/navigation";
@@ -31,6 +31,9 @@ interface FormValues {
 }
 
 const RequestWithdrawalScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const poolIdParam = route.params?.poolId as string | undefined;
   const { user } = useAuthStore();
   const {
@@ -248,9 +251,9 @@ const RequestWithdrawalScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

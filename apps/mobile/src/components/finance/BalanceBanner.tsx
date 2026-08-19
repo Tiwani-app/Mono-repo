@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import Badge from '../common/Badge';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {formatCurrency} from '../../utils/formatCurrency';
 import {
   getFinanceStanding,
@@ -16,6 +16,9 @@ interface Props {
 }
 
 const BalanceBanner = ({outstanding, financialStatus}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const standing = getFinanceStanding(financialStatus, outstanding);
   const color = getFinanceStandingColor(standing);
 
@@ -26,9 +29,9 @@ const BalanceBanner = ({outstanding, financialStatus}: Props) => {
       <Badge label={getFinanceStandingBannerLabel(standing)} color={color} />
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   banner: {
     gap: spacing.md,
     padding: spacing.xl,

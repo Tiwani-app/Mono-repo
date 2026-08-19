@@ -20,7 +20,7 @@ import AdminListingCard from "../components/marketplace/AdminListingCard";
 import ListingCard from "../components/marketplace/ListingCard";
 import { useMarketplace } from "../hooks/useMarketplace";
 import { useAuthStore } from "../store/authStore";
-import { colors, spacing, typography } from "../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../theme';
 import {
   canManageMarketplaceListings,
   marketplaceListingSlotsUsed,
@@ -28,6 +28,9 @@ import {
 } from "../utils/marketplaceGuards";
 
 const MarketplaceScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [tab, setTab] = useState<"browse" | "manage">("browse");
   const { user } = useAuthStore();
   const admin = canManageMarketplaceListings(user);
@@ -136,7 +139,7 @@ const MarketplaceScreen = ({ navigation }: any) => {
       )}
     </SafeAreaView>
   );
-};
+}
 
 const Tab = ({
   active,
@@ -146,8 +149,11 @@ const Tab = ({
   active: boolean;
   label: string;
   onPress: () => void;
-}) => (
-  <TouchableOpacity
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     style={[styles.tab, active && styles.activeTab]}
     onPress={onPress}
   >
@@ -155,9 +161,10 @@ const Tab = ({
       {label}
     </Text>
   </TouchableOpacity>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabs: {
     flexDirection: "row",

@@ -3,7 +3,7 @@ import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Icon from '../common/FeatherIcon';
 import Avatar from '../common/Avatar';
 import Badge from '../common/Badge';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {User} from '../../types/user';
 import {
   getFinanceStanding,
@@ -23,12 +23,12 @@ interface Props {
   showFinance?: boolean;
 }
 
-const memberStatusColors = {
+const getMemberStatusColors = (colors: AppColors) => ({
   active: colors.status.success,
   pending: colors.status.info,
   inactive: colors.text.secondary,
   suspended: colors.status.error,
-};
+});
 
 const memberFinanceLabel = (
   standing: FinanceStanding,
@@ -47,6 +47,10 @@ const MemberCard = ({
   onPress,
   showFinance = true,
 }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const memberStatusColors = getMemberStatusColors(colors);
+
   const standing = getFinanceStanding(
     member.financialStatus,
     member.outstandingBalance,
@@ -97,9 +101,9 @@ const MemberCard = ({
       <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     minHeight: 72,
     flexDirection: 'row',

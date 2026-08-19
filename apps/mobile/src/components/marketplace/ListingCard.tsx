@@ -4,7 +4,7 @@ import Badge from "../common/Badge";
 import FeedbackModal, { FeedbackModalType } from "../common/FeedbackModal";
 import GoldButton from "../common/GoldButton";
 import ListingMedia from "./ListingMedia";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { Listing, ListingCondition } from "../../types/marketplace";
 import { formatCurrency } from "../../utils/formatCurrency";
 
@@ -21,6 +21,9 @@ interface Props {
 }
 
 const ListingCard = ({ listing }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const sold = listing.status === "sold";
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -147,9 +150,9 @@ const ListingCard = ({ listing }: Props) => {
     </View>
     </>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     gap: spacing.md,

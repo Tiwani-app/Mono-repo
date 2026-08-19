@@ -17,7 +17,7 @@ import MemberCard from "../../components/members/MemberCard";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing } from "../../theme";
+import {spacing, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { MemberStatus, User } from "../../types/user";
 import { isPastCalendarDay } from "../../utils/dateStatus";
 import { getFinanceStanding } from "../../utils/financeStanding";
@@ -90,6 +90,9 @@ const matchesMemberFilter = (
 };
 
 const MembersListScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const canBrowseMembers = Boolean(user);
@@ -282,9 +285,9 @@ const MembersListScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   listHeader: { gap: spacing.md },

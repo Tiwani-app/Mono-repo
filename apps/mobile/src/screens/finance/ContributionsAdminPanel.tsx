@@ -20,7 +20,7 @@ import { useContributions } from "../../hooks/useContributions";
 import { useMembers } from "../../hooks/useMembers";
 import { closeContributionPool } from "../../services/contributionsService";
 import { ContributionPool } from "../../types/contributions";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getContributionTotals,
   getMemberContributionAvailable,
@@ -28,18 +28,25 @@ import {
 import { formatCurrency } from "../../utils/formatCurrency";
 import { getInitials } from "../../utils/getInitials";
 
-const SummaryTile = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.summaryTile}>
+const SummaryTile = ({ label, value }: { label: string; value: string }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.summaryTile}>
     <Text style={styles.summaryValue}>{value}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
 interface Props {
   navigation: any;
 }
 
 const ContributionsAdminPanel = ({ navigation }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const {
     activePool,
     entries,
@@ -268,9 +275,9 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
       }
     />
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
   summaryRow: { flexDirection: "row", gap: spacing.sm },
   summaryTile: {

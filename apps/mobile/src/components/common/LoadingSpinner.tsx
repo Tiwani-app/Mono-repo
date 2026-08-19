@@ -1,14 +1,18 @@
 import React from 'react';
 import {ActivityIndicator, StyleSheet, View} from 'react-native';
-import {colors} from '../../theme';
+import {useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
-const LoadingSpinner = () => (
-  <View style={styles.container}>
+const LoadingSpinner = () => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.container}>
     <ActivityIndicator size="large" color={colors.gold.default} />
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

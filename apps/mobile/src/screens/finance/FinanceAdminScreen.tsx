@@ -27,7 +27,7 @@ import { FinanceDomain } from "../../types/contributions";
 import { DuesPeriod, LedgerType } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getFinanceStanding,
   getFinanceStandingBadgeLabel,
@@ -45,12 +45,16 @@ type ArchivedBalance = {
   uid: string;
 };
 
-const SummaryTile = ({ label, value }: any) => (
-  <View style={styles.summaryTile}>
+const SummaryTile = ({ label, value }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.summaryTile}>
     <Text style={styles.summaryValue}>{value}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
 const shortUid = (uid: string) =>
   uid.length > 8 ? `${uid.slice(0, 4)}...${uid.slice(-4)}` : uid;
@@ -65,6 +69,9 @@ const chargeButtons: { label: string; value: LedgerType }[] = [
 ];
 
 const FinanceAdminScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const {
@@ -406,9 +413,9 @@ const FinanceAdminScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },

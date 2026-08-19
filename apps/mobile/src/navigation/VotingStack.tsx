@@ -6,13 +6,15 @@ import ElectionResultsScreen from '../screens/voting/ElectionResultsScreen';
 import PollFormScreen from '../screens/voting/PollFormScreen';
 import PollVoteScreen from '../screens/voting/PollVoteScreen';
 import VotingHubScreen from '../screens/voting/VotingHubScreen';
-import {colors} from '../theme';
+import { useThemeColors } from '../theme';
 import {VotingStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<VotingStackParamList>();
 
-const VotingStack = () => (
-  <Stack.Navigator
+const VotingStack = () => {
+  const colors = useThemeColors();
+  return (
+    <Stack.Navigator
     screenOptions={{
       headerShown: false,
       contentStyle: {backgroundColor: colors.bg.secondary},
@@ -24,6 +26,7 @@ const VotingStack = () => (
     <Stack.Screen name="ElectionForm" component={ElectionFormScreen} />
     <Stack.Screen name="ElectionResults" component={ElectionResultsScreen} />
   </Stack.Navigator>
-);
+  );
+};
 
 export default VotingStack;

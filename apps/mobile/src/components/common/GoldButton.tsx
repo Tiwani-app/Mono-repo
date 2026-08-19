@@ -1,6 +1,6 @@
 import React from 'react';
 import {ActivityIndicator, StyleSheet, Text, TouchableOpacity} from 'react-native';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   label: string;
@@ -11,8 +11,11 @@ interface Props {
   size?: 'sm' | 'md';
 }
 
-const GoldButton = ({label, onPress, disabled, loading, fullWidth, size = 'md'}: Props) => (
-  <TouchableOpacity
+const GoldButton = ({label, onPress, disabled, loading, fullWidth, size = 'md'}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     onPress={onPress}
     disabled={disabled || loading}
     style={[
@@ -28,9 +31,10 @@ const GoldButton = ({label, onPress, disabled, loading, fullWidth, size = 'md'}:
       <Text style={[styles.label, size === 'sm' && styles.labelSm]}>{label}</Text>
     )}
   </TouchableOpacity>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   base: {
     minHeight: 48,
     paddingHorizontal: spacing.xl,
