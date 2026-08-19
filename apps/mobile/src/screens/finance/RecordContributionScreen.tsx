@@ -26,7 +26,7 @@ import {
   recordContribution,
 } from "../../services/contributionsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { User } from "../../types/user";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { getInitials } from "../../utils/getInitials";
@@ -46,6 +46,9 @@ const searchableMemberText = (member: User) =>
   `${member.fullName} ${member.email} ${member.phone}`.toLowerCase();
 
 const RecordContributionScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -411,10 +414,13 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
-const Field = ({ control, error, keyboardType, label, name, rules }: any) => (
-  <View style={styles.field}>
+const Field = ({ control, error, keyboardType, label, name, rules }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -433,9 +439,10 @@ const Field = ({ control, error, keyboardType, label, name, rules }: any) => (
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

@@ -8,7 +8,7 @@ import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import DocumentCard from "../../components/library/DocumentCard";
 import DocumentFilterBar from "../../components/library/DocumentFilterBar";
 import { useLibraryDocuments } from "../../hooks/useLibraryDocuments";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_TYPE_LABELS,
@@ -23,6 +23,9 @@ import {
 } from "../../utils/libraryFilters";
 
 const LibraryCategoryScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [selectedType, setSelectedType] =
     useState<LibraryDocumentType | "all">("all");
   const [selectedYear, setSelectedYear] = useState("all");
@@ -161,9 +164,9 @@ const LibraryCategoryScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   sectionLabel: {

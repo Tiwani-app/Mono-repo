@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Icon from '../common/FeatherIcon';
 import Badge from '../common/Badge';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {LedgerEntry, LedgerType} from '../../types/finance';
 import {
   chargeStatusColor,
@@ -28,6 +28,9 @@ interface Props {
 }
 
 const LedgerRow = ({entry, onDelete}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const isPayment = entry.type === 'payment';
   const date = entry.paidAt ?? entry.dueDate;
   const displayStatus = getChargeDisplayStatus(entry);
@@ -68,9 +71,9 @@ const LedgerRow = ({entry, onDelete}: Props) => {
       )}
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   row: {
     minHeight: 72,
     flexDirection: 'row',

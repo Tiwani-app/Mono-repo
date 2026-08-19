@@ -27,7 +27,7 @@ import {
 } from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
 import { useEventsStore } from "../../store/eventsStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { EventCategory, EventStatus } from "../../types/event";
 import { isValidMeetingLink } from "../../utils/eventLinks";
 import { safeGoBack } from "../../utils/navigation";
@@ -114,6 +114,9 @@ const timeValueFromParts = (
 };
 
 const EventFormScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const eventId = route.params?.eventId as string | undefined;
   const [category, setCategory] = useState<EventCategory>("meeting");
   const [status, setStatus] = useState<EventStatus>("published");
@@ -419,7 +422,7 @@ const EventFormScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const Field = ({
   control,
@@ -429,8 +432,11 @@ const Field = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -454,7 +460,8 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -464,8 +471,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -482,7 +492,8 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
 const ReminderToggleRow = ({
   helper,
@@ -494,8 +505,11 @@ const ReminderToggleRow = ({
   label: string;
   onValueChange: (value: boolean) => void;
   value: boolean;
-}) => (
-  <View style={styles.reminderCard}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.reminderCard}>
     <View style={styles.reminderTextWrap}>
       <Text style={styles.reminderLabel}>{label}</Text>
       <Text style={styles.reminderHelp}>{helper}</Text>
@@ -507,7 +521,8 @@ const ReminderToggleRow = ({
       thumbColor={colors.bg.secondary}
     />
   </View>
-);
+  );
+}
 
 const TimeDropdown = ({
   error,
@@ -518,6 +533,9 @@ const TimeDropdown = ({
   onChange: (value: string) => void;
   error?: string;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [pickerOpen, setPickerOpen] = useState(false);
   const parts = timePartsFromValue(value);
   const resolvedMinuteOptions = minuteOptions.some(
@@ -618,7 +636,7 @@ const TimeDropdown = ({
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+}
 
 const TimeOptionColumn = <T extends string>({
   label,
@@ -630,8 +648,11 @@ const TimeOptionColumn = <T extends string>({
   options: { label: string; value: T }[];
   value: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.timeOptionColumn}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.timeOptionColumn}>
     <Text style={styles.timeOptionColumnLabel}>{label}</Text>
     <ScrollView
       style={styles.timeOptionList}
@@ -660,9 +681,10 @@ const TimeOptionColumn = <T extends string>({
       })}
     </ScrollView>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

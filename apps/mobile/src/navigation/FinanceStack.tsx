@@ -13,13 +13,15 @@ import RecordContributionScreen from '../screens/finance/RecordContributionScree
 import RecordPaymentScreen from '../screens/finance/RecordPaymentScreen';
 import RequestWithdrawalScreen from '../screens/finance/RequestWithdrawalScreen';
 import WithdrawRequestsScreen from '../screens/finance/WithdrawRequestsScreen';
-import {colors} from '../theme';
+import { useThemeColors } from '../theme';
 import {FinanceStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<FinanceStackParamList>();
 
-const FinanceStack = () => (
-  <Stack.Navigator
+const FinanceStack = () => {
+  const colors = useThemeColors();
+  return (
+    <Stack.Navigator
     screenOptions={{
       headerShown: false,
       contentStyle: {backgroundColor: colors.bg.secondary},
@@ -50,6 +52,7 @@ const FinanceStack = () => (
       component={ContributionPoolMembersScreen}
     />
   </Stack.Navigator>
-);
+  );
+};
 
 export default FinanceStack;

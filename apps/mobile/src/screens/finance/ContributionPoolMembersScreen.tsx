@@ -9,7 +9,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useContributions } from "../../hooks/useContributions";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getContributionTotals,
   getMemberContributionAvailable,
@@ -20,6 +20,9 @@ import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
 const ContributionPoolMembersScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const poolId = route.params?.poolId as string;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -158,9 +161,9 @@ const ContributionPoolMembersScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   summary: { gap: spacing.sm, marginBottom: spacing.sm },

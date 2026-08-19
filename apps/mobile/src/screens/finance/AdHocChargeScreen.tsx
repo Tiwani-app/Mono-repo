@@ -22,7 +22,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useMembers } from "../../hooks/useMembers";
 import { createAdHocCharge } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { LedgerType } from "../../types/finance";
 import { getInitials } from "../../utils/getInitials";
 import { safeGoBack } from "../../utils/navigation";
@@ -67,6 +67,9 @@ const parseDate = (value: string) => {
 };
 
 const AdHocChargeScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const routeMemberId = route.params?.memberId as string | undefined;
   // The charge type is chosen on the finance page; the in-form selector only
   // appears for entry points that don't pass one (e.g. a member's ledger).
@@ -384,7 +387,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const Field = ({
   control,
@@ -394,8 +397,11 @@ const Field = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -419,7 +425,8 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -429,8 +436,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -447,9 +457,10 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

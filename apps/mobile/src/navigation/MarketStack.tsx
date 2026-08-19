@@ -2,13 +2,15 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ListingFormScreen from "../screens/marketplace/ListingFormScreen";
 import MarketplaceScreen from "../screens/MarketplaceScreen";
-import { colors } from "../theme";
+import { useThemeColors } from '../theme';
 import { MarketStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<MarketStackParamList>();
 
-const MarketStack = () => (
-  <Stack.Navigator
+const MarketStack = () => {
+  const colors = useThemeColors();
+  return (
+    <Stack.Navigator
     screenOptions={{
       headerShown: false,
       contentStyle: { backgroundColor: colors.bg.secondary },
@@ -17,6 +19,7 @@ const MarketStack = () => (
     <Stack.Screen name="Marketplace" component={MarketplaceScreen} />
     <Stack.Screen name="ListingForm" component={ListingFormScreen} />
   </Stack.Navigator>
-);
+  );
+};
 
 export default MarketStack;

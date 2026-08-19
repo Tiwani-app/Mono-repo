@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Icon from './FeatherIcon';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   title: string;
@@ -10,8 +10,11 @@ interface Props {
   rightElement?: React.ReactNode;
 }
 
-const ScreenHeader = ({title, showBack, onBack, rightElement}: Props) => (
-  <View style={styles.container}>
+const ScreenHeader = ({title, showBack, onBack, rightElement}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.container}>
     {showBack ? (
       <TouchableOpacity
         onPress={onBack}
@@ -27,9 +30,10 @@ const ScreenHeader = ({title, showBack, onBack, rightElement}: Props) => (
     </Text>
     <View style={styles.right}>{rightElement ?? null}</View>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

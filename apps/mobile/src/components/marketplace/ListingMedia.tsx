@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {Image, StyleSheet, View} from 'react-native';
 import Icon from '../common/FeatherIcon';
-import {colors} from '../../theme';
+import {useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {Listing} from '../../types/marketplace';
 
 interface Props {
@@ -10,6 +10,9 @@ interface Props {
 }
 
 const ListingMedia = ({listing, size = 76}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [imageFailed, setImageFailed] = useState(false);
   const sold = listing.status === 'sold';
   const iconName = listing.title.toLowerCase().includes('camera')
@@ -35,9 +38,9 @@ const ListingMedia = ({listing, size = 76}: Props) => {
       )}
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   frame: {
     flexShrink: 0,
     borderRadius: 8,

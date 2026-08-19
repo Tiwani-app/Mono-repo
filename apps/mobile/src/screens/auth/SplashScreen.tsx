@@ -2,10 +2,13 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import GoldButton from '../../components/common/GoldButton';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
-const SplashScreen = ({navigation}: any) => (
-  <SafeAreaView style={styles.safe}>
+const SplashScreen = ({navigation}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <SafeAreaView style={styles.safe}>
     <View style={styles.container}>
       <View style={styles.logoOuter}>
         <View style={styles.logoInner}>
@@ -20,9 +23,10 @@ const SplashScreen = ({navigation}: any) => (
       <Text style={styles.version}>v2.1.0 · Membership Platform</Text>
     </View>
   </SafeAreaView>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.primary},
   container: {
     flex: 1,

@@ -1,6 +1,6 @@
 import React from 'react';
 import {StyleSheet, Text, TouchableOpacity} from 'react-native';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   label: string;
@@ -16,27 +16,32 @@ const OutlineButton = ({
   onPress,
   disabled,
   fullWidth,
-  color = colors.gold.default,
+  color,
   size = 'md',
-}: Props) => (
-  <TouchableOpacity
+}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const resolvedColor = color ?? colors.gold.default;
+  return (
+    <TouchableOpacity
     onPress={onPress}
     disabled={disabled}
     style={[
       styles.base,
       size === 'sm' && styles.sm,
-      {borderColor: color},
+      {borderColor: resolvedColor},
       fullWidth && styles.fullWidth,
       disabled && styles.disabled,
     ]}
     activeOpacity={0.8}>
-    <Text style={[styles.label, size === 'sm' && styles.labelSm, {color}]}>
+    <Text style={[styles.label, size === 'sm' && styles.labelSm, {color: resolvedColor}]}>
       {label}
     </Text>
   </TouchableOpacity>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   base: {
     minHeight: 48,
     paddingHorizontal: spacing.xl,

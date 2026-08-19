@@ -16,28 +16,30 @@ import {
   readLastActiveAt,
 } from "../services/sessionService";
 import {useAuthStore} from "../store/authStore";
-import {colors} from "../theme";
+import {useThemeColors, useThemeId} from "../theme";
 import {AppTabParamList} from "./types";
 
 const navigationRef = createNavigationContainerRef<AppTabParamList>();
 
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.bg.secondary,
-    card: colors.bg.secondary,
-    border: colors.border.subtle,
-    primary: colors.gold.default,
-    text: colors.text.primary,
-    notification: colors.gold.default,
-  },
-};
-
 const RootNavigator = () => {
   const {loading, setLoading, setUser, user} = useAuthStore();
+  const colors = useThemeColors();
+  const themeId = useThemeId();
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const userRef = useRef(user);
+
+  const navigationTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: colors.bg.secondary,
+      card: colors.bg.secondary,
+      border: colors.border.subtle,
+      primary: colors.gold.default,
+      text: colors.text.primary,
+      notification: colors.gold.default,
+    },
+  };
 
   useEffect(() => {
     userRef.current = user;
@@ -104,7 +106,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+    <NavigationContainer key={themeId} ref={navigationRef} theme={navigationTheme}>
       {user ? (
         <>
           <PushNotificationRegistrar />

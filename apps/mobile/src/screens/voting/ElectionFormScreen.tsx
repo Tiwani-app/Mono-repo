@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -32,7 +33,7 @@ import {
 } from "../../services/votingService";
 import { pickResizedImage } from "../../utils/imagePicker";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { User } from "../../types/user";
 import { Election } from "../../types/voting";
 import {
@@ -64,6 +65,9 @@ const statusOptions: { label: string; value: Election["status"] }[] = [
 ];
 
 const ElectionFormScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const electionId = route.params?.electionId as string | undefined;
   const [ballotType, setBallotType] =
     useState<Election["ballotType"]>("secret");
@@ -476,7 +480,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const Field = ({
   control,
@@ -486,8 +490,11 @@ const Field = ({
   name,
   renderInput,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -514,7 +521,8 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const CandidateDropdown = ({
   members,
@@ -525,6 +533,9 @@ const CandidateDropdown = ({
   value: string;
   onChange: (value: string) => void;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const selectedMember = members.find((member) => member.fullName === value);
@@ -648,7 +659,7 @@ const CandidateDropdown = ({
       </Modal>
     </View>
   );
-};
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -658,8 +669,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -676,9 +690,10 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

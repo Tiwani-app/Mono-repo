@@ -9,7 +9,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { LedgerEntry, LedgerPaidStatus } from "../../types/finance";
 import { formatDueOverdueLabel } from "../../utils/dateStatus";
 import {
@@ -64,6 +64,9 @@ const rowStatus = ({
 };
 
 const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const periodId = route.params?.duesPeriodId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -234,7 +237,7 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
 const SummaryPill = ({
   color,
@@ -244,14 +247,18 @@ const SummaryPill = ({
   color: string;
   label: string;
   value: number;
-}) => (
-  <View style={[styles.summaryPill, { borderColor: `${color}55` }]}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={[styles.summaryPill, { borderColor: `${color}55` }]}>
     <Text style={[styles.summaryValue, { color }]}>{value}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   summaryCard: {

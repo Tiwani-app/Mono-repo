@@ -19,7 +19,7 @@ import { useVoting } from "../../hooks/useVoting";
 import { useAuthStore } from "../../store/authStore";
 import { closeElection, closePoll, deleteElection, deletePoll } from "../../services/votingService";
 import Icon from "../../components/common/FeatherIcon";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { Election, Poll } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
@@ -30,6 +30,9 @@ import {
 } from "../../utils/votingExpiry";
 
 const VotingHubScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const canViewResults = canViewElectionResults(user);
@@ -292,14 +295,18 @@ const VotingHubScreen = ({ navigation }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const SectionHeader = ({ count, title }: { count: number; title: string }) => (
-  <View style={styles.sectionHeader}>
+const SectionHeader = ({ count, title }: { count: number; title: string }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.sectionHeader}>
     <Text style={styles.sectionLabel}>{title}</Text>
     <Badge label={String(count)} color={colors.gold.default} />
   </View>
-);
+  );
+}
 
 const PollCard = ({
   admin,
@@ -319,8 +326,11 @@ const PollCard = ({
   onDelete: () => void;
   onEdit: () => void;
   onOpen: () => void;
-}) => (
-  <TouchableOpacity
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     style={[styles.card, isVotingItemExpired(poll) && styles.expiredCard]}
     onPress={onOpen}
     activeOpacity={0.85}
@@ -332,7 +342,7 @@ const PollCard = ({
       </View>
       <Badge
         label={votingDisplayStatus(poll).toUpperCase()}
-        color={statusColor(votingDisplayStatus(poll))}
+        color={statusColor(votingDisplayStatus(poll), colors)}
       />
       {admin && poll.status !== "open" && (
         <TouchableOpacity
@@ -366,7 +376,8 @@ const PollCard = ({
       />
     )}
   </TouchableOpacity>
-);
+  );
+}
 
 const ElectionCard = ({
   admin,
@@ -390,8 +401,11 @@ const ElectionCard = ({
   onOpen: () => void;
   onResults: () => void;
   showResults: boolean;
-}) => (
-  <TouchableOpacity
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     style={[styles.card, isVotingItemExpired(election) && styles.expiredCard]}
     onPress={onOpen}
     activeOpacity={0.85}
@@ -406,7 +420,7 @@ const ElectionCard = ({
       </View>
       <Badge
         label={votingDisplayStatus(election).toUpperCase()}
-        color={statusColor(votingDisplayStatus(election))}
+        color={statusColor(votingDisplayStatus(election), colors)}
       />
       {admin && election.status !== "open" && (
         <TouchableOpacity
@@ -444,9 +458,13 @@ const ElectionCard = ({
       />
     )}
   </TouchableOpacity>
-);
+  );
+}
 
-const statusColor = (status: "draft" | "open" | "closed" | "expired") =>
+const statusColor = (
+  status: "draft" | "open" | "closed" | "expired",
+  colors: AppColors,
+) =>
   status === "open"
     ? colors.status.success
     : status === "expired"
@@ -455,7 +473,7 @@ const statusColor = (status: "draft" | "open" | "closed" | "expired") =>
       ? colors.text.tertiary
       : colors.gold.default;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   actionGrid: { gap: spacing.sm },

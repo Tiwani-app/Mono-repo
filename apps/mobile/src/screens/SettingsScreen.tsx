@@ -32,7 +32,17 @@ import {
   requestPushPermissionAndRegister,
 } from "../services/notificationsService";
 import { useAuthStore } from "../store/authStore";
-import { colors, spacing, typography } from "../theme";
+import {
+  getThemeOptions,
+  spacing,
+  typography,
+  useSetThemeId,
+  useThemeColors,
+  useThemeId,
+  useThemedStyles,
+  AppColors,
+  ThemeId,
+} from '../theme';
 import { NotificationPreferences, User } from "../types/user";
 import { EMPTY_ADDRESS } from "../utils/address";
 import { getInitials } from "../utils/getInitials";
@@ -53,7 +63,14 @@ const maritalOptions: { label: string; value: User["maritalStatus"] }[] = [
   { label: "Widowed", value: "widowed" },
 ];
 
+const themeOptions = getThemeOptions();
+
 const SettingsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const themeId = useThemeId();
+  const setThemeId = useSetThemeId();
+
   const { updateCurrentUser, user } = useAuthStore();
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -66,6 +83,7 @@ const SettingsScreen = ({ navigation }: any) => {
     onSecondary?: () => void;
   } | null>(null);
   const closeModal = () => setModal(null);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingPreference, setSavingPreference] = useState<
     keyof NotificationPreferences | null
@@ -569,6 +587,16 @@ const SettingsScreen = ({ navigation }: any) => {
           <Text style={styles.sectionLabel}>APP SETTINGS</Text>
           <Row label="Currency" value={`${user.currencySymbol} US Dollar`} />
           <Row label="Timezone" value={formatTimezoneLabel(user.timezone)} />
+          <AppearancePicker
+            open={appearanceOpen}
+            selectedId={themeId}
+            options={themeOptions}
+            onToggle={() => setAppearanceOpen(value => !value)}
+            onSelect={async (id: ThemeId) => {
+              await setThemeId(id);
+              setAppearanceOpen(false);
+            }}
+          />
           <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
           <ToggleRow
             label="Events & Meetings"
@@ -668,7 +696,7 @@ const SettingsScreen = ({ navigation }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const ProfileField = ({
   control,
@@ -678,8 +706,11 @@ const ProfileField = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -708,7 +739,8 @@ const ProfileField = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -718,8 +750,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -736,14 +771,19 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.row}>
+const Row = ({ label, value }: { label: string; value: string }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.row}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={styles.rowValue}>{value}</Text>
   </View>
-);
+  );
+}
 
 const LinkRow = ({
   label,
@@ -753,12 +793,16 @@ const LinkRow = ({
   label: string;
   onPress: () => void;
   value: string;
-}) => (
-  <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.82}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.82}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={[styles.rowValue, styles.linkValue]}>{value}</Text>
   </TouchableOpacity>
-);
+  );
+}
 
 const ToggleRow = ({
   label,
@@ -770,7 +814,10 @@ const ToggleRow = ({
   disabled?: boolean;
   value: boolean;
   onValueChange: (value: boolean) => void;
-}) => (
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.row}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Switch
@@ -781,9 +828,78 @@ const ToggleRow = ({
       thumbColor={colors.bg.secondary}
     />
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const AppearancePicker = ({
+  onSelect,
+  onToggle,
+  open,
+  options,
+  selectedId,
+}: {
+  open: boolean;
+  selectedId: ThemeId;
+  options: {id: ThemeId; label: string}[];
+  onToggle: () => void;
+  onSelect: (id: ThemeId) => void;
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const selectedLabel =
+    options.find(option => option.id === selectedId)?.label ?? "Original";
+
+  return (
+    <View style={styles.appearanceBlock}>
+      <TouchableOpacity
+        style={styles.row}
+        onPress={onToggle}
+        activeOpacity={0.82}>
+        <View style={styles.appearanceCopy}>
+          <Text style={styles.rowLabel}>Appearance</Text>
+          <Text style={styles.appearanceSelected} numberOfLines={1}>
+            {selectedLabel}
+          </Text>
+        </View>
+        <Icon
+          name={open ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={colors.gold.default}
+        />
+      </TouchableOpacity>
+      {open ? (
+        <View style={styles.appearanceMenu}>
+          {options.map(option => {
+            const selected = option.id === selectedId;
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.appearanceOption,
+                  selected && styles.appearanceOptionSelected,
+                ]}
+                onPress={() => onSelect(option.id)}
+                activeOpacity={0.82}>
+                <Text
+                  style={[
+                    styles.appearanceOptionText,
+                    selected && styles.appearanceOptionTextSelected,
+                  ]}>
+                  {option.label}
+                </Text>
+                {selected ? (
+                  <Icon name="check" size={16} color={colors.gold.default} />
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
@@ -934,6 +1050,42 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.text.secondary,
     lineHeight: typography.size.sm * typography.lineHeight.normal,
+  },
+  appearanceBlock: {gap: spacing.sm},
+  appearanceCopy: {flex: 1, gap: 2},
+  appearanceSelected: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  appearanceMenu: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.card,
+    overflow: "hidden",
+  },
+  appearanceOption: {
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.subtle,
+  },
+  appearanceOptionSelected: {
+    backgroundColor: `${colors.gold.default}14`,
+  },
+  appearanceOptionText: {
+    flex: 1,
+    fontSize: typography.size.sm,
+    color: colors.text.primary,
+  },
+  appearanceOptionTextSelected: {
+    color: colors.gold.light,
+    fontWeight: typography.weight.semibold,
   },
 });
 

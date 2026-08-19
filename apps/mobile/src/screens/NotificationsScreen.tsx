@@ -8,12 +8,12 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../store/authStore';
-import { colors, spacing, typography } from '../theme';
+import {spacing, typography, useThemeColors, useThemeId, useThemedStyles, AppColors} from '../theme';
 import { TiwaniNotification } from '../types/notification';
 import { formatRelativeTime } from '../utils/formatDate';
 import { safeGoBack } from '../utils/navigation';
 import {
-  NOTIFICATION_COLORS,
+  getNotificationColors,
   NOTIFICATION_ICONS,
 } from '../utils/notificationPresentation';
 import { isAdmin } from '../utils/roleGuard';
@@ -23,6 +23,10 @@ import {
 } from '../utils/notificationHelpers';
 
 const NotificationsScreen = ({navigation}: any) => {
+  const colors = useThemeColors();
+  const themeId = useThemeId();
+  const styles = useThemedStyles(createStyles);
+
   const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
   const {user} = useAuthStore();
   const [markingAllRead, setMarkingAllRead] = useState(false);
@@ -110,7 +114,7 @@ const NotificationsScreen = ({navigation}: any) => {
         )}
         renderItem={({item}) => {
           const isRead = readIds.includes(item.id);
-          const color = NOTIFICATION_COLORS[item.type];
+          const color = getNotificationColors(colors, themeId)[item.type];
           return (
             <TouchableOpacity
               style={[styles.card, {borderLeftColor: color}, isRead && styles.read]}
@@ -143,9 +147,9 @@ const NotificationsScreen = ({navigation}: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.secondary},
   content: {padding: spacing.lg, gap: spacing.md},
   headerActions: {flexDirection: 'row', gap: spacing.md},

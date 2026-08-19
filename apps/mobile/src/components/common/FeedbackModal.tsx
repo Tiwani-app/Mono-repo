@@ -7,7 +7,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 export type FeedbackModalType = "success" | "error" | "warning" | "info";
 
@@ -39,6 +39,9 @@ const FeedbackModal = ({
   secondaryLabel,
   onSecondary,
 }: FeedbackModalProps) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const resolvedPrimaryLabel =
     primaryLabel ?? (type === "success" ? "Done" : "OK");
   const dismissOnOverlay = type === "error" || type === "info";
@@ -95,9 +98,9 @@ const FeedbackModal = ({
       </TouchableWithoutFeedback>
     </Modal>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.65)",

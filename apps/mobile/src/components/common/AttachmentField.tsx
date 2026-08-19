@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import Icon from "./FeatherIcon";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   error?: string;
@@ -40,6 +40,9 @@ const AttachmentField = ({
   showUrlInput = true,
   value,
 }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [imageFailed, setImageFailed] = useState(false);
   const trimmedValue = value?.trim() ?? "";
   const showImage = mode === "image" && trimmedValue && !imageFailed;
@@ -98,9 +101,9 @@ const AttachmentField = ({
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

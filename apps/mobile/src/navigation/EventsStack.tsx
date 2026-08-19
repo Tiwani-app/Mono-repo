@@ -4,13 +4,15 @@ import EventCheckInScreen from '../screens/events/EventCheckInScreen';
 import EventDetailScreen from '../screens/events/EventDetailScreen';
 import EventFormScreen from '../screens/events/EventFormScreen';
 import EventsScreen from '../screens/events/EventsScreen';
-import {colors} from '../theme';
+import { useThemeColors } from '../theme';
 import {EventsStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<EventsStackParamList>();
 
-const EventsStack = () => (
-  <Stack.Navigator
+const EventsStack = () => {
+  const colors = useThemeColors();
+  return (
+    <Stack.Navigator
     screenOptions={{
       headerShown: false,
       contentStyle: {backgroundColor: colors.bg.secondary},
@@ -20,6 +22,7 @@ const EventsStack = () => (
     <Stack.Screen name="EventForm" component={EventFormScreen} />
     <Stack.Screen name="EventCheckIn" component={EventCheckInScreen} />
   </Stack.Navigator>
-);
+  );
+};
 
 export default EventsStack;

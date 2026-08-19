@@ -21,7 +21,7 @@ import {
   getLedgerCreatorContact,
 } from "../../services/organisationService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getFinanceStanding,
   getFinanceStandingBadgeLabel,
@@ -110,6 +110,9 @@ const openFinanceSms = async ({
 };
 
 const MyLedgerScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -483,7 +486,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
 const SummaryStat = ({
   label,
@@ -493,16 +496,20 @@ const SummaryStat = ({
   label: string;
   tone?: string;
   value: string;
-}) => (
-  <View style={styles.summaryStat}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.summaryStat}>
     <Text style={[styles.summaryValue, tone ? { color: tone } : null]}>
       {value}
     </Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },

@@ -11,7 +11,7 @@ import {
   unarchiveListing,
   updateListing,
 } from "../../services/marketplaceService";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { Listing, ListingCondition } from "../../types/marketplace";
 import { formatCurrency } from "../../utils/formatCurrency";
 
@@ -29,6 +29,9 @@ interface Props {
 }
 
 const AdminListingCard = ({ listing, onEdit }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const sold = listing.status === "sold";
   const archived = listing.status === "archived";
   const [pendingAction, setPendingAction] = useState<"delete" | "status" | null>(null);
@@ -181,9 +184,9 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
     </View>
     </>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.md,
     padding: spacing.lg,

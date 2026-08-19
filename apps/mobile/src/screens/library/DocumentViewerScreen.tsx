@@ -19,7 +19,7 @@ import {
   getLibraryDocument,
 } from "../../services/libraryService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   LIBRARY_CATEGORY_LABELS,
   LIBRARY_TYPE_LABELS,
@@ -30,6 +30,9 @@ import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
 const DocumentViewerScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const documentId = route.params?.documentId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -186,9 +189,9 @@ const DocumentViewerScreen = ({ navigation, route }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.lg },
   card: {

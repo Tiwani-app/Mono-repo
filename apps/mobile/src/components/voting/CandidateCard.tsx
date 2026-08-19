@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import Avatar from '../common/Avatar';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {Candidate} from '../../types/voting';
 import {getInitials} from '../../utils/getInitials';
 
@@ -11,8 +11,11 @@ interface Props {
   onPress: () => void;
 }
 
-const CandidateCard = ({candidate, selected, onPress}: Props) => (
-  <TouchableOpacity style={[styles.card, selected && styles.selected]} onPress={onPress} activeOpacity={0.8}>
+const CandidateCard = ({candidate, selected, onPress}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity style={[styles.card, selected && styles.selected]} onPress={onPress} activeOpacity={0.8}>
     <Avatar initials={getInitials(candidate.name)} photoURL={candidate.photoURL} size={44} />
     <View style={styles.content}>
       <Text style={styles.name}>{candidate.name}</Text>
@@ -20,9 +23,10 @@ const CandidateCard = ({candidate, selected, onPress}: Props) => (
     </View>
     <View style={[styles.radio, selected && styles.radioSelected]} />
   </TouchableOpacity>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     minHeight: 76,
     flexDirection: 'row',

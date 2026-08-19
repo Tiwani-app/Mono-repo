@@ -15,7 +15,7 @@ import {
   getElectionVoterState,
 } from "../../services/votingService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { User } from "../../types/user";
 import { Candidate, Election, ElectionVoterState } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
@@ -47,6 +47,9 @@ const secretInstructionFor = (user: User | null) => {
 };
 
 const ElectionBallotScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const electionId = route.params?.electionId as string | undefined;
   const { user } = useAuthStore();
   const [election, setElection] = useState<Election | null>(null);
@@ -272,9 +275,9 @@ const ElectionBallotScreen = ({ navigation, route }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   headerCard: {

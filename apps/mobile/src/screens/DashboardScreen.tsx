@@ -17,7 +17,7 @@ import { useFinance } from "../hooks/useFinance";
 import { useJoinRequests } from "../hooks/useJoinRequests";
 import { useMembers } from "../hooks/useMembers";
 import { useNotifications } from "../hooks/useNotifications";
-import { colors, spacing, typography } from "../theme";
+import {spacing, typography, useThemeColors, useThemeId, useThemedStyles, AppColors} from '../theme';
 import {
   getFinanceStanding,
   getFinanceStandingColor,
@@ -34,12 +34,15 @@ import { isAdmin } from "../utils/roleGuard";
 import { useAuthStore } from "../store/authStore";
 import { getDashboardQuickActions } from "./dashboardQuickActions";
 import {
-  NOTIFICATION_COLORS,
+  getNotificationColors,
   NOTIFICATION_ICONS,
 } from "../utils/notificationPresentation";
 
-const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
-  <TouchableOpacity
+const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     disabled={!onPress}
     onPress={onPress}
     activeOpacity={0.85}
@@ -63,10 +66,14 @@ const StatTile = ({ accentColor, label, onPress, subLabel, value }: any) => (
       <Text style={styles.statSub}>{subLabel}</Text>
     </View>
   </TouchableOpacity>
-);
+  );
+}
 
-const QuickAction = ({ icon, label, onPress }: any) => (
-  <TouchableOpacity
+const QuickAction = ({ icon, label, onPress }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     style={styles.quickAction}
     onPress={onPress}
     activeOpacity={0.8}
@@ -74,7 +81,8 @@ const QuickAction = ({ icon, label, onPress }: any) => (
     <Icon name={icon} size={18} color={colors.gold.default} />
     <Text style={styles.quickLabel}>{label}</Text>
   </TouchableOpacity>
-);
+  );
+}
 
 const formatPendingDeletionCount = (count: number) =>
   `${count} pending deletion ${count === 1 ? "request" : "requests"}`;
@@ -89,8 +97,11 @@ const RequestReviewAction = ({
   meta: string;
   onPress: () => void;
   title: string;
-}) => (
-  <TouchableOpacity
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
     style={styles.requestReview}
     onPress={onPress}
     activeOpacity={0.85}
@@ -104,9 +115,14 @@ const RequestReviewAction = ({
     </View>
     <Icon name="chevron-right" size={18} color={colors.text.tertiary} />
   </TouchableOpacity>
-);
+  );
+}
 
 const DashboardScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const themeId = useThemeId();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { events, error: eventsError, loading: eventsLoading } = useEvents();
@@ -342,7 +358,7 @@ const DashboardScreen = ({ navigation }: any) => {
           />
         ) : (
           notifications.slice(0, 3).map((item) => {
-            const color = NOTIFICATION_COLORS[item.type];
+            const color = getNotificationColors(colors, themeId)[item.type];
             return (
               <View
                 key={item.id}
@@ -373,9 +389,9 @@ const DashboardScreen = ({ navigation }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.lg },
   greetingRow: {

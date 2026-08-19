@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { formatCurrency } from "../../utils/formatCurrency";
 
 interface Props {
@@ -16,8 +16,11 @@ const ContributionBalanceBanner = ({
   contributed,
   poolName,
   withdrawn,
-}: Props) => (
-  <View style={styles.banner}>
+}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.banner}>
     {poolName ? <Text style={styles.pool}>{poolName}</Text> : null}
     <Text style={styles.label}>AVAILABLE BALANCE</Text>
     <Text style={styles.amount}>{formatCurrency(available)}</Text>
@@ -32,9 +35,10 @@ const ContributionBalanceBanner = ({
       />
     </View>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   banner: {
     gap: spacing.md,
     marginBottom: spacing.lg,
