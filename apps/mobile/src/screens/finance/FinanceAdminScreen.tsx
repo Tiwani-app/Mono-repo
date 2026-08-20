@@ -732,7 +732,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   heroLabel: {
     fontSize: typography.size.sm,
     fontWeight: typography.weight.semibold,
-    color: "rgba(5,12,7,0.7)",
+    color: colors.text.onGold,
+    opacity: 0.7,
     letterSpacing: 0.3,
   },
   heroValue: {
@@ -741,26 +742,32 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: typography.weight.black,
     color: colors.text.onGold,
   },
-  heroDivider: { height: 1, backgroundColor: "rgba(5,12,7,0.15)" },
+  heroDivider: { height: 1, backgroundColor: colors.text.onGold, opacity: 0.15 },
   heroSplitRow: { flexDirection: "row", alignItems: "center" },
   heroStat: { flex: 1, gap: spacing.xs },
   heroStatDivider: {
     width: 1,
     alignSelf: "stretch",
-    backgroundColor: "rgba(5,12,7,0.15)",
+    backgroundColor: colors.text.onGold,
+    opacity: 0.15,
     marginHorizontal: spacing.md,
   },
   heroStatLabel: {
     fontSize: typography.size.xs,
     fontWeight: typography.weight.semibold,
-    color: "rgba(5,12,7,0.7)",
+    color: colors.text.onGold,
+    opacity: 0.7,
   },
   heroStatValue: {
     fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,
     color: colors.text.onGold,
   },
-  heroHint: { fontSize: typography.size.xs, color: "rgba(5,12,7,0.6)" },
+  heroHint: {
+    fontSize: typography.size.xs,
+    color: colors.text.onGold,
+    opacity: 0.6,
+  },
   recentHeader: {
     marginTop: spacing.lg,
     flexDirection: "row",
