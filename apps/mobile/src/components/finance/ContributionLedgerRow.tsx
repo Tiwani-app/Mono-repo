@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Icon from "../common/FeatherIcon";
 import Badge from "../common/Badge";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { ContributionEntry } from "../../types/contributions";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDisplayDate } from "../../utils/formatDate";
@@ -12,6 +12,9 @@ interface Props {
 }
 
 const ContributionLedgerRow = ({ entry }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const isContribution = entry.type === "contribution";
   const date = entry.paidAt ?? entry.createdAt;
 
@@ -48,9 +51,9 @@ const ContributionLedgerRow = ({ entry }: Props) => {
       </View>
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   row: {
     minHeight: 72,
     flexDirection: "row",

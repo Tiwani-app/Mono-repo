@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Icon from "../common/FeatherIcon";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   count: number;
@@ -11,8 +11,11 @@ interface Props {
   subtitle: string;
 }
 
-const DocumentCategoryCard = ({ count, icon, label, onPress, subtitle }: Props) => (
-  <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+const DocumentCategoryCard = ({ count, icon, label, onPress, subtitle }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
     <View style={styles.iconBox}>
       <Icon name={icon} size={20} color={colors.gold.light} />
     </View>
@@ -20,9 +23,10 @@ const DocumentCategoryCard = ({ count, icon, label, onPress, subtitle }: Props) 
     <Text style={styles.subtitle}>{subtitle}</Text>
     <Text style={styles.count}>{count} documents</Text>
   </TouchableOpacity>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     flex: 1,
     minHeight: 156,

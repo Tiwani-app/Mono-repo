@@ -23,7 +23,7 @@ import { useContributions } from "../../hooks/useContributions";
 import { useMembers } from "../../hooks/useMembers";
 import { closeContributionPool } from "../../services/contributionsService";
 import { ContributionPool } from "../../types/contributions";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getContributionTotals,
   getMemberContributionAvailable,
@@ -37,6 +37,9 @@ interface Props {
 }
 
 const ContributionsAdminPanel = ({ navigation }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const {
     activePool,
     entries,
@@ -523,7 +526,7 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
   heroCard: {
     marginTop: spacing.xs,

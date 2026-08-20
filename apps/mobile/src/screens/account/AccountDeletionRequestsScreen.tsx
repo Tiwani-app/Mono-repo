@@ -13,7 +13,7 @@ import {
   declineAccountDeletion,
 } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   AccountDeletionRequest,
   AccountDeletionRequestStatus,
@@ -25,7 +25,7 @@ import {
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
-const statusColor = (status: AccountDeletionRequestStatus) => {
+const statusColor = (status: AccountDeletionRequestStatus, colors: AppColors) => {
   if (status === "completed") {
     return colors.status.success;
   }
@@ -45,6 +45,9 @@ const reviewDate = (request: AccountDeletionRequest) => {
 };
 
 const AccountDeletionRequestsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { error, loading, requests } = useAccountDeletionRequests({
@@ -209,7 +212,7 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
                   <Text style={styles.name}>{item.fullName}</Text>
                   <Text style={styles.meta}>{item.email}</Text>
                 </View>
-                <Badge label={statusLabel(item.status)} color={statusColor(item.status)} />
+                <Badge label={statusLabel(item.status)} color={statusColor(item.status, colors)} />
               </View>
               <Text style={styles.requested}>
                 Requested {formatRelativeTime(item.requestedAt)}
@@ -249,9 +252,9 @@ const AccountDeletionRequestsScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   infoCard: {

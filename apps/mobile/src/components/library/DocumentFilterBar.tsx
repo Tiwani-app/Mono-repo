@@ -1,6 +1,6 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Option {
   label: string;
@@ -13,8 +13,11 @@ interface Props {
   onChange: (value: string) => void;
 }
 
-const DocumentFilterBar = ({ onChange, options, selectedValue }: Props) => (
-  <ScrollView
+const DocumentFilterBar = ({ onChange, options, selectedValue }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <ScrollView
     horizontal
     showsHorizontalScrollIndicator={false}
     contentContainerStyle={styles.content}
@@ -35,9 +38,10 @@ const DocumentFilterBar = ({ onChange, options, selectedValue }: Props) => (
       );
     })}
   </ScrollView>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   content: { gap: spacing.sm, paddingRight: spacing.lg },
   chip: {
     minHeight: 40,

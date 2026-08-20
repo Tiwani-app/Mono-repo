@@ -13,7 +13,7 @@ import { format, getDaysInMonth, isValid, parse } from "date-fns";
 import Icon from "./FeatherIcon";
 import GoldButton from "./GoldButton";
 import OutlineButton from "./OutlineButton";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
 interface Props {
   allowEmpty?: boolean;
@@ -68,6 +68,9 @@ const PickerColumn = ({
   selectedValue: number;
   title: string;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const listRef = useRef<FlatList>(null);
   const selectedIndex = Math.max(
     0,
@@ -106,7 +109,7 @@ const PickerColumn = ({
       />
     </View>
   );
-};
+}
 
 const CalendarDateField = ({
   allowEmpty,
@@ -117,6 +120,9 @@ const CalendarDateField = ({
   value,
   style,
 }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const hasValue = Boolean(value?.trim());
   const selectedDate = parseDateValue(value);
   const [open, setOpen] = useState(false);
@@ -229,9 +235,9 @@ const CalendarDateField = ({
       </Modal>
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

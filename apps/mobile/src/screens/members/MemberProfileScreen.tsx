@@ -23,7 +23,7 @@ import {
   getMemberDirectoryProfile,
 } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getFinanceStanding,
   getFinanceStandingBannerLabel,
@@ -74,6 +74,9 @@ const formatDateOfBirth = (dateOfBirth: string): string => {
 };
 
 const MemberProfileScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const memberId = route.params?.memberId as string | undefined;
   const [member, setMember] = useState<User | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -373,14 +376,18 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const Info = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.infoRow}>
+const Info = ({ label, value }: { label: string; value: string }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.infoRow}>
     <Text style={styles.infoLabel}>{label}</Text>
     <Text style={styles.infoValue}>{value}</Text>
   </View>
-);
+  );
+}
 
 const SummaryStat = ({
   label,
@@ -390,16 +397,20 @@ const SummaryStat = ({
   label: string;
   tone?: string;
   value: string;
-}) => (
-  <View style={styles.summaryStat}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.summaryStat}>
     <Text style={[styles.summaryValue, tone ? { color: tone } : null]}>
       {value}
     </Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.lg },
   hero: {

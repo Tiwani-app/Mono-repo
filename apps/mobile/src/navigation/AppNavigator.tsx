@@ -7,7 +7,7 @@ import EventsStack from "./EventsStack";
 import FinanceStack from "./FinanceStack";
 import MarketStack from "./MarketStack";
 import VotingStack from "./VotingStack";
-import { colors } from "../theme";
+import { useThemeColors } from "../theme";
 import { AppTabParamList } from "./types";
 import { TAB_ROOT_ROUTES } from "./tabRoutes";
 
@@ -78,7 +78,9 @@ const returnTabToRoot = (
   }
 };
 
-const AppNavigator = () => (
+const AppNavigator = () => {
+  const colors = useThemeColors();
+  return (
   <Tab.Navigator
     screenListeners={({ navigation, route }) => ({
       blur: () => returnTabToRoot(navigation, route.name),
@@ -126,6 +128,7 @@ const AppNavigator = () => (
     <Tab.Screen name="Finance" component={FinanceStack} />
     <Tab.Screen name="Market" component={MarketStack} />
   </Tab.Navigator>
-);
+  );
+};
 
 export default AppNavigator;

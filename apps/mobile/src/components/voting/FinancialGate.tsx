@@ -4,7 +4,7 @@ import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import GoldButton from '../common/GoldButton';
 import ScreenHeader from '../common/ScreenHeader';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {safeGoBack} from '../../utils/navigation';
 
 interface Props {
@@ -12,6 +12,9 @@ interface Props {
 }
 
 const FinancialGate = ({showBack = false}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const navigation = useNavigation<any>();
 
   return (
@@ -37,9 +40,9 @@ const FinancialGate = ({showBack = false}: Props) => {
       </View>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: {flex: 1, backgroundColor: colors.bg.secondary},
   container: {
     flex: 1,

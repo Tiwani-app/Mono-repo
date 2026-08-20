@@ -3,16 +3,16 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Icon from "../common/FeatherIcon";
 import Badge from "../common/Badge";
 import ProgressBar from "../common/ProgressBar";
-import { colors, spacing, typography } from "../../theme";
-import { CATEGORY_COLORS, EventStatus, TiwaniEvent } from "../../types/event";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
+import { EventStatus, TiwaniEvent, getCategoryColors } from "../../types/event";
 import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 
-const STATUS_COLORS: Record<EventStatus, string> = {
+const getStatusColors = (colors: AppColors): Record<EventStatus, string> => ({
   draft: colors.text.tertiary,
   published: colors.status.success,
   cancelled: colors.status.error,
   completed: colors.text.secondary,
-};
+});
 
 interface Props {
   event: TiwaniEvent;
@@ -20,7 +20,11 @@ interface Props {
 }
 
 const EventCard = ({ event, onPress }: Props) => {
-  const categoryColor = CATEGORY_COLORS[event.category];
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const STATUS_COLORS = getStatusColors(colors);
+
+  const categoryColor = getCategoryColors(colors)[event.category];
   const progress =
     event.capacity > 0 ? event.rsvpCount / event.capacity : 0;
   const capacityLabel =
@@ -63,9 +67,9 @@ const EventCard = ({ event, onPress }: Props) => {
       )}
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.md,
     padding: spacing.lg,

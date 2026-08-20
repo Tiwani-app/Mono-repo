@@ -21,7 +21,7 @@ import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { recordBulkPayments, recordPayment } from "../../services/financeService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { LedgerEntry } from "../../types/finance";
 import { User } from "../../types/user";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -99,6 +99,9 @@ const paymentFilterForMember = (
 };
 
 const RecordPaymentScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const routeMemberId = route.params?.memberId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
@@ -660,7 +663,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -670,8 +673,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -688,7 +694,8 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
 const Field = ({
   control,
@@ -698,8 +705,11 @@ const Field = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -723,7 +733,8 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const ChargeDropdown = ({
   error,
@@ -744,6 +755,9 @@ const ChargeDropdown = ({
   onChange: (charge: LedgerEntry) => void;
   setOpen: (open: boolean) => void;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   if (!selectedUid) {
     return (
       <View style={styles.noticeCard}>
@@ -836,7 +850,7 @@ const ChargeDropdown = ({
       )}
     </View>
   );
-};
+}
 
 const chargeMeta = (charge: LedgerEntry) => {
   const dueText = charge.dueDate
@@ -847,7 +861,7 @@ const chargeMeta = (charge: LedgerEntry) => {
   return `${dueText} · ${overdue ? "overdue" : "not overdue"}`;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

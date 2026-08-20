@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Image} from 'expo-image';
-import {colors, typography} from '../../theme';
+import {typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {FinancialStatus} from '../../types/user';
 import StatusDot from './StatusDot';
 
@@ -13,6 +13,9 @@ interface Props {
 }
 
 const Avatar = ({initials, photoURL, size = 38, statusDot}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const fontSize = Math.round(size * 0.37);
 
   return (
@@ -32,9 +35,9 @@ const Avatar = ({initials, photoURL, size = 38, statusDot}: Props) => {
       {statusDot && <StatusDot status={statusDot} style={styles.dot} />}
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   image: {borderWidth: 1.5, borderColor: colors.border.subtle},
   initials: {
     backgroundColor: colors.bg.elevated,

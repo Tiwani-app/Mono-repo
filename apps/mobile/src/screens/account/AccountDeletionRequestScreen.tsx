@@ -16,10 +16,13 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { env } from "../../config/env";
 import { requestAccountDeletion } from "../../services/membersService";
 import { signOut } from "../../services/authService";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { safeGoBack } from "../../utils/navigation";
 
 const AccountDeletionRequestScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [confirmed, setConfirmed] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -150,9 +153,9 @@ const AccountDeletionRequestScreen = ({ navigation }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   warningCard: {

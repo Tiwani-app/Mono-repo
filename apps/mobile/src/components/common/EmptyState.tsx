@@ -1,6 +1,6 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import GoldButton from './GoldButton';
 
 interface Props {
@@ -11,16 +11,20 @@ interface Props {
   onAction?: () => void;
 }
 
-const EmptyState = ({icon, title, message, actionLabel, onAction}: Props) => (
-  <View style={styles.container}>
+const EmptyState = ({icon, title, message, actionLabel, onAction}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.container}>
     <Text style={styles.icon}>{icon}</Text>
     <Text style={styles.title}>{title}</Text>
     <Text style={styles.message}>{message}</Text>
     {actionLabel && onAction && <GoldButton label={actionLabel} onPress={onAction} />}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

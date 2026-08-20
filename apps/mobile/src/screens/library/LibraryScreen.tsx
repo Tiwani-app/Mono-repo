@@ -18,7 +18,7 @@ import DocumentCard from "../../components/library/DocumentCard";
 import DocumentCategoryCard from "../../components/library/DocumentCategoryCard";
 import { useLibraryDocuments } from "../../hooks/useLibraryDocuments";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   LIBRARY_CATEGORY_LABELS,
   LibraryCategory,
@@ -39,6 +39,9 @@ const categoryIcons: Record<LibraryCategory, string> = {
 };
 
 const LibraryScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = canManageLibraryDocuments(user);
   const {
@@ -165,9 +168,9 @@ const LibraryScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   headerActions: { flexDirection: "row", gap: spacing.sm },
   headerButton: {

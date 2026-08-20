@@ -14,7 +14,7 @@ import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import { useContributions } from "../../hooks/useContributions";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { ContributionWithdrawRequest } from "../../types/contributions";
 import {
   getContributionTotals,
@@ -26,7 +26,10 @@ import { canViewLedgerForMember } from "../../utils/financeGuards";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
-const withdrawStatusColor = (status: ContributionWithdrawRequest["status"]) => {
+const withdrawStatusColor = (
+  status: ContributionWithdrawRequest["status"],
+  colors: AppColors,
+) => {
   switch (status) {
     case "pending":
       return colors.gold.default;
@@ -42,6 +45,9 @@ const withdrawStatusColor = (status: ContributionWithdrawRequest["status"]) => {
 };
 
 const MyContributionsScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const routeMemberId = route.params?.memberId as string | undefined;
   const admin = isAdmin(user);
@@ -209,7 +215,7 @@ const MyContributionsScreen = ({ navigation, route }: any) => {
                     </Text>
                     <Badge
                       label={openRequest.status.toUpperCase()}
-                      color={withdrawStatusColor(openRequest.status)}
+                      color={withdrawStatusColor(openRequest.status, colors)}
                     />
                     {openRequest.reason ? (
                       <Text style={styles.requestMeta}>{openRequest.reason}</Text>
@@ -233,7 +239,7 @@ const MyContributionsScreen = ({ navigation, route }: any) => {
                         </View>
                         <Badge
                           label={request.status.toUpperCase()}
-                          color={withdrawStatusColor(request.status)}
+                          color={withdrawStatusColor(request.status, colors)}
                         />
                       </View>
                     ))}
@@ -257,9 +263,9 @@ const MyContributionsScreen = ({ navigation, route }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },

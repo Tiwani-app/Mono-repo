@@ -24,12 +24,12 @@ import {
   toggleRsvp,
 } from "../../services/eventsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
-  CATEGORY_COLORS,
   EventAttendee,
   EventStatus,
   TiwaniEvent,
+  getCategoryColors,
 } from "../../types/event";
 import {
   getMapsSearchUrl,
@@ -39,14 +39,18 @@ import { formatEventDate, formatEventTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
 
-const STATUS_COLORS: Record<EventStatus, string> = {
+const getStatusColors = (colors: AppColors): Record<EventStatus, string> => ({
   draft: colors.text.tertiary,
   published: colors.status.success,
   cancelled: colors.status.error,
   completed: colors.text.secondary,
-};
+});
 
 const EventDetailScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  const STATUS_COLORS = getStatusColors(colors);
+
   const eventId = route.params?.eventId as string | undefined;
   const [event, setEvent] = useState<TiwaniEvent | null>(null);
   const [attendees, setAttendees] = useState<EventAttendee[]>([]);
@@ -133,7 +137,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
     event.capacity > 0 && event.rsvpCount >= event.capacity && !isRsvped;
   const hasElapsed = event.dateTime.getTime() < Date.now();
   const rsvpClosed = event.status !== "published" || hasElapsed;
-  const categoryColor = CATEGORY_COLORS[event.category];
+  const categoryColor = getCategoryColors(colors)[event.category];
 
   const handleToggleRsvp = async () => {
     if (!user) {
@@ -359,9 +363,9 @@ const EventDetailScreen = ({ navigation, route }: any) => {
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.lg },
   hero: {

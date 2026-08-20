@@ -24,7 +24,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { LedgerEntry, LedgerType } from "../../types/finance";
 import { User } from "../../types/user";
 import { formatDisplayDate } from "../../utils/formatDate";
@@ -103,6 +103,9 @@ const monthsBetween = (start: Date, end: Date) => {
 };
 
 const ChargeLedgerScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const {
@@ -420,14 +423,18 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const SummaryTile = ({ label, value }: { label: string; value: number }) => (
-  <View style={styles.summaryTile}>
+const SummaryTile = ({ label, value }: { label: string; value: number }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.summaryTile}>
     <Text style={styles.summaryValue}>{formatCurrency(value)}</Text>
     <Text style={styles.summaryLabel}>{label}</Text>
   </View>
-);
+  );
+}
 
 const ChargeRow = ({
   item,
@@ -436,6 +443,9 @@ const ChargeRow = ({
   item: Extract<LedgerSectionRow, { kind: "charge" }>;
   navigation: any;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { entry, member } = item;
   const outstanding = getChargeOutstanding(entry);
   const amountPaid = getChargeAmountPaid(entry);
@@ -470,7 +480,7 @@ const ChargeRow = ({
       </View>
     </TouchableOpacity>
   );
-};
+}
 
 const PaymentRow = ({
   item,
@@ -479,6 +489,9 @@ const PaymentRow = ({
   item: Extract<LedgerSectionRow, { kind: "payment" }>;
   navigation: any;
 }) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { entry, member } = item;
   return (
     <TouchableOpacity
@@ -511,9 +524,9 @@ const PaymentRow = ({
       </View>
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: {
     gap: spacing.md,

@@ -25,7 +25,7 @@ import {
   updateMember,
 } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   Address,
   Child,
@@ -78,6 +78,9 @@ const maritalOptions: { label: string; value: User["maritalStatus"] }[] = [
 ];
 
 const MemberFormScreen = ({ navigation, route }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const memberId = route.params?.memberId as string | undefined;
   const [role, setRole] = useState<Role>("member");
   const [status, setStatus] = useState<MemberStatus>("active");
@@ -506,7 +509,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
 const Field = ({
   control,
@@ -516,8 +519,11 @@ const Field = ({
   multiline,
   name,
   rules,
-}: any) => (
-  <View style={styles.field}>
+}: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <Controller
       control={control}
@@ -542,7 +548,8 @@ const Field = ({
     />
     {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
-);
+  );
+}
 
 const ChipRow = <T extends string>({
   onChange,
@@ -552,8 +559,11 @@ const ChipRow = <T extends string>({
   options: { label: string; value: T }[];
   selectedValue: T;
   onChange: (value: T) => void;
-}) => (
-  <View style={styles.chipRow}>
+}) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.chipRow}>
     {options.map((option) => {
       const selected = selectedValue === option.value;
       return (
@@ -570,9 +580,10 @@ const ChipRow = <T extends string>({
       );
     })}
   </View>
-);
+  );
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

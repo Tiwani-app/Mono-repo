@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { format, isSameDay } from "date-fns";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { TiwaniEvent } from "../../types/event";
 import { getCenteredDateWindow } from "../../utils/eventGuards";
 
@@ -12,6 +12,9 @@ interface Props {
 }
 
 const WeekStrip = ({ events, selectedDay, onDayPress }: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const today = new Date();
   const days = getCenteredDateWindow(today);
 
@@ -50,9 +53,9 @@ const WeekStrip = ({ events, selectedDay, onDayPress }: Props) => {
       })}
     </View>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: { flexDirection: "row", gap: spacing.sm },
   day: {
     flex: 1,

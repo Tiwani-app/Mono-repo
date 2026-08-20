@@ -30,7 +30,7 @@ import { FinanceDomain } from "../../types/contributions";
 import { DuesPeriod, LedgerType } from "../../types/finance";
 import { useMembers } from "../../hooks/useMembers";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {
   getFinanceStanding,
   getFinanceStandingBadgeLabel,
@@ -66,6 +66,9 @@ const chargeButtons: { label: string; value: LedgerType }[] = [
 ];
 
 const FinanceAdminScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const {
@@ -712,9 +715,9 @@ const FinanceAdminScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },

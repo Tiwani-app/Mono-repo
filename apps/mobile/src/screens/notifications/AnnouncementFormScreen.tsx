@@ -16,7 +16,7 @@ import GoldButton from "../../components/common/GoldButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { sendAnnouncement } from "../../services/notificationsService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { NotificationType } from "../../types/notification";
 import { safeGoBack } from "../../utils/navigation";
 import { isAdmin } from "../../utils/roleGuard";
@@ -30,6 +30,9 @@ const typeOptions: { label: string; value: NotificationType }[] = [
 ];
 
 const AnnouncementFormScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -180,9 +183,9 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },

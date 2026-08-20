@@ -1,30 +1,27 @@
-export const colors = {
-  bg: {
-    primary: '#050C07',
-    secondary: '#091510',
-    tertiary: '#0D1E14',
-    card: '#142518',
-    elevated: '#1C3323',
-  },
-  gold: {
-    default: '#C9962A',
-    light: '#DDB048',
-    dark: '#7A5C1A',
-  },
-  text: {
-    primary: '#EDE7D8',
-    secondary: '#7A9880',
-    tertiary: '#3D5848',
-    onGold: '#050C07',
-  },
-  status: {
-    success: '#27AE60',
-    error: '#E74C3C',
-    info: '#3B82F6',
-    purple: '#8B5CF6',
-  },
-  border: {
-    default: '#101A12',
-    subtle: '#1E3224',
-  },
+import {originalColors} from './palettes';
+import {AppColors} from './types';
+
+const cloneColors = (palette: AppColors): AppColors => ({
+  bg: {...palette.bg},
+  gold: {...palette.gold},
+  text: {...palette.text},
+  status: {...palette.status},
+  border: {...palette.border},
+});
+
+/**
+ * Mutable singleton matching the historical `colors` import.
+ * Theme changes deep-assign into this object so call-time readers
+ * (utils, inline props) pick up the active palette after re-render.
+ */
+export const colors: AppColors = cloneColors(originalColors);
+
+export const applyPalette = (palette: AppColors) => {
+  Object.assign(colors.bg, palette.bg);
+  Object.assign(colors.gold, palette.gold);
+  Object.assign(colors.text, palette.text);
+  Object.assign(colors.status, palette.status);
+  Object.assign(colors.border, palette.border);
 };
+
+export type {AppColors};

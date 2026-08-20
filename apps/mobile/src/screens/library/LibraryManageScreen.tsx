@@ -15,12 +15,15 @@ import {
   unarchiveLibraryDocument,
 } from "../../services/libraryService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing } from "../../theme";
+import {spacing, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { LibraryDocument } from "../../types/library";
 import { canManageLibraryDocuments } from "../../utils/libraryGuards";
 import { safeGoBack } from "../../utils/navigation";
 
 const LibraryManageScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const canManage = canManageLibraryDocuments(user);
   const { documents, error, loading } = useLibraryDocuments({
@@ -204,9 +207,9 @@ const LibraryManageScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   manageCard: { gap: spacing.sm },

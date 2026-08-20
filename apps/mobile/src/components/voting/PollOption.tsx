@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Image} from 'expo-image';
 import ProgressBar from '../common/ProgressBar';
-import {colors, spacing, typography} from '../../theme';
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import {PollOption as PollOptionType} from '../../types/voting';
 
 interface Props {
@@ -15,6 +15,9 @@ interface Props {
 }
 
 const PollOption = ({option, totalVotes, selected, showResult, onSelect, disabled}: Props) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const percent = totalVotes > 0 ? option.voteCount / totalVotes : 0;
 
   return (
@@ -40,9 +43,9 @@ const PollOption = ({option, totalVotes, selected, showResult, onSelect, disable
       {showResult && <ProgressBar value={percent} />}
     </TouchableOpacity>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     minHeight: 56,
     padding: spacing.lg,

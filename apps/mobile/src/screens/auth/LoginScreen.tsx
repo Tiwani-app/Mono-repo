@@ -16,7 +16,7 @@ import GoldButton from "../../components/common/GoldButton";
 import Icon from "../../components/common/FeatherIcon";
 import { env } from "../../config/env";
 import { sendPasswordReset, signIn } from "../../services/authService";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { emailRules, passwordRules } from "../../utils/validators";
 
 interface FormValues {
@@ -25,6 +25,9 @@ interface FormValues {
 }
 
 const LoginScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const [loginError, setLoginError] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
@@ -235,9 +238,9 @@ const LoginScreen = ({ navigation }: any) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
   content: { padding: spacing.xl, gap: spacing.md },

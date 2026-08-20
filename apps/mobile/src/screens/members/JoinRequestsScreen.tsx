@@ -17,7 +17,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import { useJoinRequests } from "../../hooks/useJoinRequests";
 import { reviewJoinRequest } from "../../services/membersService";
 import { useAuthStore } from "../../store/authStore";
-import { colors, spacing, typography } from "../../theme";
+import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { JoinRequest } from "../../types/user";
 import { formatRelativeTime } from "../../utils/formatDate";
 import { safeGoBack } from "../../utils/navigation";
@@ -42,7 +42,7 @@ const matchesRequestFilter = (request: JoinRequest, filter: RequestFilter) => {
   return request.status !== "pending";
 };
 
-const statusColor = (status: JoinRequest["status"]) => {
+const statusColor = (status: JoinRequest["status"], colors: AppColors) => {
   if (status === "approved") {
     return colors.status.success;
   }
@@ -69,6 +69,9 @@ const setupDeliveryMessage = (delivery: SetupDeliveryResult | null) => {
 };
 
 const JoinRequestsScreen = ({ navigation }: any) => {
+  const colors = useThemeColors();
+  const styles = useThemedStyles(createStyles);
+
   const { user } = useAuthStore();
   const admin = isAdmin(user);
   const { error, loading, requests } = useJoinRequests({ enabled: admin });
@@ -225,7 +228,7 @@ const JoinRequestsScreen = ({ navigation }: any) => {
               </View>
               <Badge
                 label={item.status.toUpperCase()}
-                color={statusColor(item.status)}
+                color={statusColor(item.status, colors)}
               />
             </View>
             <Text style={styles.contact}>
@@ -265,9 +268,9 @@ const JoinRequestsScreen = ({ navigation }: any) => {
       />
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   content: { padding: spacing.lg, gap: spacing.md },
   card: {
