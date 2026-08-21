@@ -147,11 +147,12 @@ export const useContributions = (uid?: string, includeAll = false) => {
     }
   }, [includeAll, uid]);
 
-  const activePool =
-    pools.find((pool) => pool.status === "active") ?? null;
+  const activePools = pools.filter((pool) => pool.status === "active");
+  const activePool = activePools[0] ?? null;
 
   return {
     activePool,
+    activePools,
     entries,
     error,
     lastSyncedAt,

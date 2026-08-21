@@ -67,36 +67,34 @@ export const THEME_DEFINITIONS: ThemeDefinition[] = [
     label: 'Deep Forest Dark',
     colors: originalColors,
   },
-  // {
-  //   id: 'theme-02',
-  //   label: 'Forest on White',
-  //   // White screen chrome with forest surfaces; dark text throughout for readability.
-  //   colors: light(
-  //     {
-  //       primary: '#E8F0EA',
-  //       secondary: '#FFFFFF',
-  //       tertiary: '#F3F7F4',
-  //       card: '#F3F7F4',
-  //       elevated: '#E2EDE6',
-  //     },
-  //     {
-  //       // Accent icons/buttons use deep-forest shades (not gold).
-  //       default: '#1C3323',
-  //       light: '#3D5848',
-  //       dark: '#0D1E14',
-  //     },
-  //     {
-  //       primary: '#0D1E14',
-  //       secondary: '#3D5848',
-  //       tertiary: '#7A9880',
-  //       onGold: '#EDE7D8',
-  //     },
-  //     {
-  //       default: '#D5E0D8',
-  //       subtle: '#C5D4CA',
-  //     },
-  //   ),
-  // },
+  {
+    id: 'theme-10',
+    label: 'Forest Green Light',
+    colors: light(
+      {
+        primary: '#E2F0E7',
+        secondary: '#F3FAF5',
+        tertiary: '#EAF5EE',
+        card: '#FFFFFF',
+        elevated: '#E2F0E7',
+      },
+      {
+        default: '#1D6B3B',
+        light: '#27AE60',
+        dark: '#0A3320',
+      },
+      {
+        primary: '#0A3320',
+        secondary: '#1D6B3B',
+        tertiary: '#6A9A78',
+        onGold: '#FFFFFF',
+      },
+      {
+        default: '#B8D9C4',
+        subtle: '#C8E2D0',
+      },
+    ),
+  },
   {
     id: 'theme-05',
     label: 'Sky Blue',
@@ -125,90 +123,95 @@ export const THEME_DEFINITIONS: ThemeDefinition[] = [
       },
     ),
   },
-  // {
-  //   id: 'theme-07',
-  //   label: 'Ocean Teal',
-  //   colors: light(
-  //     {
-  //       primary: '#D8F5F7',
-  //       secondary: '#F0FAFA',
-  //       tertiary: '#E5F6F7',
-  //       card: '#FFFFFF',
-  //       elevated: '#D8F5F7',
-  //     },
-  //     {
-  //       default: '#0A7E8C',
-  //       light: '#0DBDD0',
-  //       dark: '#073A40',
-  //     },
-  //     {
-  //       primary: '#073A40',
-  //       secondary: '#0A7E8C',
-  //       tertiary: '#5AA8B0',
-  //       onGold: '#FFFFFF',
-  //     },
-  //     {
-  //       default: '#A8E4E8',
-  //       subtle: '#BFEAEC',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-09',
-  //   label: 'Soft Lilac',
-  //   colors: light(
-  //     {
-  //       primary: '#EEE8FF',
-  //       secondary: '#FAF8FF',
-  //       tertiary: '#F3EFFF',
-  //       card: '#FFFFFF',
-  //       elevated: '#EEE8FF',
-  //     },
-  //     {
-  //       default: '#7C5CBF',
-  //       light: '#9B7ED4',
-  //       dark: '#6B4EAA',
-  //     },
-  //     {
-  //       primary: '#2A1560',
-  //       secondary: '#6B4EAA',
-  //       tertiary: '#A090C8',
-  //       onGold: '#FFFFFF',
-  //     },
-  //     {
-  //       default: '#C8B4F0',
-  //       subtle: '#D4C4F8',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-10',
-  //   label: 'Forest Green Light',
-  //   colors: light(
-  //     {
-  //       primary: '#E2F0E7',
-  //       secondary: '#F3FAF5',
-  //       tertiary: '#EAF5EE',
-  //       card: '#FFFFFF',
-  //       elevated: '#E2F0E7',
-  //     },
-  //     {
-  //       default: '#1D6B3B',
-  //       light: '#27AE60',
-  //       dark: '#0A3320',
-  //     },
-  //     {
-  //       primary: '#0A3320',
-  //       secondary: '#1D6B3B',
-  //       tertiary: '#6A9A78',
-  //       onGold: '#FFFFFF',
-  //     },
-  //     {
-  //       default: '#B8D9C4',
-  //       subtle: '#C8E2D0',
-  //     },
-  //   ),
-  // },
+  {
+    id: 'theme-40',
+    label: 'Royal Sapphire',
+    colors: coloured(
+      {
+        primary: '#1C3560',
+        secondary: '#2A4A8A',
+        tertiary: '#345698',
+        card: '#3E62A8',
+        elevated: '#4A70B4',
+      },
+      {
+        // Sharper gold so accents pop on sapphire surfaces.
+        default: '#F0C040',
+        light: '#FFD580',
+        dark: '#C9962A',
+      },
+      {
+        primary: '#FFFFFF',
+        secondary: '#EDF1FA',
+        tertiary: '#A8B8D8',
+        onGold: '#14203A',
+      },
+      {
+        default: '#1C3560',
+        subtle: '#3E62A8',
+      },
+    ),
+  },
+  {
+    id: 'theme-givry',
+    label: 'Givry',
+    // Warm cream (#F5E4CF) chrome with dark text and a bronze accent; accent
+    // surfaces (hero card, primary buttons) are bronze with white text.
+    colors: light(
+      {
+        primary: '#F5E4CF',
+        secondary: '#FBF3E7',
+        tertiary: '#F8ECDA',
+        card: '#FDF8F0',
+        elevated: '#F0DBBF',
+      },
+      {
+        default: '#7A5230',
+        light: '#9A7048',
+        dark: '#4E3218',
+      },
+      {
+        primary: '#3A2E1E',
+        secondary: '#7A6A54',
+        tertiary: '#A89A82',
+        onGold: '#FFFFFF',
+      },
+      {
+        default: '#E5D2B8',
+        subtle: '#EEDFC9',
+      },
+    ),
+  },
+  {
+    id: 'theme-grey',
+    label: 'Graphite Grey',
+    // Neutral dark-grey chrome — softer than pure black, no green tint — with
+    // the brand gold accent (gold hero card / primary buttons).
+    colors: coloured(
+      {
+        primary: '#141414',
+        secondary: '#1D1D20',
+        tertiary: '#26262A',
+        card: '#2E2E33',
+        elevated: '#38383E',
+      },
+      {
+        default: '#C9962A',
+        light: '#DDB048',
+        dark: '#8B6914',
+      },
+      {
+        primary: '#F2F2F4',
+        secondary: '#A8A8B0',
+        tertiary: '#6E6E76',
+        onGold: '#141416',
+      },
+      {
+        default: '#141416',
+        subtle: '#3A3A40',
+      },
+    ),
+  },
   {
     id: 'theme-20',
     label: 'Pure White Minimal',
@@ -238,264 +241,6 @@ export const THEME_DEFINITIONS: ThemeDefinition[] = [
       },
     ),
   },
-  // {
-  //   id: 'theme-24',
-  //   label: 'Caribbean Blue',
-  //   colors: coloured(
-  //     {
-  //       primary: '#2470AA',
-  //       secondary: '#3A8FD4',
-  //       tertiary: '#4A9CDE',
-  //       card: '#5AA8E4',
-  //       elevated: '#6BB4EA',
-  //     },
-  //     {
-  //       // Accent icons/buttons use dark Caribbean blue (not gold).
-  //       default: '#0A2A50',
-  //       light: '#1A4A7A',
-  //       dark: '#061830',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#EAF5FF',
-  //       tertiary: '#B8D8F0',
-  //       onGold: '#FFFFFF',
-  //     },
-  //     {
-  //       default: '#2470AA',
-  //       subtle: '#5AA8E4',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-25',
-  //   label: 'Mauve & Cream',
-  //   colors: coloured(
-  //     {
-  //       primary: '#7A5088',
-  //       secondary: '#9B6EA8',
-  //       tertiary: '#A87AB4',
-  //       card: '#B488C0',
-  //       elevated: '#C098CC',
-  //     },
-  //     {
-  //       default: '#FFD580',
-  //       light: '#FFE0A0',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#F8F0FF',
-  //       tertiary: '#D8C0E0',
-  //       onGold: '#3A1860',
-  //     },
-  //     {
-  //       default: '#7A5088',
-  //       subtle: '#B488C0',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-26',
-  //   label: 'Dusty Teal',
-  //   colors: coloured(
-  //     {
-  //       primary: '#2A6060',
-  //       secondary: '#3A8080',
-  //       tertiary: '#449090',
-  //       card: '#4E9C9C',
-  //       elevated: '#5AA8A8',
-  //     },
-  //     {
-  //       // Brighter gold so accents pop on muted teal (standard gold washes out).
-  //       default: '#F0C040',
-  //       light: '#FFD580',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#E8F8F5',
-  //       tertiary: '#B0D0D0',
-  //       onGold: '#0A2828',
-  //     },
-  //     {
-  //       default: '#2A6060',
-  //       subtle: '#4E9C9C',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-27',
-  //   label: 'Warm Burgundy',
-  //   colors: coloured(
-  //     {
-  //       primary: '#6A1A28',
-  //       secondary: '#8B2A3A',
-  //       tertiary: '#9A3444',
-  //       card: '#A83E50',
-  //       elevated: '#B84A5C',
-  //     },
-  //     {
-  //       // Sharper gold so accents stand out on burgundy.
-  //       default: '#F0C040',
-  //       light: '#FFD580',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#FFF0F0',
-  //       tertiary: '#D8A0A8',
-  //       onGold: '#3A0810',
-  //     },
-  //     {
-  //       default: '#6A1A28',
-  //       subtle: '#A83E50',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-30',
-  //   label: 'Warm Charcoal & Gold',
-  //   colors: coloured(
-  //     {
-  //       primary: '#28231E',
-  //       secondary: '#3A3530',
-  //       tertiary: '#45403A',
-  //       card: '#504A44',
-  //       elevated: '#5C564E',
-  //     },
-  //     {
-  //       default: '#C9962A',
-  //       light: '#DDB048',
-  //       dark: '#8B6914',
-  //     },
-  //     {
-  //       primary: '#F5F0E8',
-  //       secondary: '#D4C8B8',
-  //       tertiary: '#6A5A40',
-  //       onGold: '#1A1510',
-  //     },
-  //     {
-  //       default: '#28231E',
-  //       subtle: '#5C564E',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-33',
-  //   label: 'Cool Slate Blue',
-  //   colors: light(
-  //     {
-  //       primary: '#E4EBF4',
-  //       secondary: '#F4F7FB',
-  //       tertiary: '#ECF1F7',
-  //       card: '#FFFFFF',
-  //       elevated: '#E4EBF4',
-  //     },
-  //     {
-  //       default: '#3E5C8A',
-  //       light: '#52627A',
-  //       dark: '#1E2A3D',
-  //     },
-  //     {
-  //       primary: '#1E2A3D',
-  //       secondary: '#52627A',
-  //       tertiary: '#8A98A8',
-  //       onGold: '#FFFFFF',
-  //     },
-  //     {
-  //       default: '#C9D8EA',
-  //       subtle: '#D5E0EE',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-38',
-  //   label: 'Emerald Noir',
-  //   colors: coloured(
-  //     {
-  //       primary: '#123C2E',
-  //       secondary: '#1F5C46',
-  //       tertiary: '#286B52',
-  //       card: '#2E7D5F',
-  //       elevated: '#388C6C',
-  //     },
-  //     {
-  //       // Sharper, higher-contrast gold against emerald surfaces.
-  //       default: '#F0C040',
-  //       light: '#FFD580',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#EAF7F1',
-  //       tertiary: '#A0C8B8',
-  //       onGold: '#0D2E22',
-  //     },
-  //     {
-  //       default: '#123C2E',
-  //       subtle: '#2E7D5F',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-40',
-  //   label: 'Royal Sapphire',
-  //   colors: coloured(
-  //     {
-  //       primary: '#1C3560',
-  //       secondary: '#2A4A8A',
-  //       tertiary: '#345698',
-  //       card: '#3E62A8',
-  //       elevated: '#4A70B4',
-  //     },
-  //     {
-  //       // Sharper gold so accents pop on sapphire surfaces.
-  //       default: '#F0C040',
-  //       light: '#FFD580',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#EDF1FA',
-  //       tertiary: '#A8B8D8',
-  //       onGold: '#14203A',
-  //     },
-  //     {
-  //       default: '#1C3560',
-  //       subtle: '#3E62A8',
-  //     },
-  //   ),
-  // },
-  // {
-  //   id: 'theme-42',
-  //   label: 'Cobalt Ink',
-  //   colors: coloured(
-  //     {
-  //       primary: '#14265C',
-  //       secondary: '#1E3A8A',
-  //       tertiary: '#2A48A0',
-  //       card: '#3B5BC4',
-  //       elevated: '#4A6AD0',
-  //     },
-  //     {
-  //       // Sharper gold so accents pop on cobalt surfaces.
-  //       default: '#F0C040',
-  //       light: '#FFD580',
-  //       dark: '#C9962A',
-  //     },
-  //     {
-  //       primary: '#FFFFFF',
-  //       secondary: '#EEF2FF',
-  //       tertiary: '#A8B8E0',
-  //       onGold: '#101B3D',
-  //     },
-  //     {
-  //       default: '#14265C',
-  //       subtle: '#3B5BC4',
-  //     },
-  //   ),
-  // },
   {
     id: 'theme-black',
     label: 'Pure Black Minimal',

@@ -50,12 +50,21 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
   const styles = useThemedStyles(createStyles);
 
   const routeMemberId = route.params?.memberId as string | undefined;
+  const routePoolId = route.params?.poolId as string | undefined;
   const { user } = useAuthStore();
   const admin = isAdmin(user);
-  const { activePool, loading: poolsLoading } = useContributions(
+  const { activePools, loading: poolsLoading } = useContributions(
     undefined,
     admin,
   );
+  const [poolIdOverride, setPoolIdOverride] = useState<string | null>(null);
+  const defaultPoolId =
+    (routePoolId && activePools.some((pool) => pool.id === routePoolId)
+      ? routePoolId
+      : activePools[0]?.id) ?? "";
+  const selectedPoolId = poolIdOverride ?? defaultPoolId;
+  const selectedPool =
+    activePools.find((pool) => pool.id === selectedPoolId) ?? null;
   const { members, error, loading } = useMembers({ enabled: admin });
   const [mode, setMode] = useState<RecordMode>("single");
   const [memberQuery, setMemberQuery] = useState("");
@@ -98,7 +107,7 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
     if (submitting) {
       return;
     }
-    if (!activePool) {
+    if (!selectedPool) {
       setModal({
         visible: true,
         type: "error",
@@ -139,7 +148,7 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
           paymentMethod: values.paymentMethod.trim(),
           reference: values.reference.trim(),
           note: values.note.trim(),
-          poolId: activePool.id,
+          poolId: selectedPool.id,
         });
         setModal({
           visible: true,
@@ -170,7 +179,7 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
         paymentMethod: values.paymentMethod.trim(),
         reference: values.reference.trim(),
         note: values.note.trim(),
-        poolId: activePool.id,
+        poolId: selectedPool.id,
       });
       safeGoBack(navigation, "FinanceAdmin");
     } catch (submitError) {
@@ -247,17 +256,45 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {activePool ? (
-            <View style={styles.poolCard}>
-              <Text style={styles.poolLabel}>RECORDING INTO POOL</Text>
-              <Text style={styles.poolName}>{activePool.name}</Text>
-            </View>
-          ) : (
+          {activePools.length === 0 ? (
             <EmptyState
               icon="!"
               title="No active pool"
               message="Create a contribution pool before recording."
             />
+          ) : (
+            <View style={styles.poolCard}>
+              <Text style={styles.poolLabel}>RECORDING INTO POOL</Text>
+              {activePools.length === 1 ? (
+                <Text style={styles.poolName}>{activePools[0].name}</Text>
+              ) : (
+                <View style={styles.poolChips}>
+                  {activePools.map((pool) => {
+                    const selected = pool.id === selectedPoolId;
+                    return (
+                      <TouchableOpacity
+                        key={pool.id}
+                        style={[
+                          styles.poolChip,
+                          selected && styles.poolChipActive,
+                        ]}
+                        onPress={() => setPoolIdOverride(pool.id)}
+                        activeOpacity={0.85}
+                      >
+                        <Text
+                          style={[
+                            styles.poolChipText,
+                            selected && styles.poolChipTextActive,
+                          ]}
+                        >
+                          {pool.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           )}
           <View style={styles.modeRow}>
             {(["single", "bulk"] as RecordMode[]).map((item) => (
@@ -407,7 +444,7 @@ const RecordContributionScreen = ({ navigation, route }: any) => {
             }
             onPress={handleSubmit(onSubmit)}
             loading={submitting}
-            disabled={!activePool}
+            disabled={!selectedPool}
             fullWidth
           />
         </ScrollView>
@@ -465,6 +502,30 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: typography.weight.black,
     color: colors.gold.light,
   },
+  poolChips: {
+    marginTop: spacing.xs,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  poolChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  poolChipActive: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  poolChipText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+  },
+  poolChipTextActive: { color: colors.gold.light },
   modeRow: { flexDirection: "row", gap: spacing.sm },
   modeChip: {
     flex: 1,

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
@@ -37,15 +38,19 @@ const RequestWithdrawalScreen = ({ navigation, route }: any) => {
   const poolIdParam = route.params?.poolId as string | undefined;
   const { user } = useAuthStore();
   const {
-    activePool,
+    activePools,
     entries,
     error,
     loading,
-    pools,
     withdrawRequests,
   } = useContributions(user?.uid);
-  const pool =
-    pools.find((item) => item.id === poolIdParam) ?? activePool ?? null;
+  const [poolIdOverride, setPoolIdOverride] = useState<string | null>(null);
+  const defaultPoolId =
+    (poolIdParam && activePools.some((item) => item.id === poolIdParam)
+      ? poolIdParam
+      : activePools[0]?.id) ?? "";
+  const selectedPoolId = poolIdOverride ?? defaultPoolId;
+  const pool = activePools.find((item) => item.id === selectedPoolId) ?? null;
   const [submitting, setSubmitting] = useState(false);
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -189,6 +194,36 @@ const RequestWithdrawalScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {activePools.length > 1 && (
+            <View style={styles.field}>
+              <Text style={styles.label}>POOL</Text>
+              <View style={styles.poolChips}>
+                {activePools.map((item) => {
+                  const selected = item.id === selectedPoolId;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.poolChip,
+                        selected && styles.poolChipActive,
+                      ]}
+                      onPress={() => setPoolIdOverride(item.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.poolChipText,
+                          selected && styles.poolChipTextActive,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
           <View style={styles.banner}>
             <Text style={styles.bannerLabel}>AVAILABLE TO WITHDRAW</Text>
             <Text style={styles.bannerAmount}>{formatCurrency(available)}</Text>
@@ -276,6 +311,29 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.gold.light,
   },
   bannerMeta: { fontSize: typography.size.sm, color: colors.text.secondary },
+  poolChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  poolChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.bg.tertiary,
+  },
+  poolChipActive: {
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}18`,
+  },
+  poolChipText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+  },
+  poolChipTextActive: { color: colors.gold.light },
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

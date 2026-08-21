@@ -189,19 +189,6 @@ export const createContributionPool = onCall(async (request) => {
   const endDate = optionalDateField(request.data, "endDate");
   const note = optionalStringField(request.data, "note", { maxLength: 500 });
 
-  const activePools = await db
-    .collection("contribution_pools")
-    .where("orgId", "==", user.profile.orgId)
-    .where("status", "==", "active")
-    .limit(1)
-    .get();
-  if (!activePools.empty) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Close the current contribution pool before creating a new one.",
-    );
-  }
-
   const poolRef = db.collection("contribution_pools").doc();
   const status: PoolStatus = "active";
   await poolRef.set({

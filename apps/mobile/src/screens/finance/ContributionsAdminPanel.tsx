@@ -277,9 +277,8 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
               disabled={!activePool}
             />
             <OutlineButton
-              label={activePool ? "New Pool (close current first)" : "New Pool"}
+              label="New Pool"
               onPress={() => navigation.navigate("ContributionPoolForm")}
-              disabled={Boolean(activePool)}
             />
           </View>
           <TouchableOpacity

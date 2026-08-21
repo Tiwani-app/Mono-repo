@@ -46,7 +46,9 @@ export type ThemeId =
   | 'theme-38'
   | 'theme-40'
   | 'theme-42'
-  | 'theme-black';
+  | 'theme-black'
+  | 'theme-grey'
+  | 'theme-givry';
 
 export type ThemeDefinition = {
   id: ThemeId;
