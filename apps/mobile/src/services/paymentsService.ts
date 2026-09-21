@@ -4,16 +4,20 @@ import { firestore } from "./firebaseHelpers";
 export type PaymentProvider = "stripe";
 export type PaymentIntentStatus =
   | "pending"
+  | "processing"
   | "succeeded"
   | "failed"
   | "expired"
   | "refunded";
 
-export interface InitiatePaymentInput {
-  targetType: "charge";
-  targetId: string;
-  provider: PaymentProvider;
-}
+export type InitiatePaymentInput =
+  | { targetType: "charge"; targetId: string; provider: PaymentProvider }
+  | {
+      targetType: "contribution";
+      targetId: string;
+      amount: number;
+      provider: PaymentProvider;
+    };
 
 export interface InitiatePaymentResult {
   intentId: string;

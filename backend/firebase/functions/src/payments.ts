@@ -4,10 +4,28 @@ import { defineSecret } from "firebase-functions/params";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import Stripe = require("stripe");
 import { requireActiveUser } from "./authz";
+import { applyContributionEntry } from "./contributionsLedgerService";
 import { toMinorUnits } from "./currency";
 import { applyChargePayment } from "./financeLedgerService";
 import { db } from "./firebase";
 import { stringField } from "./validation";
+
+const numberField = (data: unknown, field: string): number => {
+  const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const value = record[field];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new HttpsError("invalid-argument", `Field "${field}" must be a number.`);
+  }
+  return value;
+};
+
+const positiveAmountField = (data: unknown, field: string): number => {
+  const amount = numberField(data, field);
+  if (amount <= 0) {
+    throw new HttpsError("invalid-argument", `Field "${field}" must be greater than zero.`);
+  }
+  return amount;
+};
 
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -46,6 +64,68 @@ const getOrgPaymentConfig = async (orgId: string): Promise<OrgPaymentConfig> => 
   return { currency, enabledProviders };
 };
 
+const resolveChargeAmount = async (
+  orgId: string,
+  memberUid: string,
+  targetId: string,
+): Promise<number> => {
+  const chargeRef = db.collection("finance").doc(targetId);
+  const chargeSnapshot = await chargeRef.get();
+  if (!chargeSnapshot.exists) {
+    throw new HttpsError("not-found", "Charge not found.");
+  }
+  const charge = chargeSnapshot.data() ?? {};
+  if (charge.orgId !== orgId) {
+    throw new HttpsError(
+      "permission-denied",
+      "This record does not belong to your organisation.",
+    );
+  }
+  if (charge.memberId !== memberUid) {
+    throw new HttpsError("permission-denied", "You can only pay your own charges.");
+  }
+  if (charge.type === "payment") {
+    throw new HttpsError("failed-precondition", "This entry is not a payable charge.");
+  }
+  const chargeAmount = typeof charge.amount === "number" ? charge.amount : 0;
+  const amountPaid = typeof charge.amountPaid === "number" ? charge.amountPaid : 0;
+  const outstanding = Math.max(0, chargeAmount - amountPaid);
+  if (outstanding <= 0) {
+    throw new HttpsError("failed-precondition", "This charge has no outstanding balance.");
+  }
+  // Per product decision (payment-feature.md §13.3): self-serve gateway
+  // payments must cover the full outstanding balance in one transaction —
+  // no partial gateway payments, and the client never supplies the amount.
+  return outstanding;
+};
+
+const resolveContributionAmount = async (
+  request: { data: unknown },
+  orgId: string,
+  targetId: string,
+): Promise<number> => {
+  const poolSnapshot = await db.collection("contribution_pools").doc(targetId).get();
+  if (!poolSnapshot.exists) {
+    throw new HttpsError("not-found", "Contribution pool not found.");
+  }
+  const pool = poolSnapshot.data() ?? {};
+  if (pool.orgId !== orgId) {
+    throw new HttpsError(
+      "permission-denied",
+      "This record does not belong to your organisation.",
+    );
+  }
+  if (pool.status !== "active") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Contributions can only be recorded against an active pool.",
+    );
+  }
+  // Unlike a charge, a contribution has no fixed amount owed — the member
+  // chooses freely, same as an admin recording one on their behalf today.
+  return positiveAmountField(request.data, "amount");
+};
+
 export const initiatePayment = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
@@ -54,12 +134,10 @@ export const initiatePayment = onCall(
     const targetId = stringField(request.data, "targetId", { maxLength: 160 });
     const provider = stringField(request.data, "provider", { maxLength: 20 });
 
-    // Self-serve gateway payments cover charges only in this phase —
-    // contributions are extended in payment-feature.md Phase 3.
-    if (targetType !== "charge") {
+    if (targetType !== "charge" && targetType !== "contribution") {
       throw new HttpsError(
         "invalid-argument",
-        "Self-serve payment currently supports paying a charge only.",
+        "Self-serve payment supports paying a charge or contributing to a pool.",
       );
     }
     if (provider !== "stripe") {
@@ -74,35 +152,10 @@ export const initiatePayment = onCall(
       );
     }
 
-    const chargeRef = db.collection("finance").doc(targetId);
-    const chargeSnapshot = await chargeRef.get();
-    if (!chargeSnapshot.exists) {
-      throw new HttpsError("not-found", "Charge not found.");
-    }
-    const charge = chargeSnapshot.data() ?? {};
-    if (charge.orgId !== user.profile.orgId) {
-      throw new HttpsError(
-        "permission-denied",
-        "This record does not belong to your organisation.",
-      );
-    }
-    if (charge.memberId !== user.uid) {
-      throw new HttpsError("permission-denied", "You can only pay your own charges.");
-    }
-    if (charge.type === "payment") {
-      throw new HttpsError("failed-precondition", "This entry is not a payable charge.");
-    }
-    const chargeAmount = typeof charge.amount === "number" ? charge.amount : 0;
-    const amountPaid = typeof charge.amountPaid === "number" ? charge.amountPaid : 0;
-    const outstanding = Math.max(0, chargeAmount - amountPaid);
-    if (outstanding <= 0) {
-      throw new HttpsError("failed-precondition", "This charge has no outstanding balance.");
-    }
-
-    // Per product decision (payment-feature.md §13.3): self-serve gateway
-    // payments must cover the full outstanding balance in one transaction —
-    // no partial gateway payments, and the client never supplies the amount.
-    const amount = outstanding;
+    const amount =
+      targetType === "charge"
+        ? await resolveChargeAmount(user.profile.orgId, user.uid, targetId)
+        : await resolveContributionAmount(request, user.profile.orgId, targetId);
     const amountMinorUnits = toMinorUnits(amount, currency);
 
     const intentRef = db.collection("payment_intents").doc();
@@ -113,7 +166,7 @@ export const initiatePayment = onCall(
       metadata: {
         orgId: user.profile.orgId,
         intentId: intentRef.id,
-        targetType: "charge",
+        targetType,
         targetId,
       },
     });
@@ -125,7 +178,7 @@ export const initiatePayment = onCall(
       provider: "stripe",
       providerReference: stripeIntent.id,
       status: "pending",
-      targetType: "charge",
+      targetType,
       targetId,
       amount,
       currency,
@@ -249,6 +302,94 @@ export const applyConfirmedGatewayChargePayment = async (
   return { applied: result !== null, paymentId: result?.paymentId ?? null };
 };
 
+/**
+ * Applies a gateway-confirmed contribution to Firestore. Unlike
+ * `applyChargePayment`, `applyContributionEntry` (payment-feature.md Phase 0)
+ * owns its own internal transaction rather than accepting an external one,
+ * so idempotency is enforced with an explicit claim step first (pending ->
+ * processing), then the contribution is applied, then the intent is
+ * finalized to succeeded/failed — a webhook replay that arrives while a
+ * claim is in flight sees a non-"pending" status and no-ops.
+ */
+export const applyConfirmedGatewayContributionPayment = async (
+  input: ConfirmedGatewayPayment,
+): Promise<{ applied: boolean; entryId: string | null }> => {
+  const { intentRef, providerReference, paymentMethodLabel } = input;
+
+  const intent = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(intentRef);
+    const data = snapshot.data();
+    if (!data || data.status !== "pending") {
+      return null; // idempotent replay
+    }
+    if (data.targetType !== "contribution") {
+      transaction.update(intentRef, {
+        status: "failed",
+        failureReason: "Unsupported target type for this phase.",
+        confirmedAt: FieldValue.serverTimestamp(),
+      });
+      return null;
+    }
+    transaction.update(intentRef, { status: "processing" });
+    return data;
+  });
+  if (!intent) {
+    return { applied: false, entryId: null };
+  }
+
+  try {
+    const [poolSnapshot, memberSnapshot] = await Promise.all([
+      db.collection("contribution_pools").doc(intent.targetId).get(),
+      db.collection("users").doc(intent.memberId).get(),
+    ]);
+    if (!poolSnapshot.exists || poolSnapshot.data()?.status !== "active") {
+      throw new Error(
+        "This contribution pool closed before the payment was confirmed. Needs manual reconciliation/refund.",
+      );
+    }
+    const member = memberSnapshot.data() ?? {};
+
+    const applied = await applyContributionEntry({
+      orgId: intent.orgId,
+      memberId: intent.memberId,
+      amount: intent.amount,
+      note: "",
+      poolSnap: poolSnapshot,
+      source: {
+        kind: "gateway",
+        provider: "stripe",
+        paymentIntentId: intentRef.id,
+        paymentMethod: paymentMethodLabel,
+        reference: providerReference,
+      },
+      actor: {
+        uid: intent.memberId,
+        role: "member",
+        fullName: typeof member.fullName === "string" ? member.fullName : "",
+        email: typeof member.email === "string" ? member.email : "",
+        phone: typeof member.phone === "string" ? member.phone : "",
+      },
+    });
+
+    await intentRef.update({
+      status: "succeeded",
+      confirmedAt: FieldValue.serverTimestamp(),
+      appliedEntryId: applied.entryId,
+    });
+    return { applied: true, entryId: applied.entryId };
+  } catch (error) {
+    await intentRef.update({
+      status: "failed",
+      failureReason:
+        error instanceof Error
+          ? error.message
+          : "Could not apply this contribution. Needs manual reconciliation.",
+      confirmedAt: FieldValue.serverTimestamp(),
+    });
+    return { applied: false, entryId: null };
+  }
+};
+
 const describeStripePaymentMethod = async (
   stripe: Stripe,
   paymentIntentId: string,
@@ -315,12 +456,19 @@ export const stripeWebhook = onRequest(
       const stripeIntent = event.data.object;
       const intentRef = await findPaymentIntentRef(stripeIntent.id);
       if (intentRef) {
+        const intentSnapshot = await intentRef.get();
+        const targetType = intentSnapshot.data()?.targetType;
         const paymentMethodLabel = await describeStripePaymentMethod(stripe, stripeIntent.id);
-        await applyConfirmedGatewayChargePayment({
+        const applyArgs = {
           intentRef,
           providerReference: stripeIntent.id,
           paymentMethodLabel,
-        });
+        };
+        if (targetType === "contribution") {
+          await applyConfirmedGatewayContributionPayment(applyArgs);
+        } else {
+          await applyConfirmedGatewayChargePayment(applyArgs);
+        }
       } else {
         console.warn("stripeWebhook: no payment_intents doc for", stripeIntent.id);
       }
