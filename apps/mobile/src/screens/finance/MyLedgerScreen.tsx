@@ -7,6 +7,7 @@ import BalanceBanner from "../../components/finance/BalanceBanner";
 import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -433,6 +434,15 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
               outstanding={outstanding}
               financialStatus={balanceFinancialStatus}
             />
+            {outstanding > 0 && !adminViewingMember && (
+              <View style={styles.payHintCard}>
+                <Icon name="info" size={16} color={colors.gold.default} />
+                <Text style={styles.payHintText}>
+                  Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
+                  to pay it now with card, Apple Pay, or Google Pay.
+                </Text>
+              </View>
+            )}
             {outstanding > 0 && !adminViewingMember && canContactFinance && (
               <View style={styles.contactCard}>
                 <View style={styles.contactCopy}>
@@ -556,6 +566,22 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   adminActions: { gap: spacing.sm },
+  payHintCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold.default,
+    backgroundColor: `${colors.gold.default}14`,
+  },
+  payHintText: {
+    flex: 1,
+    fontSize: typography.size.sm,
+    color: colors.text.primary,
+    lineHeight: typography.size.sm * typography.lineHeight.normal,
+  },
   contactCard: {
     gap: spacing.md,
     padding: spacing.lg,

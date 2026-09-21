@@ -185,8 +185,19 @@ const MyContributionsScreen = ({ navigation, route }: any) => {
                   contributed={totals.totalContributed}
                   withdrawn={totals.totalWithdrawn}
                 />
-                {!viewingOther && available > 0 && !openRequest ? (
+                {!viewingOther ? (
                   <GoldButton
+                    label="Contribute"
+                    onPress={() =>
+                      navigation.navigate("Contribute", {
+                        poolId: activePool.id,
+                      })
+                    }
+                    fullWidth
+                  />
+                ) : null}
+                {!viewingOther && available > 0 && !openRequest ? (
+                  <OutlineButton
                     label="Request Withdrawal"
                     onPress={() =>
                       navigation.navigate("RequestWithdrawal", {

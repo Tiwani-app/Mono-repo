@@ -19,13 +19,17 @@ const statusCopy: Record<
     title: "Confirming your payment",
     message: "This usually takes a few seconds.",
   },
+  processing: {
+    title: "Confirming your payment",
+    message: "This usually takes a few seconds.",
+  },
   succeeded: {
     title: "Payment successful",
     message: "Your ledger has been updated.",
   },
   failed: {
     title: "Payment failed",
-    message: "This charge is still outstanding. You can try again.",
+    message: "This payment did not go through. You can try again.",
   },
   expired: {
     title: "Payment expired",
@@ -62,13 +66,14 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
 
   const status = intent?.status ?? "pending";
   const copy = statusCopy[status];
-  const isTerminal = status !== "pending";
+  const isInFlight = status === "pending" || status === "processing";
+  const isTerminal = !isInFlight;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader title="Payment Status" />
       <View style={styles.content}>
-        {status === "pending" ? (
+        {isInFlight ? (
           <ActivityIndicator size="large" color={colors.gold.default} />
         ) : (
           <View
