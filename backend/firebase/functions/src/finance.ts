@@ -7,6 +7,12 @@ import {
 } from "./activityNotifications";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { db } from "./firebase";
+import {
+  applyChargePayment,
+  millisFromDateValue,
+  paidStatusFor,
+  recalculateMemberFinance,
+} from "./financeLedgerService";
 import { AuthenticatedUser } from "./types";
 import { stringField } from "./validation";
 
@@ -18,7 +24,6 @@ type LedgerType =
   | "pledge"
   | "other"
   | "payment";
-type PaidStatus = "unpaid" | "partial" | "paid";
 
 const chargeTypes: LedgerType[] = [
   "dues",
@@ -99,26 +104,6 @@ const chargeTypeField = (data: unknown): LedgerType => {
     throw new HttpsError("invalid-argument", "Charge type is invalid.");
   }
   return type;
-};
-
-const paidStatusFor = (amount: number, amountPaid: number): PaidStatus => {
-  if (amountPaid <= 0) {
-    return "unpaid";
-  }
-  return amountPaid >= amount ? "paid" : "partial";
-};
-
-const millisFromDateValue = (value: unknown): number => {
-  if (value instanceof Date) {
-    return value.getTime();
-  }
-  if (value && typeof value === "object" && "toMillis" in value) {
-    const toMillis = (value as { toMillis?: unknown }).toMillis;
-    if (typeof toMillis === "function") {
-      return toMillis.call(value);
-    }
-  }
-  return Infinity;
 };
 
 const assertMemberInOrg = (
@@ -340,37 +325,6 @@ export const createAdHocCharges = onCall(async (request) => {
   return { ok: true, chargedMembers: memberIds.length };
 });
 
-const recalculateMemberFinance = (
-  chargeSnapshots: FirebaseFirestore.DocumentSnapshot[],
-  changedCharge?: {
-    amountPaid: number;
-    refPath: string;
-  },
-) => {
-  let outstandingBalance = 0;
-  let hasOverdueCharge = false;
-  const now = Date.now();
-  chargeSnapshots.forEach((snapshot) => {
-    const record = snapshot.data() ?? {};
-    const amount = typeof record.amount === "number" ? record.amount : 0;
-    const storedAmountPaid =
-      typeof record.amountPaid === "number" ? record.amountPaid : 0;
-    const amountPaid =
-      snapshot.ref.path === changedCharge?.refPath
-        ? changedCharge.amountPaid
-        : storedAmountPaid;
-    const owedAfter = Math.max(0, amount - amountPaid);
-    outstandingBalance += owedAfter;
-    if (owedAfter > 0 && millisFromDateValue(record.dueDate) < now) {
-      hasOverdueCharge = true;
-    }
-  });
-  return {
-    financialStatus: hasOverdueCharge ? "red" : "green",
-    outstandingBalance,
-  };
-};
-
 export const recordPayment = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const uid = stringField(request.data, "uid", { maxLength: 160 });
@@ -393,138 +347,23 @@ export const recordPayment = onCall(async (request) => {
     .where("paidStatus", "in", ["unpaid", "partial"])
     .get();
 
-  let paymentId = "";
-  await db.runTransaction(async (transaction) => {
-    const [member, ...chargeSnapshots] = await Promise.all([
-      transaction.get(memberRef),
-      ...unpaidSnapshot.docs.map((entry) => transaction.get(entry.ref)),
-    ]);
-    assertMemberInOrg(user, member);
-    const charges = chargeSnapshots
-      .flatMap((snapshot) => {
-        const record = snapshot.data() ?? {};
-        return record.orgId === user.profile.orgId ? [{ record, snapshot }] : [];
-      })
-      .sort((left, right) => {
-        const leftMillis = millisFromDateValue(left.record.dueDate);
-        const rightMillis = millisFromDateValue(right.record.dueDate);
-        return leftMillis - rightMillis;
-      });
-    const selectedCharge = charges.find(({ record, snapshot }) => {
-      return snapshot.id === chargeEntryId || record.entryId === chargeEntryId;
-    });
-    if (!selectedCharge) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Selected charge is not open for this member.",
-      );
-    }
-    const selectedPaidBefore =
-      typeof selectedCharge.record.amountPaid === "number"
-        ? selectedCharge.record.amountPaid
-        : 0;
-    const selectedAmount =
-      typeof selectedCharge.record.amount === "number"
-        ? selectedCharge.record.amount
-        : 0;
-    const selectedOwedBefore = Math.max(0, selectedAmount - selectedPaidBefore);
-    if (amount > selectedOwedBefore) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Payment amount cannot exceed the selected charge balance.",
-      );
-    }
-
-    const amountPaid = selectedPaidBefore + amount;
-    const paidStatus = paidStatusFor(selectedAmount, amountPaid);
-
-    // Transactions require all reads before writes, so resolve the dues
-    // period state (for auto-settling) before the first update below.
-    const duesPeriodId =
-      paidStatus === "paid" && typeof selectedCharge.record.duesPeriodId === "string"
-        ? selectedCharge.record.duesPeriodId
-        : null;
-    let settledPeriod = false;
-    let periodRef: FirebaseFirestore.DocumentReference | null = null;
-    if (duesPeriodId) {
-      periodRef = db.collection("finance_periods").doc(duesPeriodId);
-      const periodSnapshot = await transaction.get(periodRef);
-      const period = periodSnapshot.data() ?? {};
-      const paidCount =
-        (typeof period.paidCount === "number" ? period.paidCount : 0) + 1;
-      const totalMembers =
-        typeof period.totalMembers === "number" ? period.totalMembers : 0;
-      settledPeriod =
-        periodSnapshot.exists &&
-        period.status !== "settled" &&
-        totalMembers > 0 &&
-        paidCount >= totalMembers;
-    }
-
-    transaction.update(selectedCharge.snapshot.ref, {
-      amountPaid,
-      paidStatus,
-    });
-    if (periodRef) {
-      transaction.update(periodRef, {
-        paidCount: FieldValue.increment(1),
-        ...(settledPeriod
-          ? { status: "settled", settledAt: FieldValue.serverTimestamp() }
-          : {}),
-      });
-    }
-    if (settledPeriod && periodRef) {
-      transaction.set(db.collection("audit_logs").doc(), {
-        action: "finance_period.settled",
-        actorUid: user.uid,
-        actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: periodRef.path,
-        details: { periodId: duesPeriodId, settledByPaymentFor: uid },
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    const paymentRef = db.collection("finance").doc();
-    paymentId = paymentRef.id;
-    transaction.set(paymentRef, {
-      entryId: paymentRef.id,
+  const result = await db.runTransaction((transaction) =>
+    applyChargePayment({
+      transaction,
       orgId: user.profile.orgId,
       memberId: uid,
-      type: "payment",
-      label: paymentMethod,
-      amount,
-      amountPaid: amount,
-      dueDate: null,
-      paidStatus: "paid",
-      paymentMethod,
-      reference: reference || null,
-      appliedChargeId: chargeEntryId,
-      appliedChargeLabel: selectedCharge.record.label,
-      note,
-      recordedBy: user.uid,
-      createdAt: FieldValue.serverTimestamp(),
-      paidAt: FieldValue.serverTimestamp(),
-    });
-    transaction.update(
       memberRef,
-      recalculateMemberFinance(
-        chargeSnapshots,
-        { amountPaid, refPath: selectedCharge.snapshot.ref.path },
-      ),
-    );
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "finance_payment.recorded",
+      candidateChargeRefs: unpaidSnapshot.docs.map((entry) => entry.ref),
+      chargeEntryId,
+      amount,
+      note,
+      source: { kind: "admin_recorded", paymentMethod, reference },
       actorUid: user.uid,
       actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: paymentRef.path,
-      details: { amount, chargeEntryId, paymentId: paymentRef.id, uid },
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  });
+    }),
+  );
 
-  return { ok: true, paymentId };
+  return { ok: true, paymentId: result.paymentId };
 });
 
 export const recordBulkPayments = onCall(async (request) => {
@@ -561,103 +400,23 @@ export const recordBulkPayments = onCall(async (request) => {
       .where("paidStatus", "in", ["unpaid", "partial"])
       .get();
 
-    let paymentId = "";
-    await db.runTransaction(async (transaction) => {
-      const [member, ...chargeSnapshots] = await Promise.all([
-        transaction.get(memberRef),
-        ...unpaidSnapshot.docs.map((entry) => transaction.get(entry.ref)),
-      ]);
-      assertMemberInOrg(user, member);
-      const charges = chargeSnapshots
-        .flatMap((snapshot) => {
-          const record = snapshot.data() ?? {};
-          return record.orgId === user.profile.orgId
-            ? [{ record, snapshot }]
-            : [];
-        })
-        .sort((left, right) => {
-          const leftMillis = millisFromDateValue(left.record.dueDate);
-          const rightMillis = millisFromDateValue(right.record.dueDate);
-          return leftMillis - rightMillis;
-        });
-      const selectedCharge = charges.find(({ record, snapshot: snap }) => {
-        return snap.id === chargeEntryId || record.entryId === chargeEntryId;
-      });
-      if (!selectedCharge) {
-        throw new HttpsError(
-          "failed-precondition",
-          `Selected charge is not open for member ${uid}.`,
-        );
-      }
-      const selectedPaidBefore =
-        typeof selectedCharge.record.amountPaid === "number"
-          ? selectedCharge.record.amountPaid
-          : 0;
-      const selectedAmount =
-        typeof selectedCharge.record.amount === "number"
-          ? selectedCharge.record.amount
-          : 0;
-      const selectedOwedBefore = Math.max(0, selectedAmount - selectedPaidBefore);
-      if (amount > selectedOwedBefore) {
-        throw new HttpsError(
-          "invalid-argument",
-          `Payment amount exceeds the selected charge balance for member ${uid}.`,
-        );
-      }
-
-      const amountPaid = selectedPaidBefore + amount;
-      const paidStatus = paidStatusFor(selectedAmount, amountPaid);
-      transaction.update(selectedCharge.snapshot.ref, { amountPaid, paidStatus });
-      if (
-        paidStatus === "paid" &&
-        typeof selectedCharge.record.duesPeriodId === "string"
-      ) {
-        transaction.update(
-          db.collection("finance_periods").doc(selectedCharge.record.duesPeriodId),
-          { paidCount: FieldValue.increment(1) },
-        );
-      }
-
-      const paymentRef = db.collection("finance").doc();
-      paymentId = paymentRef.id;
-      transaction.set(paymentRef, {
-        entryId: paymentRef.id,
+    const result = await db.runTransaction((transaction) =>
+      applyChargePayment({
+        transaction,
         orgId: user.profile.orgId,
         memberId: uid,
-        type: "payment",
-        label: paymentMethod,
-        amount,
-        amountPaid: amount,
-        dueDate: null,
-        paidStatus: "paid",
-        paymentMethod,
-        reference: reference || null,
-        appliedChargeId: chargeEntryId,
-        appliedChargeLabel: selectedCharge.record.label,
-        note,
-        recordedBy: user.uid,
-        createdAt: FieldValue.serverTimestamp(),
-        paidAt: FieldValue.serverTimestamp(),
-      });
-      transaction.update(
         memberRef,
-        recalculateMemberFinance(chargeSnapshots, {
-          amountPaid,
-          refPath: selectedCharge.snapshot.ref.path,
-        }),
-      );
-      transaction.set(db.collection("audit_logs").doc(), {
-        action: "finance_payment.recorded",
+        candidateChargeRefs: unpaidSnapshot.docs.map((entry) => entry.ref),
+        chargeEntryId,
+        amount,
+        note,
+        source: { kind: "admin_recorded", paymentMethod, reference },
         actorUid: user.uid,
         actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: paymentRef.path,
-        details: { amount, chargeEntryId, paymentId: paymentRef.id, uid },
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    });
+      }),
+    );
 
-    results.push({ ok: true, paymentId, uid });
+    results.push({ ok: true, paymentId: result.paymentId, uid });
   }
 
   return { ok: true, count: results.length, results };
