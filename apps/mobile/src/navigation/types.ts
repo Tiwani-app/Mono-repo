@@ -36,6 +36,8 @@ export type FinanceStackParamList = {
   WithdrawRequests: undefined;
   RequestWithdrawal: { poolId?: string } | undefined;
   ContributionPoolMembers: { poolId: string };
+  PayCharge: { chargeEntryId: string };
+  PaymentStatus: { intentId: string };
 };
 
 export type DashboardStackParamList = {

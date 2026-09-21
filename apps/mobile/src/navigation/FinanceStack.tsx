@@ -9,6 +9,8 @@ import DuesPeriodMembersScreen from '../screens/finance/DuesPeriodMembersScreen'
 import FinanceAdminScreen from '../screens/finance/FinanceAdminScreen';
 import MyContributionsScreen from '../screens/finance/MyContributionsScreen';
 import MyLedgerScreen from '../screens/finance/MyLedgerScreen';
+import PayChargeScreen from '../screens/finance/PayChargeScreen';
+import PaymentStatusScreen from '../screens/finance/PaymentStatusScreen';
 import RecordContributionScreen from '../screens/finance/RecordContributionScreen';
 import RecordPaymentScreen from '../screens/finance/RecordPaymentScreen';
 import RequestWithdrawalScreen from '../screens/finance/RequestWithdrawalScreen';
@@ -33,6 +35,8 @@ const FinanceStack = () => {
     <Stack.Screen name="DuesPeriodForm" component={DuesPeriodFormScreen} />
     <Stack.Screen name="DuesPeriodMembers" component={DuesPeriodMembersScreen} />
     <Stack.Screen name="RecordPayment" component={RecordPaymentScreen} />
+    <Stack.Screen name="PayCharge" component={PayChargeScreen} />
+    <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} />
     <Stack.Screen name="AdHocCharge" component={AdHocChargeScreen} />
     <Stack.Screen
       name="ContributionPoolForm"

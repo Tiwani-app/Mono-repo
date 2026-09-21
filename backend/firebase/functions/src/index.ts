@@ -22,6 +22,11 @@ export {
   requestContributionWithdrawal,
   reviewContributionWithdrawal,
 } from "./contributions";
+export {
+  expirePendingPaymentIntents,
+  initiatePayment,
+  stripeWebhook,
+} from "./payments";
 export { approveJoinRequest, declineJoinRequest } from "./joinRequests";
 export {
   createMemberAccount,

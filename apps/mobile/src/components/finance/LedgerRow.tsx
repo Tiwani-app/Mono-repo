@@ -25,9 +25,10 @@ const TYPE_ICONS: Record<LedgerType, string> = {
 interface Props {
   entry: LedgerEntry;
   onDelete?: (entry: LedgerEntry) => void;
+  onPay?: (entry: LedgerEntry) => void;
 }
 
-const LedgerRow = ({entry, onDelete}: Props) => {
+const LedgerRow = ({entry, onDelete, onPay}: Props) => {
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
 
@@ -38,7 +39,12 @@ const LedgerRow = ({entry, onDelete}: Props) => {
   const badgeColor = chargeStatusColor(displayStatus);
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPay ? () => onPay(entry) : undefined}
+      disabled={!onPay}
+      activeOpacity={onPay ? 0.8 : 1}
+    >
       <View style={[styles.iconBox, isPayment && styles.paymentIcon]}>
         <Icon
           name={TYPE_ICONS[entry.type]}
@@ -69,7 +75,7 @@ const LedgerRow = ({entry, onDelete}: Props) => {
           <Icon name="trash-2" size={16} color={colors.status.error} />
         </TouchableOpacity>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
