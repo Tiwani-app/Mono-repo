@@ -7,7 +7,6 @@ import BalanceBanner from "../../components/finance/BalanceBanner";
 import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
-import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -472,13 +471,10 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
               financialStatus={balanceFinancialStatus}
             />
             {outstanding > 0 && !adminViewingMember && (
-              <View style={styles.payHintCard}>
-                <Icon name="info" size={16} color={colors.gold.default} />
-                <Text style={styles.payHintText}>
-                  Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
-                  to pay it now with card, Apple Pay, or Google Pay.
-                </Text>
-              </View>
+              <Text style={styles.payHint}>
+                Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
+                to pay it now with card, Apple Pay, or Google Pay.
+              </Text>
             )}
             {outstanding > 0 && !adminViewingMember && canContactFinance && (
               <View style={styles.contactCard}>
@@ -487,8 +483,9 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                     Need help with this balance?
                   </Text>
                   <Text style={styles.contactText}>
-                    Contact the treasurer for payment support, or contact the
-                    dues creator for questions about the charge itself.
+                    Questions about a charge? Contact the dues creator. Trouble
+                    paying — no card, or a payment that didn't go through?
+                    Contact the treasurer.
                   </Text>
                 </View>
                 {treasurerContact && (
@@ -604,21 +601,17 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   adminActions: { gap: spacing.sm },
-  payHintCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
+  payHint: {
+    gap: spacing.xs,
+    marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.gold.default,
-    backgroundColor: `${colors.gold.default}14`,
-  },
-  payHintText: {
-    flex: 1,
+    borderColor: colors.border.subtle,
     fontSize: typography.size.sm,
-    color: colors.text.primary,
+    color: colors.text.secondary,
     lineHeight: typography.size.sm * typography.lineHeight.normal,
+    backgroundColor: colors.bg.elevated,
   },
   contactCard: {
     gap: spacing.md,
