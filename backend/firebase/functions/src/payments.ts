@@ -8,6 +8,7 @@ import { applyContributionEntry } from "./contributionsLedgerService";
 import { toMinorUnits } from "./currency";
 import { applyChargePayment } from "./financeLedgerService";
 import { db } from "./firebase";
+import { getStripeClient, stripeSecretKey } from "./stripeClient";
 import { stringField } from "./validation";
 
 const numberField = (data: unknown, field: string): number => {
@@ -27,18 +28,9 @@ const positiveAmountField = (data: unknown, field: string): number => {
   return amount;
 };
 
-const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
 type PaymentProvider = "stripe" | "paystack";
-
-let stripeClient: Stripe | null = null;
-const getStripeClient = (): Stripe => {
-  if (!stripeClient) {
-    stripeClient = new Stripe(stripeSecretKey.value());
-  }
-  return stripeClient;
-};
 
 interface OrgPaymentConfig {
   currency: string;

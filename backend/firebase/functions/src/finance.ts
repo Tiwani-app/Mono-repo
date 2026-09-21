@@ -13,6 +13,7 @@ import {
   paidStatusFor,
   recalculateMemberFinance,
 } from "./financeLedgerService";
+import { getStripeClient, stripeSecretKey } from "./stripeClient";
 import { AuthenticatedUser } from "./types";
 import { stringField } from "./validation";
 
@@ -422,7 +423,9 @@ export const recordBulkPayments = onCall(async (request) => {
   return { ok: true, count: results.length, results };
 });
 
-export const reversePayment = onCall(async (request: CallableRequest<unknown>) => {
+export const reversePayment = onCall(
+  { secrets: [stripeSecretKey] },
+  async (request: CallableRequest<unknown>) => {
   const user = await requireActiveUser(request, ["admin"]);
   const paymentId = stringField(request.data, "paymentId", { maxLength: 160 });
   const note = optionalStringField(request.data, "note", { maxLength: 500 });
@@ -445,6 +448,35 @@ export const reversePayment = onCall(async (request: CallableRequest<unknown>) =
   const amount = typeof payment.amount === "number" ? payment.amount : 0;
   if (amount <= 0) {
     throw new HttpsError("failed-precondition", "Payment amount is invalid.");
+  }
+
+  // Gateway-sourced payments (payment-feature.md Phase 1/3) must actually be
+  // refunded at the provider before the ledger is reopened as unpaid —
+  // otherwise the member keeps the charge on their card/statement while the
+  // ledger says they owe again. Admin-recorded cash/bank-transfer payments
+  // (no `reference`/`provider`) skip this entirely — zero behavior change.
+  let refundId: string | null = null;
+  if (payment.provider === "stripe" && typeof payment.reference === "string") {
+    const stripe = getStripeClient();
+    let refund;
+    try {
+      refund = await stripe.refunds.create({ payment_intent: payment.reference });
+    } catch (error) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Stripe could not refund this payment: ${
+          error instanceof Error ? error.message : "unknown error"
+        }. The ledger was not changed.`,
+      );
+    }
+    if (refund.status !== "succeeded") {
+      throw new HttpsError(
+        "failed-precondition",
+        `Stripe refund did not complete (status: ${refund.status ?? "unknown"}). ` +
+          "The ledger was not changed — check the Stripe Dashboard and try again.",
+      );
+    }
+    refundId = refund.id;
   }
 
   const memberRef = db.collection("users").doc(payment.memberId);
@@ -514,6 +546,7 @@ export const reversePayment = onCall(async (request: CallableRequest<unknown>) =
       reversedAt: FieldValue.serverTimestamp(),
       reversedBy: user.uid,
       reversalNote: note,
+      ...(refundId ? { refundId } : {}),
     });
     transaction.update(
       memberRef,
@@ -528,12 +561,17 @@ export const reversePayment = onCall(async (request: CallableRequest<unknown>) =
       actorRole: user.profile.role,
       orgId: user.profile.orgId,
       targetPath: paymentRef.path,
-      details: { amount, chargeEntryId: payment.appliedChargeId, paymentId },
+      details: {
+        amount,
+        chargeEntryId: payment.appliedChargeId,
+        paymentId,
+        ...(refundId ? { refundId, provider: "stripe" } : {}),
+      },
       createdAt: FieldValue.serverTimestamp(),
     });
   });
 
-  return { ok: true, paymentId };
+  return { ok: true, paymentId, refunded: refundId !== null };
 });
 
 export const deleteFinanceCharge = onCall(async (request) => {

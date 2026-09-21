@@ -16,7 +16,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
-import { deleteCharge } from "../../services/financeService";
+import { deleteCharge, reversePayment } from "../../services/financeService";
 import {
   getCurrentOrganisationFinanceContact,
   getLedgerCreatorContact,
@@ -188,6 +188,43 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
       });
     },
     [deletingChargeId],
+  );
+
+  const [reversingPaymentId, setReversingPaymentId] = useState<string | null>(null);
+
+  const canReverseEntry = (entry: LedgerEntry) =>
+    adminViewingMember && entry.type === "payment" && !entry.reversedAt;
+
+  const handleReversePayment = useCallback(
+    (entry: LedgerEntry) => {
+      if (reversingPaymentId) {
+        return;
+      }
+      const isGateway = Boolean(entry.provider);
+      setModal({
+        visible: true,
+        type: "warning",
+        title: "Reverse Payment",
+        message: isGateway
+          ? `Reverse this ${formatCurrency(entry.amount)} payment? This will refund the member's ${entry.provider === "stripe" ? "Stripe" : "Paystack"} charge and reopen the balance as unpaid.`
+          : `Reverse this ${formatCurrency(entry.amount)} payment and reopen the balance as unpaid?`,
+        primaryLabel: "Reverse",
+        onPrimary: async () => {
+          closeModal();
+          try {
+            setReversingPaymentId(entry.id);
+            await reversePayment({ paymentId: entry.id, note: "" });
+          } catch (reverseError) {
+            setModal({ visible: true, type: "error", title: "Payment not reversed", message: reverseError instanceof Error ? reverseError.message : "Please try again.", onPrimary: closeModal });
+          } finally {
+            setReversingPaymentId(null);
+          }
+        },
+        secondaryLabel: "Cancel",
+        onSecondary: closeModal,
+      });
+    },
+    [reversingPaymentId],
   );
 
   useEffect(() => {
@@ -482,6 +519,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
           <LedgerRow
             entry={item}
             onDelete={canDeleteEntry(item) ? handleDeleteCharge : undefined}
+            onReverse={canReverseEntry(item) ? handleReversePayment : undefined}
             onPay={
               !adminViewingMember &&
               item.type !== "payment" &&

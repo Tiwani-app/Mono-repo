@@ -57,6 +57,10 @@ export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
     ...(recordedByEmail ? { recordedByEmail } : {}),
     ...(recordedByPhone ? { recordedByPhone } : {}),
     duesPeriodId: asNullableString(record.duesPeriodId) ?? undefined,
+    reversedAt: asNullableDate(record.reversedAt, "reversedAt"),
+    ...(record.provider === "stripe" || record.provider === "paystack"
+      ? { provider: record.provider }
+      : {}),
   };
 };
 
