@@ -7,7 +7,6 @@ import BalanceBanner from "../../components/finance/BalanceBanner";
 import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
-import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -472,10 +471,10 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
               financialStatus={balanceFinancialStatus}
             />
             {outstanding > 0 && !adminViewingMember && (
-                <Text style={styles.payHint}>
-                  Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
-                  to pay it now with card, Apple Pay, or Google Pay.
-                </Text>
+              <Text style={styles.payHint}>
+                Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
+                to pay it now with card, Apple Pay, or Google Pay.
+              </Text>
             )}
             {outstanding > 0 && !adminViewingMember && canContactFinance && (
               <View style={styles.contactCard}>
@@ -484,8 +483,9 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                     Need help with this balance?
                   </Text>
                   <Text style={styles.contactText}>
-                    Contact the treasurer for payment support, or contact the
-                    dues creator for questions about the charge itself.
+                    Questions about a charge? Contact the dues creator. Trouble
+                    paying — no card, or a payment that didn't go through?
+                    Contact the treasurer.
                   </Text>
                 </View>
                 {treasurerContact && (
@@ -602,18 +602,16 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   adminActions: { gap: spacing.sm },
   payHint: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    gap: spacing.xs,
     marginTop: spacing.md,
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border.subtle,
-    backgroundColor: `${colors.gold.default}14`,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
     lineHeight: typography.size.sm * typography.lineHeight.normal,
+    backgroundColor: colors.bg.elevated,
   },
   contactCard: {
     gap: spacing.md,
