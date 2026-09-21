@@ -27,6 +27,8 @@ export interface LedgerEntry {
   recordedByEmail?: string;
   recordedByPhone?: string;
   duesPeriodId?: string;
+  reversedAt?: Date | null;
+  provider?: 'stripe' | 'paystack';
 }
 
 export interface DuesPeriod {

@@ -26,9 +26,10 @@ interface Props {
   entry: LedgerEntry;
   onDelete?: (entry: LedgerEntry) => void;
   onPay?: (entry: LedgerEntry) => void;
+  onReverse?: (entry: LedgerEntry) => void;
 }
 
-const LedgerRow = ({entry, onDelete, onPay}: Props) => {
+const LedgerRow = ({entry, onDelete, onPay, onReverse}: Props) => {
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
 
@@ -73,6 +74,15 @@ const LedgerRow = ({entry, onDelete, onPay}: Props) => {
           activeOpacity={0.8}
         >
           <Icon name="trash-2" size={16} color={colors.status.error} />
+        </TouchableOpacity>
+      )}
+      {onReverse && (
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => onReverse(entry)}
+          activeOpacity={0.8}
+        >
+          <Icon name="rotate-ccw" size={16} color={colors.status.error} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
