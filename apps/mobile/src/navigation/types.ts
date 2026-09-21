@@ -38,6 +38,8 @@ export type FinanceStackParamList = {
   ContributionPoolMembers: { poolId: string };
   PayCharge: { chargeEntryId: string };
   Contribute: { poolId?: string } | undefined;
+  PaystackCheckout: { authorizationUrl: string; intentId: string };
+  PaystackRate: undefined;
   PaymentStatus: { intentId: string };
 };
 

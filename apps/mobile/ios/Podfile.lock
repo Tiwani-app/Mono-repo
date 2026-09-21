@@ -3167,6 +3167,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-webview (13.16.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - React-NativeModulesApple (0.83.6):
     - hermes-engine
     - React-callinvoker
@@ -3996,6 +4018,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
+  - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -4216,6 +4239,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
+  react-native-webview:
+    :path: "../node_modules/react-native-webview"
   React-NativeModulesApple:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios"
   React-networking:
@@ -4359,7 +4384,7 @@ SPEC CHECKSUMS:
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
   GTMSessionFetcher: 127211aeec0b1e904fc49f4f6f895dcc535b0ecf
-  hermes-engine: ccaefa7efcad04a91239563ca9ab34ab79baf593
+  hermes-engine: 1fd9bf1f975adcccb893af6644c50e1ebcaa328c
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
@@ -4375,7 +4400,7 @@ SPEC CHECKSUMS:
   React: 9b033c7a99e1c8eec40960b6b2e6844e011e8bd1
   React-callinvoker: f64c8d57f45173835b6b9891cda27f1625551972
   React-Core: 341863a2597c4a2320f916b4232d280cb8a28e4b
-  React-Core-prebuilt: 9a1ea7847dc5bb874dc053b4343a434413f6e2ba
+  React-Core-prebuilt: 1a281fea335035c4940912422f15a103e7b4a0e4
   React-CoreModules: 9370769c9b2b1732c58960687f4d50d9d3510efc
   React-cxxreact: 41ae74bd9eab80af9c5da6a9b4934eb97e2c7569
   React-debug: 5c23edcf01e5a23af51055912de7e435539b8c63
@@ -4404,6 +4429,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 9f7f3ec89517942f86aed77cb4712dedf2d327c8
   React-microtasksnativemodule: d2241f88c1cb03feed6e24c256992ba39ea84717
   react-native-safe-area-context: c5d42c4294aa175415947e23c2ac956253abfc7d
+  react-native-webview: 6b41d44f853c7f8dd8b685d8d289fe33349e4e1b
   React-NativeModulesApple: 9068613f7650828eed29ead6fc0d0a1620117e6a
   React-networking: 96d4cbebde99461fcb0d631c546a905494cb7a68
   React-oscompat: 05afae2c7689405dbb4f6458110d501d55357980
@@ -4437,7 +4463,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 3ec8fc5d32ad422f5b805523a5a5ea5556d8b3a2
   ReactCodegen: 68b032512e57ceda2588d6a418083facf2a4c311
   ReactCommon: ba28cd4e7d9e24014d2772a80e32da020c732b00
-  ReactNativeDependencies: fe81bdee18d853a0247c7d69d83281928f394584
+  ReactNativeDependencies: 8bac599cc2e8b321529c1d9b19ee3885833949d4
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNCAsyncStorage: c8407cc394627a3a4cf56b457d594bfa822b6ab8
   RNFBApp: c488bcff50c115443d90b0c7e8c4c1e4a1dbf5a4

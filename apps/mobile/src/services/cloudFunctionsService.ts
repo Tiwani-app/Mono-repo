@@ -14,7 +14,11 @@ import type {
   DuesPeriodInput,
   PaymentInput,
 } from "./financeService";
-import type { InitiatePaymentInput, InitiatePaymentResult } from "./paymentsService";
+import type {
+  InitiatePaymentInput,
+  InitiatePaymentResult,
+  PaymentIntentStatus,
+} from "./paymentsService";
 import type {
   BulkContributionInput,
   ContributionPoolInput,
@@ -295,6 +299,12 @@ export const initiatePaymentCallable = (data: InitiatePaymentInput) =>
   callCloudFunction<InitiatePaymentInput, InitiatePaymentResult>(
     "initiatePayment",
     data,
+  );
+
+export const checkPaymentStatusCallable = (intentId: string) =>
+  callCloudFunction<{ intentId: string }, { status: PaymentIntentStatus }>(
+    "checkPaymentStatus",
+    { intentId },
   );
 
 export const createContributionPoolCallable = (data: ContributionPoolInput) =>

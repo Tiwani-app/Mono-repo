@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
+import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import {
+  checkPaymentStatus,
   PaymentIntentRecord,
   subscribeToPaymentIntent,
 } from "../../services/paymentsService";
@@ -47,6 +49,7 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
   const intentId = route.params?.intentId as string | undefined;
   const [intent, setIntent] = useState<PaymentIntentRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (!intentId) {
@@ -59,6 +62,28 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
     );
     return unsubscribe;
   }, [intentId]);
+
+  // Ask the server to verify with the provider — the Firestore listener above
+  // reflects any resulting status change. Best-effort, idempotent.
+  const runCheck = useCallback(async () => {
+    if (!intentId) {
+      return;
+    }
+    setChecking(true);
+    try {
+      await checkPaymentStatus(intentId);
+    } catch {
+      // ignore — the listener still shows the latest status
+    } finally {
+      setChecking(false);
+    }
+  }, [intentId]);
+
+  // Give the webhook a moment, then actively verify if it hasn't landed yet.
+  useEffect(() => {
+    const timer = setTimeout(runCheck, 1500);
+    return () => clearTimeout(timer);
+  }, [runCheck]);
 
   const handleDone = () => {
     navigation.navigate("MyLedger");
@@ -97,6 +122,14 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
         <Text style={styles.message}>{error ?? copy.message}</Text>
         {intent && intent.amount > 0 && (
           <Text style={styles.amount}>{formatCurrency(intent.amount)}</Text>
+        )}
+        {isInFlight && (
+          <OutlineButton
+            label={checking ? "Checking…" : "Check again"}
+            onPress={runCheck}
+            disabled={checking}
+            fullWidth
+          />
         )}
         {isTerminal && (
           <GoldButton label="Back to Ledger" onPress={handleDone} fullWidth />

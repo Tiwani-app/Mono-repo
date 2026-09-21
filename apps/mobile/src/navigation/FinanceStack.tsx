@@ -12,6 +12,8 @@ import MyContributionsScreen from '../screens/finance/MyContributionsScreen';
 import MyLedgerScreen from '../screens/finance/MyLedgerScreen';
 import PayChargeScreen from '../screens/finance/PayChargeScreen';
 import PaymentStatusScreen from '../screens/finance/PaymentStatusScreen';
+import PaystackCheckoutScreen from '../screens/finance/PaystackCheckoutScreen';
+import PaystackRateScreen from '../screens/finance/PaystackRateScreen';
 import RecordContributionScreen from '../screens/finance/RecordContributionScreen';
 import RecordPaymentScreen from '../screens/finance/RecordPaymentScreen';
 import RequestWithdrawalScreen from '../screens/finance/RequestWithdrawalScreen';
@@ -38,6 +40,8 @@ const FinanceStack = () => {
     <Stack.Screen name="RecordPayment" component={RecordPaymentScreen} />
     <Stack.Screen name="PayCharge" component={PayChargeScreen} />
     <Stack.Screen name="Contribute" component={ContributeScreen} />
+    <Stack.Screen name="PaystackCheckout" component={PaystackCheckoutScreen} />
+    <Stack.Screen name="PaystackRate" component={PaystackRateScreen} />
     <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} />
     <Stack.Screen name="AdHocCharge" component={AdHocChargeScreen} />
     <Stack.Screen
