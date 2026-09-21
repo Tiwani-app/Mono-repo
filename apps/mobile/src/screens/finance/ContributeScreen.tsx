@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,9 +14,16 @@ import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import { env } from "../../config/env";
 import { useContributions } from "../../hooks/useContributions";
-import { initiatePayment } from "../../services/paymentsService";
+import {
+  getPaymentConfig,
+  initiatePayment,
+  PaymentConfig,
+  PaymentProvider,
+} from "../../services/paymentsService";
 import { useAuthStore } from "../../store/authStore";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { safeGoBack } from "../../utils/navigation";
@@ -32,6 +39,7 @@ const ContributeScreen = ({ navigation, route }: any) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const poolId = route.params?.poolId as string | undefined;
   const { activePool, loading } = useContributions(user?.uid);
+  const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [paying, setPaying] = useState(false);
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -40,16 +48,28 @@ const ContributeScreen = ({ navigation, route }: any) => {
     message: string;
   } | null>(null);
   const closeModal = () => setModal(null);
-  const { control, handleSubmit, formState } = useForm<FormValues>({
+  const { control, handleSubmit, formState, watch } = useForm<FormValues>({
     defaultValues: { amount: "" },
   });
+
+  useEffect(() => {
+    getPaymentConfig()
+      .then(setConfig)
+      .catch(() => setConfig({ enabledProviders: [], paystackExchangeRate: 0 }));
+  }, []);
+
+  const amountInput = Number((watch("amount") || "").replace(/,/g, ""));
+  const paystackNairaEstimate =
+    config && config.paystackExchangeRate > 0 && Number.isFinite(amountInput) && amountInput > 0
+      ? Math.round(amountInput * config.paystackExchangeRate)
+      : 0;
 
   const handleBack = () => safeGoBack(navigation, "MyContributions");
 
   const pool =
     activePool && (!poolId || activePool.id === poolId) ? activePool : null;
 
-  const onSubmit = async (values: FormValues) => {
+  const pay = async (values: FormValues, provider: PaymentProvider) => {
     if (!pool || paying) {
       return;
     }
@@ -66,37 +86,57 @@ const ContributeScreen = ({ navigation, route }: any) => {
 
     setPaying(true);
     try {
-      const { clientSecret, intentId } = await initiatePayment({
-        targetType: "contribution",
-        targetId: pool.id,
-        amount,
-        provider: "stripe",
-      });
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: "Tiwani",
-        applePay: { merchantCountryCode: "NG" },
-        googlePay: { merchantCountryCode: "NG", testEnv: __DEV__ },
-      });
-      if (initError) {
-        throw new Error(initError.message);
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        if (presentError.code !== "Canceled") {
-          setModal({
-            visible: true,
-            type: "error",
-            title: "Payment not completed",
-            message: presentError.message,
-          });
+      if (provider === "stripe") {
+        const { clientSecret, intentId } = await initiatePayment({
+          targetType: "contribution",
+          targetId: pool.id,
+          amount,
+          provider: "stripe",
+        });
+        if (!clientSecret) {
+          throw new Error("Stripe did not return a client secret.");
         }
-        return;
-      }
 
-      navigation.replace("PaymentStatus", { intentId });
+        const { error: initError } = await initPaymentSheet({
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: "Tiwani",
+          // Only offer Apple Pay when a merchant id is configured — otherwise
+          // Stripe throws and blocks card/Google Pay too.
+          ...(env.stripeMerchantIdentifier
+            ? { applePay: { merchantCountryCode: "NG" } }
+            : {}),
+          googlePay: { merchantCountryCode: "NG", testEnv: __DEV__ },
+        });
+        if (initError) {
+          throw new Error(initError.message);
+        }
+
+        const { error: presentError } = await presentPaymentSheet();
+        if (presentError) {
+          if (presentError.code !== "Canceled") {
+            setModal({
+              visible: true,
+              type: "error",
+              title: "Payment not completed",
+              message: presentError.message,
+            });
+          }
+          return;
+        }
+
+        navigation.replace("PaymentStatus", { intentId });
+      } else {
+        const { authorizationUrl, intentId } = await initiatePayment({
+          targetType: "contribution",
+          targetId: pool.id,
+          amount,
+          provider: "paystack",
+        });
+        if (!authorizationUrl) {
+          throw new Error("Paystack did not return a checkout page.");
+        }
+        navigation.replace("PaystackCheckout", { authorizationUrl, intentId });
+      }
     } catch (payError) {
       setModal({
         visible: true,
@@ -152,8 +192,7 @@ const ContributeScreen = ({ navigation, route }: any) => {
         >
           <Text style={styles.poolName}>{pool.name}</Text>
           <Text style={styles.hint}>
-            Choose how much to contribute, then pay with card, Apple Pay, or
-            Google Pay.
+            Choose how much to contribute, then pay below.
           </Text>
           <Controller
             control={control}
@@ -182,12 +221,27 @@ const ContributeScreen = ({ navigation, route }: any) => {
               {formState.errors.amount.message}
             </Text>
           )}
-          <GoldButton
-            label={paying ? "Starting payment…" : "Contribute"}
-            onPress={handleSubmit(onSubmit)}
-            loading={paying}
-            fullWidth
-          />
+          {config?.enabledProviders.includes("stripe") && (
+            <GoldButton
+              label={paying ? "Starting payment…" : "Contribute with card / Apple Pay / Google Pay"}
+              onPress={handleSubmit((values) => pay(values, "stripe"))}
+              loading={paying}
+              fullWidth
+            />
+          )}
+          {config?.enabledProviders.includes("paystack") &&
+            config.paystackExchangeRate > 0 && (
+              <OutlineButton
+                label={
+                  paystackNairaEstimate > 0
+                    ? `Contribute ₦${paystackNairaEstimate.toLocaleString()} via bank transfer, USSD or card`
+                    : "Contribute with bank transfer, USSD or card (Naira)"
+                }
+                onPress={handleSubmit((values) => pay(values, "paystack"))}
+                disabled={paying}
+                fullWidth
+              />
+            )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

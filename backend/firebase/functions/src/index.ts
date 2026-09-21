@@ -23,8 +23,10 @@ export {
   reviewContributionWithdrawal,
 } from "./contributions";
 export {
+  checkPaymentStatus,
   expirePendingPaymentIntents,
   initiatePayment,
+  paystackWebhook,
   stripeWebhook,
 } from "./payments";
 export { approveJoinRequest, declineJoinRequest } from "./joinRequests";

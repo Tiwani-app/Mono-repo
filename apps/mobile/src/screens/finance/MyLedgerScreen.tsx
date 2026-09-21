@@ -472,13 +472,10 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
               financialStatus={balanceFinancialStatus}
             />
             {outstanding > 0 && !adminViewingMember && (
-              <View style={styles.payHintCard}>
-                <Icon name="info" size={16} color={colors.gold.default} />
-                <Text style={styles.payHintText}>
+                <Text style={styles.payHint}>
                   Tap a transaction marked UNPAID, PARTIAL, or OVERDUE below
                   to pay it now with card, Apple Pay, or Google Pay.
                 </Text>
-              </View>
             )}
             {outstanding > 0 && !adminViewingMember && canContactFinance && (
               <View style={styles.contactCard}>
@@ -604,20 +601,18 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   summaryLabel: { fontSize: typography.size.xs, color: colors.text.secondary },
   adminActions: { gap: spacing.sm },
-  payHintCard: {
+  payHint: {
     flexDirection: "row",
     alignItems: "flex-start",
+    marginTop: spacing.md,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.gold.default,
+    borderColor: colors.border.subtle,
     backgroundColor: `${colors.gold.default}14`,
-  },
-  payHintText: {
-    flex: 1,
-    fontSize: typography.size.sm,
-    color: colors.text.primary,
     lineHeight: typography.size.sm * typography.lineHeight.normal,
   },
   contactCard: {
