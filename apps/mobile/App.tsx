@@ -1,6 +1,8 @@
 import React, {useEffect, useState} from 'react';
+import {StripeProvider} from '@stripe/stripe-react-native';
 import './src/config/scrollIndicators';
 import LoadingSpinner from './src/components/common/LoadingSpinner';
+import {env} from './src/config/env';
 import {
   initializeFirebaseRuntimeServices,
   recordCrashlyticsError,
@@ -38,9 +40,14 @@ const App = () => {
   }
 
   return (
-    <ThemeBootstrap fallback={<LoadingSpinner />}>
-      <RootNavigator />
-    </ThemeBootstrap>
+    <StripeProvider
+      publishableKey={env.stripePublishableKey}
+      merchantIdentifier={env.stripeMerchantIdentifier}
+    >
+      <ThemeBootstrap fallback={<LoadingSpinner />}>
+        <RootNavigator />
+      </ThemeBootstrap>
+    </StripeProvider>
   );
 };
 

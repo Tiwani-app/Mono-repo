@@ -14,6 +14,7 @@ import type {
   DuesPeriodInput,
   PaymentInput,
 } from "./financeService";
+import type { InitiatePaymentInput, InitiatePaymentResult } from "./paymentsService";
 import type {
   BulkContributionInput,
   ContributionPoolInput,
@@ -289,6 +290,12 @@ export const recalculateMemberFinanceStandingCallable = (uid: string) =>
       uid: string;
     }
   >("recalculateMemberFinanceStanding", { uid });
+
+export const initiatePaymentCallable = (data: InitiatePaymentInput) =>
+  callCloudFunction<InitiatePaymentInput, InitiatePaymentResult>(
+    "initiatePayment",
+    data,
+  );
 
 export const createContributionPoolCallable = (data: ContributionPoolInput) =>
   callCloudFunction<

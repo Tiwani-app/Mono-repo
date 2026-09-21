@@ -190,6 +190,11 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /payment_intents/{intentId} {
+      allow read: if sameOrgExisting() && (isAdmin() || resource.data.memberId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /library_documents/{documentId} {
       allow read: if sameOrgExisting() && (
         isAdmin() ||

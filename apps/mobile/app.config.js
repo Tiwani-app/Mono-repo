@@ -21,6 +21,8 @@ const androidGoogleServicesFile =
 const iosApsEnvironment =
   process.env.TIWANI_IOS_APS_ENVIRONMENT ||
   (isProduction ? "production" : "development");
+const stripeMerchantIdentifier =
+  process.env.EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER || "merchant.com.tiwani.app";
 
 module.exports = {
   expo: {
@@ -62,6 +64,13 @@ module.exports = {
               "RNFBStorage",
             ],
           },
+        },
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          merchantIdentifier: stripeMerchantIdentifier,
+          enableGooglePay: true,
         },
       ],
     ],

@@ -472,6 +472,16 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
           <LedgerRow
             entry={item}
             onDelete={canDeleteEntry(item) ? handleDeleteCharge : undefined}
+            onPay={
+              !adminViewingMember &&
+              item.type !== "payment" &&
+              item.paidStatus !== "paid"
+                ? (entry) =>
+                    navigation.navigate("PayCharge", {
+                      chargeEntryId: entry.id,
+                    })
+                : undefined
+            }
           />
         )}
         initialNumToRender={12}

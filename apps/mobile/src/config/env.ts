@@ -27,6 +27,8 @@ export interface ClientEnv {
   financeContactPhone: string;
   marketplaceRulesUrl: string;
   privacyPolicyUrl: string;
+  stripeMerchantIdentifier: string;
+  stripePublishableKey: string;
   supportUrl: string;
   termsUrl: string;
   useFirebaseEmulators: boolean;
@@ -131,6 +133,9 @@ export const env: ClientEnv = {
   financeContactPhone: process.env.EXPO_PUBLIC_FINANCE_CONTACT_PHONE ?? "",
   marketplaceRulesUrl: process.env.EXPO_PUBLIC_MARKETPLACE_RULES_URL ?? "",
   privacyPolicyUrl: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL ?? "",
+  stripeMerchantIdentifier:
+    process.env.EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER ?? "",
+  stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
   supportUrl: process.env.EXPO_PUBLIC_SUPPORT_URL ?? "",
   termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? "",
   useFirebaseEmulators:

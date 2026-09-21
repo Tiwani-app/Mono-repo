@@ -136,6 +136,23 @@ const seed = async () => {
       note: "",
       recordedBy: "admin-1",
     });
+    await db.doc("payment_intents/intent-1").set({
+      intentId: "intent-1",
+      orgId: "org-1",
+      memberId: "member-1",
+      provider: "stripe",
+      providerReference: "pi_test_123",
+      status: "pending",
+      targetType: "charge",
+      targetId: "charge-1",
+      amount: 100,
+      currency: "NGN",
+      amountMinorUnits: 10000,
+      createdAt: new Date("2026-06-01T00:00:00.000Z"),
+      confirmedAt: null,
+      failureReason: null,
+      appliedEntryId: null,
+    });
     await db.doc("join_requests/request-1").set({
       requestId: "request-1",
       orgId: "org-1",
@@ -483,6 +500,39 @@ describe("Firestore security rules", () => {
         completedAt: null,
       }),
     );
+  });
+
+  it("scopes payment_intents reads to the owning member or a same-org admin, and blocks all client writes", async () => {
+    const ownerDb = testEnv.authenticatedContext("member-1").firestore();
+    const otherMemberDb = testEnv.authenticatedContext("member-2").firestore();
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+
+    await assertSucceeds(ownerDb.doc("payment_intents/intent-1").get());
+    await assertFails(otherMemberDb.doc("payment_intents/intent-1").get());
+    await assertSucceeds(adminDb.doc("payment_intents/intent-1").get());
+
+    const newIntent = {
+      intentId: "intent-2",
+      orgId: "org-1",
+      memberId: "member-1",
+      provider: "stripe",
+      providerReference: "pi_test_999",
+      status: "pending",
+      targetType: "charge",
+      targetId: "charge-1",
+      amount: 50,
+      currency: "NGN",
+      amountMinorUnits: 5000,
+      createdAt: new Date(),
+      confirmedAt: null,
+      failureReason: null,
+      appliedEntryId: null,
+    };
+    await assertFails(ownerDb.doc("payment_intents/intent-2").set(newIntent));
+    await assertFails(adminDb.doc("payment_intents/intent-2").set(newIntent));
+    await assertFails(ownerDb.doc("payment_intents/intent-1").update({ status: "succeeded" }));
+    await assertFails(adminDb.doc("payment_intents/intent-1").update({ status: "succeeded" }));
+    await assertFails(ownerDb.doc("payment_intents/intent-1").delete());
   });
 
   it("blocks direct poll vote writes until secure voting functions exist", async () => {
