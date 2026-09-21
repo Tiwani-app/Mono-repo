@@ -5,13 +5,13 @@ import {
   publishOrgAnnouncement,
 } from "./activityNotifications";
 import { assertSameOrg, requireActiveUser } from "./authz";
+import { applyContributionEntry, ContributionEntryType } from "./contributionsLedgerService";
 import { db } from "./firebase";
 import { AuthenticatedUser } from "./types";
 import { stringField } from "./validation";
 
 type WithdrawStatus = "pending" | "approved" | "rejected" | "paid";
 type PoolStatus = "active" | "closed";
-type ContributionEntryType = "contribution" | "payout";
 
 const recordFromData = (data: unknown): Record<string, unknown> =>
   data && typeof data === "object" ? (data as Record<string, unknown>) : {};
@@ -282,86 +282,6 @@ export const closeContributionPool = onCall(async (request) => {
   return { ok: true, poolId };
 });
 
-const writeContributionEntry = async ({
-  user,
-  memberId,
-  amount,
-  paymentMethod,
-  reference,
-  note,
-  poolSnap,
-}: {
-  user: AuthenticatedUser;
-  memberId: string;
-  amount: number;
-  paymentMethod: string;
-  reference: string;
-  note: string;
-  poolSnap: FirebaseFirestore.DocumentSnapshot;
-}) => {
-  const poolData = poolSnap.data() ?? {};
-  if (poolData.status !== "active") {
-    throw new HttpsError(
-      "failed-precondition",
-      "Contributions can only be recorded against an active pool.",
-    );
-  }
-
-  const existingForMember = await db
-    .collection("contributions")
-    .where("orgId", "==", user.profile.orgId)
-    .where("memberId", "==", memberId)
-    .where("poolId", "==", poolSnap.id)
-    .where("type", "==", "contribution")
-    .limit(1)
-    .get();
-  const isFirstContribution = existingForMember.empty;
-
-  const entryRef = db.collection("contributions").doc();
-  const entryType: ContributionEntryType = "contribution";
-  const label = `${poolData.label ?? "Contribution"}`;
-
-  await db.runTransaction(async (transaction) => {
-    transaction.set(entryRef, {
-      entryId: entryRef.id,
-      orgId: user.profile.orgId,
-      memberId,
-      poolId: poolSnap.id,
-      type: entryType,
-      label,
-      amount,
-      paymentMethod,
-      reference: reference || null,
-      note,
-      ...actorFields(user),
-      createdAt: FieldValue.serverTimestamp(),
-      paidAt: FieldValue.serverTimestamp(),
-    });
-    transaction.update(poolSnap.ref, {
-      totalContributed: FieldValue.increment(amount),
-      ...(isFirstContribution
-        ? { contributorCount: FieldValue.increment(1) }
-        : {}),
-    });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "contribution.recorded",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: entryRef.path,
-      details: {
-        entryId: entryRef.id,
-        memberId,
-        poolId: poolSnap.id,
-        amount,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  });
-
-  return { entryId: entryRef.id, poolId: poolSnap.id };
-};
-
 export const recordContribution = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const memberId = stringField(request.data, "memberId", { maxLength: 160 });
@@ -383,14 +303,20 @@ export const recordContribution = onCall(async (request) => {
     user.profile.orgId,
     poolIdInput || undefined,
   );
-  const result = await writeContributionEntry({
-    user,
+  const result = await applyContributionEntry({
+    orgId: user.profile.orgId,
     memberId,
     amount,
-    paymentMethod,
-    reference,
     note,
     poolSnap,
+    source: { kind: "admin_recorded", paymentMethod, reference },
+    actor: {
+      uid: user.uid,
+      role: user.profile.role,
+      fullName: user.profile.fullName,
+      email: user.profile.email,
+      phone: user.profile.phone,
+    },
   });
 
   return { ok: true, ...result };
@@ -429,14 +355,20 @@ export const recordBulkContributions = onCall(async (request) => {
 
   const results: { entryId: string; memberId: string; ok: boolean }[] = [];
   for (const memberId of memberIds) {
-    const result = await writeContributionEntry({
-      user,
+    const result = await applyContributionEntry({
+      orgId: user.profile.orgId,
       memberId,
       amount,
-      paymentMethod,
-      reference,
       note,
       poolSnap,
+      source: { kind: "admin_recorded", paymentMethod, reference },
+      actor: {
+        uid: user.uid,
+        role: user.profile.role,
+        fullName: user.profile.fullName,
+        email: user.profile.email,
+        phone: user.profile.phone,
+      },
     });
     results.push({
       ok: true,
