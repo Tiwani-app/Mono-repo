@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import BreakdownSheet from "../../components/common/BreakdownSheet";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -358,51 +358,26 @@ const FinanceAdminScreen = ({ navigation }: any) => {
           onSecondary={modal.onSecondary}
         />
       )}
-      <Modal
+      <BreakdownSheet
         visible={breakdownMetric !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={closeBreakdown}
+        onClose={closeBreakdown}
+        onBack={
+          breakdownType
+            ? () =>
+                breakdownUid ? setBreakdownUid(null) : setBreakdownType(null)
+            : undefined
+        }
+        title={
+          breakdownUid
+            ? `${resolveMemberName(breakdownUid)} · ${selectedTypeRow?.label ?? ""}`
+            : breakdownType
+              ? `${metricTitle} · ${selectedTypeRow?.label ?? ""}`
+              : `${metricTitle} by charge type`
+        }
+        total={formatCurrency(
+          breakdownUid ? chargeBreakdownTotal : breakdownDisplayTotal,
+        )}
       >
-        <View style={styles.breakdownBackdrop}>
-          <View style={styles.breakdownSheet}>
-            <View style={styles.breakdownHeader}>
-              {breakdownType && (
-                <TouchableOpacity
-                  style={styles.breakdownBack}
-                  onPress={() =>
-                    breakdownUid
-                      ? setBreakdownUid(null)
-                      : setBreakdownType(null)
-                  }
-                  activeOpacity={0.8}
-                >
-                  <Icon
-                    name="arrow-left"
-                    size={20}
-                    color={colors.gold.default}
-                  />
-                </TouchableOpacity>
-              )}
-              <Text style={styles.breakdownTitle} numberOfLines={1}>
-                {breakdownUid
-                  ? `${resolveMemberName(breakdownUid)} · ${selectedTypeRow?.label ?? ""}`
-                  : breakdownType
-                    ? `${metricTitle} · ${selectedTypeRow?.label ?? ""}`
-                    : `${metricTitle} by charge type`}
-              </Text>
-              <TouchableOpacity
-                style={styles.breakdownClose}
-                onPress={closeBreakdown}
-                activeOpacity={0.8}
-              >
-                <Icon name="x" size={20} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.breakdownScroll}
-              contentContainerStyle={styles.breakdownScrollContent}
-            >
               {breakdownUid ? (
                 chargeBreakdown.length > 0 ? (
                   chargeBreakdown.map((charge) => (
@@ -487,18 +462,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 ))
               )}
-            </ScrollView>
-            <View style={styles.breakdownTotalRow}>
-              <Text style={styles.breakdownTotalLabel}>Total</Text>
-              <Text style={styles.breakdownTotalValue}>
-                {formatCurrency(
-                  breakdownUid ? chargeBreakdownTotal : breakdownDisplayTotal,
-                )}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      </BreakdownSheet>
       <ScreenHeader title="Finance" rightElement={myLedgerButton} />
       <View style={styles.tabsWrap}>
         <FinanceDomainTabs value={domain} onChange={setDomain} />
@@ -789,47 +753,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.text.secondary,
   },
-  breakdownBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-  },
-  breakdownSheet: {
-    gap: spacing.xs,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: colors.bg.secondary,
-  },
-  breakdownHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  breakdownTitle: {
-    flex: 1,
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-  },
-  breakdownClose: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: colors.bg.card,
-  },
-  breakdownBack: {
-    width: 36,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  breakdownScroll: { maxHeight: 400 },
-  breakdownScrollContent: { gap: spacing.xs },
   breakdownRowRight: {
     flexDirection: "row",
     alignItems: "center",
@@ -865,26 +788,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: typography.size.base,
     fontWeight: typography.weight.semibold,
     color: colors.text.primary,
-  },
-  breakdownTotalRow: {
-    marginTop: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.subtle,
-  },
-  breakdownTotalLabel: {
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.bold,
-    color: colors.text.secondary,
-  },
-  breakdownTotalValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.black,
-    color: colors.gold.light,
   },
   actionGrid: { marginTop: spacing.lg, gap: spacing.sm },
   chargeGrid: {
