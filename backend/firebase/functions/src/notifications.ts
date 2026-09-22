@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { writeAuditLog } from "./audit";
 import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -103,15 +104,7 @@ export const cleanupInvalidPushTokens = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const deleted = await deleteDisabledPushTokens(user.profile.orgId);
 
-  await db.collection("audit_logs").add({
-    action: "push_tokens.cleaned",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: "device_tokens",
-    details: { deleted },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await writeAuditLog(user, "push_tokens.cleaned", "device_tokens", { deleted });
 
   return { deleted, ok: true };
 });

@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { writeAuditLog } from "./audit";
 import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { auth, db } from "./firebase";
@@ -120,19 +121,13 @@ const updateMemberStatus = async (
         status,
         updatedAt: FieldValue.serverTimestamp(),
       });
-      transaction.set(db.collection("audit_logs").doc(), {
+      writeAuditLog(
+        user,
         action,
-        actorUid: user.uid,
-        actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: memberRef.path,
-        details: {
-          previousStatus: member.status ?? null,
-          status,
-          uid,
-        },
-        createdAt: FieldValue.serverTimestamp(),
-      });
+        memberRef.path,
+        { previousStatus: member.status ?? null, status, uid },
+        transaction,
+      );
     });
   } catch (error) {
     await auth.updateUser(uid, { disabled: authUser.disabled }).catch(() => undefined);
@@ -163,7 +158,6 @@ export const createMemberAccount = onCall(async (request) => {
     disabled: false,
   });
   const memberRef = db.collection("users").doc(authUser.uid);
-  const auditRef = db.collection("audit_logs").doc();
   const memberProfile = memberProfileFromInput(authUser.uid, user.profile.orgId, {
     ...input,
     email,
@@ -183,15 +177,7 @@ export const createMemberAccount = onCall(async (request) => {
         throw new HttpsError("already-exists", "A Tiwani profile already exists for this account.");
       }
       transaction.set(memberRef, memberProfile);
-      transaction.set(auditRef, {
-        action: "member_account.created",
-        actorUid: user.uid,
-        actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: memberRef.path,
-        details: { uid: authUser.uid, role: memberProfile.role },
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      writeAuditLog(user, "member_account.created", memberRef.path, { uid: authUser.uid, role: memberProfile.role }, transaction);
     });
   } catch (error) {
     await auth.deleteUser(authUser.uid).catch(() => undefined);
@@ -233,19 +219,11 @@ export const updateMemberRole = onCall(async (request) => {
       role,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "member.role_updated",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: memberRef.path,
-      details: {
+    writeAuditLog(user, "member.role_updated", memberRef.path, {
         previousRole: member.role ?? null,
         role,
         uid,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   return { ok: true, role, uid };

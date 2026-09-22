@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { writeAuditLog } from "./audit";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import {
   formatNotificationCurrency,
@@ -186,15 +187,7 @@ export const createContributionPool = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  await db.collection("audit_logs").doc().set({
-    action: "contribution_pool.created",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: poolRef.path,
-    details: { poolId: poolRef.id, name, expectedAmount },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await writeAuditLog(user, "contribution_pool.created", poolRef.path, { poolId: poolRef.id, name, expectedAmount });
 
   await publishOrgAnnouncement({
     orgId: user.profile.orgId,
@@ -249,15 +242,7 @@ export const closeContributionPool = onCall(async (request) => {
     closedAt: FieldValue.serverTimestamp(),
     closedBy: user.uid,
   });
-  await db.collection("audit_logs").doc().set({
-    action: "contribution_pool.closed",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: poolRef.path,
-    details: { poolId },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await writeAuditLog(user, "contribution_pool.closed", poolRef.path, { poolId });
 
   return { ok: true, poolId };
 });
@@ -420,19 +405,11 @@ export const requestContributionWithdrawal = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  await db.collection("audit_logs").doc().set({
-    action: "contribution_withdrawal.requested",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: requestRef.path,
-    details: {
+  await writeAuditLog(user, "contribution_withdrawal.requested", requestRef.path, {
       requestId: requestRef.id,
       poolId: poolSnap.id,
       amount,
-    },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+    });
 
   return { ok: true, requestId: requestRef.id };
 });
@@ -475,18 +452,9 @@ export const reviewContributionWithdrawal = onCall(async (request) => {
       reviewedBy: user.uid,
       reviewedByName: user.profile.fullName,
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action:
-        decision === "approve"
+    writeAuditLog(user, decision === "approve"
           ? "contribution_withdrawal.approved"
-          : "contribution_withdrawal.rejected",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: requestRef.path,
-      details: { requestId, decision, reviewNote },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+          : "contribution_withdrawal.rejected", requestRef.path, { requestId, decision, reviewNote }, transaction);
   });
 
   return { ok: true, requestId, status: nextStatus };
@@ -558,20 +526,12 @@ export const recordContributionPayout = onCall(async (request) => {
     transaction.update(poolRef, {
       totalWithdrawn: FieldValue.increment(amount),
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "contribution_payout.recorded",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: payoutRef.path,
-      details: {
+    writeAuditLog(user, "contribution_payout.recorded", payoutRef.path, {
         requestId,
         payoutEntryId: payoutRef.id,
         memberId: data.memberId,
         amount,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   return { ok: true, requestId, payoutEntryId: payoutRef.id };

@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { writeAuditLog } from "./audit";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { auth } from "./firebase";
 import { assertSameOrg, requireActiveUser } from "./authz";
@@ -12,7 +13,6 @@ export const declineJoinRequest = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const requestId = stringField(request.data, "requestId", { maxLength: 160 });
   const requestRef = db.collection("join_requests").doc(requestId);
-  const auditRef = db.collection("audit_logs").doc();
 
   await db.runTransaction(async (transaction) => {
     const requestSnapshot = await transaction.get(requestRef);
@@ -29,15 +29,7 @@ export const declineJoinRequest = onCall(async (request) => {
       reviewedAt: FieldValue.serverTimestamp(),
       reviewedBy: user.uid,
     });
-    transaction.set(auditRef, {
-      action: "join_request.declined",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: requestRef.path,
-      details: { requestId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "join_request.declined", requestRef.path, { requestId }, transaction);
   });
 
   return { ok: true, requestId };
@@ -47,7 +39,6 @@ export const approveJoinRequest = onCall(async (request) => {
   const user = await requireActiveUser(request, ["admin"]);
   const requestId = stringField(request.data, "requestId", { maxLength: 160 });
   const requestRef = db.collection("join_requests").doc(requestId);
-  const auditRef = db.collection("audit_logs").doc();
   const requestSnapshot = await requestRef.get();
 
   if (!requestSnapshot.exists) {
@@ -126,15 +117,7 @@ export const approveJoinRequest = onCall(async (request) => {
         reviewedAt: FieldValue.serverTimestamp(),
         reviewedBy: user.uid,
       });
-      transaction.set(auditRef, {
-        action: "join_request.approved",
-        actorUid: user.uid,
-        actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: requestRef.path,
-        details: { requestId, uid: authUser.uid },
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      writeAuditLog(user, "join_request.approved", requestRef.path, { requestId, uid: authUser.uid }, transaction);
     });
   } catch (error) {
     await auth.deleteUser(authUser.uid).catch(() => undefined);
