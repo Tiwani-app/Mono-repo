@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { writeAuditLog } from "./audit";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { auth, db } from "./firebase";
@@ -26,7 +27,6 @@ export const requestAccountDeletion = onCall(callableOptions, async (request) =>
   const user = await requireActiveUser(request);
   const reason = stringField(request.data, "reason", { maxLength: 1000 });
   const requestRef = db.collection("account_deletion_requests").doc(user.uid);
-  const auditRef = db.collection("audit_logs").doc();
 
   await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(requestRef);
@@ -46,15 +46,7 @@ export const requestAccountDeletion = onCall(callableOptions, async (request) =>
       reviewedBy: null,
       completedAt: null,
     });
-    transaction.set(auditRef, {
-      action: "account_deletion.requested",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: requestRef.path,
-      details: { status: "requested" },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "account_deletion.requested", requestRef.path, { status: "requested" }, transaction);
   });
 
   return { ok: true, requestId: user.uid };
@@ -122,21 +114,13 @@ export const completeAccountDeletion = onCall(callableOptions, async (request) =
       reviewedByPhone: user.profile.phone || null,
       status: "completed",
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "account_deletion.completed",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: requestRef.path,
-      details: {
+    writeAuditLog(user, "account_deletion.completed", requestRef.path, {
         authDeleted,
         profileAnonymized: memberSnapshot.exists,
         profileDeleted: memberSnapshot.exists,
         requestId,
         tokenCount: tokenSnapshot.size,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   if (!tokenSnapshot.empty) {
@@ -159,7 +143,6 @@ export const declineAccountDeletion = onCall(callableOptions, async (request) =>
   const user = await requireActiveUser(request, ["admin"]);
   const requestId = stringField(request.data, "requestId", { maxLength: 160 });
   const requestRef = db.collection("account_deletion_requests").doc(requestId);
-  const auditRef = db.collection("audit_logs").doc();
 
   await db.runTransaction(async (transaction) => {
     const requestSnapshot = await transaction.get(requestRef);
@@ -182,15 +165,7 @@ export const declineAccountDeletion = onCall(callableOptions, async (request) =>
       reviewedByEmail: user.profile.email,
       status: "declined",
     });
-    transaction.set(auditRef, {
-      action: "account_deletion.declined",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: requestRef.path,
-      details: { requestId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "account_deletion.declined", requestRef.path, { requestId }, transaction);
   });
 
   return { ok: true, requestId };

@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { writeAuditLog } from "./audit";
 import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
 import {
   formatNotificationCurrency,
@@ -535,20 +536,12 @@ export const reversePayment = onCall(
         { amountPaid, refPath: selectedCharge.ref.path },
       ),
     );
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "finance_payment.reversed",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: paymentRef.path,
-      details: {
+    writeAuditLog(user, "finance_payment.reversed", paymentRef.path, {
         amount,
         chargeEntryId: payment.appliedChargeId,
         paymentId,
         ...(refundId ? { refundId, provider: "stripe" } : {}),
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   return { ok: true, paymentId, refunded: refundId !== null };
@@ -610,21 +603,13 @@ export const deleteFinanceCharge = onCall(async (request) => {
       assertSameOrg(user, member.data()?.orgId);
       transaction.update(memberRef, recalculateMemberFinance(chargeSnapshots));
     }
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "finance_charge.deleted",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: chargeRef.path,
-      details: {
+    writeAuditLog(user, "finance_charge.deleted", chargeRef.path, {
         amount: typeof charge.amount === "number" ? charge.amount : 0,
         chargeEntryId,
         label: typeof charge.label === "string" ? charge.label : "",
         type: typeof charge.type === "string" ? charge.type : "",
         uid: memberId,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   return { ok: true, chargeEntryId };
@@ -711,19 +696,11 @@ export const deleteFinancePeriod = onCall(async (request) => {
       .forEach((operation) => operation(batch));
     if (index + chunkSize >= operations.length) {
       batch.delete(periodRef);
-      batch.set(db.collection("audit_logs").doc(), {
-        action: "finance_period.deleted",
-        actorUid: user.uid,
-        actorRole: user.profile.role,
-        orgId: user.profile.orgId,
-        targetPath: periodRef.path,
-        details: {
+      writeAuditLog(user, "finance_period.deleted", periodRef.path, {
           chargeCount: chargesSnapshot.size,
           memberCount: memberIds.length,
           periodId,
-        },
-        createdAt: FieldValue.serverTimestamp(),
-      });
+        }, batch);
     }
     await batch.commit();
   }
@@ -758,20 +735,12 @@ export const recalculateMemberFinanceStanding = onCall(async (request) => {
     assertMemberInOrg(user, member);
     financeStanding = recalculateMemberFinance(chargeSnapshots);
     transaction.update(memberRef, financeStanding);
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "member_finance.recalculated",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: memberRef.path,
-      details: {
+    writeAuditLog(user, "member_finance.recalculated", memberRef.path, {
         chargeCount: chargeSnapshots.length,
         financialStatus: financeStanding.financialStatus,
         outstandingBalance: financeStanding.outstandingBalance,
         uid,
-      },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      }, transaction);
   });
 
   return { ok: true, uid, ...financeStanding };
