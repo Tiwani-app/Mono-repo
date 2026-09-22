@@ -26,7 +26,9 @@
         "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
         "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
         "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
-        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
+        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UI60JRzxDMBo4cWRbx9GNKL8oYZWksi1D26aDxiwMYIo7hnNmbov76DyzT4eNww8DGtO2LAXMhUorXanJiZ9VFh00ooOrq0cQ",
+        "EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER": "merchant.com.tiwani.app"
       }
     },
     "productionCandidate": {
@@ -43,7 +45,9 @@
         "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
         "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
         "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
-        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
+        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UI60JRzxDMBo4cWRbx9GNKL8oYZWksi1D26aDxiwMYIo7hnNmbov76DyzT4eNww8DGtO2LAXMhUorXanJiZ9VFh00ooOrq0cQ",
+        "EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER": "merchant.com.tiwani.app"
       }
     },
     "production": {
@@ -60,7 +64,9 @@
         "EXPO_PUBLIC_TERMS_URL": "https://tiwani-backend.web.app/terms.html",
         "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://tiwani-backend.web.app/account-deletion.html",
         "EXPO_PUBLIC_MARKETPLACE_RULES_URL": "https://tiwani-backend.web.app/marketplace-rules.html",
-        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true"
+        "EXPO_PUBLIC_CRASHLYTICS_ENABLED": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UI60JRzxDMBo4cWRbx9GNKL8oYZWksi1D26aDxiwMYIo7hnNmbov76DyzT4eNww8DGtO2LAXMhUorXanJiZ9VFh00ooOrq0cQ",
+        "EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER": "merchant.com.tiwani.app"
       }
     },
     "preview": {
@@ -68,7 +74,9 @@
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_APP_CHECK_ENABLED": "true",
-        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true"
+        "EXPO_PUBLIC_APP_CHECK_TOKEN_AUTO_REFRESH_ENABLED": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UI60JRzxDMBo4cWRbx9GNKL8oYZWksi1D26aDxiwMYIo7hnNmbov76DyzT4eNww8DGtO2LAXMhUorXanJiZ9VFh00ooOrq0cQ",
+        "EXPO_PUBLIC_STRIPE_MERCHANT_IDENTIFIER": "merchant.com.tiwani.app"
       }
     }
   },
