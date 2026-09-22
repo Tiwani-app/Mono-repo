@@ -12,6 +12,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ChipRow from "../../components/common/ChipRow";
 import Avatar from "../../components/common/Avatar";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
@@ -390,38 +391,6 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   );
 }
 
-const ChipRow = <T extends string>({
-  onChange,
-  options,
-  selectedValue,
-}: {
-  options: { label: string; value: T }[];
-  selectedValue: T;
-  onChange: (value: T) => void;
-}) => {
-  const colors = useThemeColors();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.chipRow}>
-    {options.map((option) => {
-      const selected = selectedValue === option.value;
-      return (
-        <TouchableOpacity
-          key={option.value}
-          style={[styles.chip, selected && styles.selectedChip]}
-          onPress={() => onChange(option.value)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.chipText, selected && styles.selectedChipText]}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-  );
-}
-
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   flex: { flex: 1 },
@@ -433,27 +402,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.8,
   },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: {
-    minHeight: 40,
-    paddingHorizontal: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.bg.card,
-  },
-  selectedChip: {
-    borderColor: colors.gold.default,
-    backgroundColor: `${colors.gold.default}18`,
-  },
-  chipText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.secondary,
-  },
-  selectedChipText: { color: colors.gold.light },
   selectionHint: {
     fontSize: typography.size.sm,
     color: colors.text.secondary,
