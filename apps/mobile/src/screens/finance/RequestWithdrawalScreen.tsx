@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +8,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, {
   FeedbackModalType,
@@ -186,14 +184,7 @@ const RequestWithdrawalScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "MyContributions")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           {activePools.length > 1 && (
             <View style={styles.field}>
               <Text style={styles.label}>POOL</Text>
@@ -282,16 +273,13 @@ const RequestWithdrawalScreen = ({ navigation, route }: any) => {
             disabled={available <= 0}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   banner: {
     gap: spacing.sm,
     padding: spacing.xl,

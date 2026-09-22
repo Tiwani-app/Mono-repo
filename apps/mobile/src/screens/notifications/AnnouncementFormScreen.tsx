@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
@@ -116,14 +114,7 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "Notifications")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <View style={styles.field}>
             <Text style={styles.label}>TITLE</Text>
             <TextInput
@@ -179,16 +170,13 @@ const AnnouncementFormScreen = ({ navigation }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   field: { gap: spacing.xs },
   label: {
     fontSize: typography.size.xs,

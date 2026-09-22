@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import Field from "../../components/common/FormField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
@@ -154,14 +152,7 @@ const ContributionPoolFormScreen = ({ navigation }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "FinanceAdmin")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Field
             control={control}
             error={formState.errors.name?.message}
@@ -220,16 +211,13 @@ const ContributionPoolFormScreen = ({ navigation }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   noteCard: {
     gap: spacing.sm,
     padding: spacing.lg,

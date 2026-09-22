@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +8,7 @@ import {
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import Icon from "../../components/common/FeatherIcon";
@@ -124,14 +122,7 @@ const LoginScreen = ({ navigation }: any) => {
           onSecondary={modal.onSecondary}
         />
       )}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll contentStyle={{ padding: spacing.xl }}>
           <Text style={styles.heading}>Welcome back</Text>
           <Text style={styles.subtitle}>Sign in to your Tiwani account</Text>
           <Controller
@@ -234,16 +225,13 @@ const LoginScreen = ({ navigation }: any) => {
               Not a member? <Text style={styles.link}>Request to Join</Text>
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.xl, gap: spacing.md },
   heading: {
     marginTop: spacing.xxxl,
     fontSize: typography.size.xxxl,

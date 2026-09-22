@@ -2,10 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +12,7 @@ import {
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { addDays, endOfDay, format, parse } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import AttachmentField from "../../components/common/AttachmentField";
@@ -320,14 +318,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "VotingHub")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Field
             control={control}
             error={formState.errors.title?.message}
@@ -479,8 +470,7 @@ const ElectionFormScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
@@ -624,8 +614,6 @@ const CandidateDropdown = ({
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   photoField: { gap: spacing.sm },
   sectionLabel: {
     marginTop: spacing.sm,

@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +9,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Avatar from "../../components/common/Avatar";
 import CalendarDateField from "../../components/common/CalendarDateField";
@@ -254,14 +252,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "FinanceAdmin")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           {!routeChargeType && (
             <>
               <Text style={styles.sectionLabel}>CHARGE TYPE</Text>
@@ -385,16 +376,13 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,

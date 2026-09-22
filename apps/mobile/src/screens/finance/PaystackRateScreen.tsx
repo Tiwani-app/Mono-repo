@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -106,14 +104,7 @@ const PaystackRateScreen = ({ navigation }: any) => {
         />
       )}
       <ScreenHeader title="Paystack Rate" showBack onBack={handleBack} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Text style={styles.hint}>
             Paystack collects Naira for USD dues at this fixed rate. Update it
             weekly so members are charged the right amount.
@@ -135,16 +126,13 @@ const PaystackRateScreen = ({ navigation }: any) => {
             loading={saving}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 };
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   hint: {
     fontSize: typography.size.sm,
     color: colors.text.secondary,
