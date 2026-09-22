@@ -9,7 +9,7 @@ const appName = process.env.TIWANI_APP_NAME || "Tiwani";
 const appVersion =
   process.env.TIWANI_APP_VERSION ||
   process.env.EXPO_PUBLIC_APP_VERSION ||
-  "2.1.0";
+  "2.2.0";
 const iosBundleIdentifier =
   process.env.TIWANI_IOS_BUNDLE_IDENTIFIER || "com.tiwani.app";
 const androidPackage =
