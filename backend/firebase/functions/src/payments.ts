@@ -10,24 +10,7 @@ import { toMinorUnits } from "./currency";
 import { applyChargePayment } from "./financeLedgerService";
 import { db } from "./firebase";
 import { getStripeClient, stripeSecretKey } from "./stripeClient";
-import { stringField } from "./validation";
-
-const numberField = (data: unknown, field: string): number => {
-  const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const value = record[field];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be a number.`);
-  }
-  return value;
-};
-
-const positiveAmountField = (data: unknown, field: string): number => {
-  const amount = numberField(data, field);
-  if (amount <= 0) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be greater than zero.`);
-  }
-  return amount;
-};
+import { stringField, positiveAmountField } from "./validation";
 
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 // Paystack signs webhooks with, and authenticates API calls with, the same
