@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { writeAuditLog } from "./audit";
 import { publishOrgAnnouncement } from "./activityNotifications";
 import { assertSameOrg, requireActiveUser } from "./authz";
 import { db } from "./firebase";
@@ -378,15 +379,7 @@ export const createPoll = onCall(async (request) => {
       ? { openedAt: FieldValue.serverTimestamp(), openedBy: user.uid }
       : {}),
   });
-  await db.collection("audit_logs").doc().set({
-    action: "poll.created",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: ref.path,
-    details: { pollId: ref.id, status },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await writeAuditLog(user, "poll.created", ref.path, { pollId: ref.id, status });
   await publishOrgAnnouncement({
     audit: {
       action: "poll.notification_created",
@@ -481,15 +474,7 @@ export const updatePoll = onCall(async (request) => {
         : {}),
       ...(status === "draft" ? { status: "draft" } : {}),
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "poll.updated",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { pollId, status },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "poll.updated", ref.path, { pollId, status }, transaction);
   });
 
   await publishOrgAnnouncement({
@@ -595,15 +580,7 @@ export const openPoll = onCall(async (request) => {
       openedAt: FieldValue.serverTimestamp(),
       openedBy: user.uid,
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "poll.opened",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { pollId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "poll.opened", ref.path, { pollId }, transaction);
   });
 
   const pollSnapshot = await ref.get();
@@ -645,15 +622,7 @@ export const closePoll = onCall(async (request) => {
       closedAt: FieldValue.serverTimestamp(),
       closedBy: user.uid,
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "poll.closed",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { pollId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "poll.closed", ref.path, { pollId }, transaction);
   });
 
   const pollSnapshot = await ref.get();
@@ -761,15 +730,7 @@ export const openElection = onCall(async (request) => {
       openedAt: FieldValue.serverTimestamp(),
       openedBy: user.uid,
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "election.opened",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { electionId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "election.opened", ref.path, { electionId }, transaction);
   });
 
   const electionSnapshot = await ref.get();
@@ -829,15 +790,7 @@ export const createElection = onCall(async (request) => {
       ? { openedAt: FieldValue.serverTimestamp(), openedBy: user.uid }
       : {}),
   });
-  await db.collection("audit_logs").doc().set({
-    action: "election.created",
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
-    targetPath: ref.path,
-    details: { electionId: ref.id, status },
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await writeAuditLog(user, "election.created", ref.path, { electionId: ref.id, status });
   await publishOrgAnnouncement({
     audit: {
       action: "election.notification_created",
@@ -924,15 +877,7 @@ export const updateElection = onCall(async (request) => {
         : {}),
       ...(status === "draft" ? { status: "draft" } : {}),
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "election.updated",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { electionId, status },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "election.updated", ref.path, { electionId, status }, transaction);
   });
 
   await publishOrgAnnouncement({
@@ -990,15 +935,7 @@ export const closeElection = onCall(async (request) => {
       closedAt: FieldValue.serverTimestamp(),
       closedBy: user.uid,
     });
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "election.closed",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { electionId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "election.closed", ref.path, { electionId }, transaction);
   });
 
   const electionSnapshot = await ref.get();
@@ -1169,15 +1106,7 @@ export const deletePoll = onCall(async (request) => {
       );
     }
     transaction.delete(ref);
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "poll.deleted",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { pollId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "poll.deleted", ref.path, { pollId }, transaction);
   });
 
   return { ok: true, pollId };
@@ -1198,15 +1127,7 @@ export const deleteElection = onCall(async (request) => {
       );
     }
     transaction.delete(ref);
-    transaction.set(db.collection("audit_logs").doc(), {
-      action: "election.deleted",
-      actorUid: user.uid,
-      actorRole: user.profile.role,
-      orgId: user.profile.orgId,
-      targetPath: ref.path,
-      details: { electionId },
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    writeAuditLog(user, "election.deleted", ref.path, { electionId }, transaction);
   });
 
   return { electionId, ok: true };
