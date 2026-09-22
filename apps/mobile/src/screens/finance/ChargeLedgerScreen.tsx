@@ -226,14 +226,11 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
     (entry) =>
       entry.paidAt && isWithinInterval(entry.paidAt, selectedMonthRange),
   );
-  const monthTotals = {
-    outstanding: monthCharges.reduce(
-      (sum, entry) => sum + getChargeOutstanding(entry),
-      0,
-    ),
-    totalCharged: monthCharges.reduce((sum, entry) => sum + entry.amount, 0),
-    totalPaid: monthPayments.reduce((sum, entry) => sum + entry.amount, 0),
-  };
+  // Collected must reflect what has been paid against this month's charges
+  // (like Charged and Outstanding, and like the all-time totals) rather than
+  // payment entries dated in this month — a payment made before the charge's
+  // due month would otherwise leave a paid charge showing $0 collected.
+  const monthTotals = getFinanceTotals(monthCharges);
   const allTimeTotals = getFinanceTotals(ledgerEntries);
 
   const sections: LedgerSection[] = [
@@ -379,7 +376,7 @@ const ChargeLedgerScreen = ({ navigation }: any) => {
                   {monthLabel(selectedMonth.date)} ledger
                 </Text>
                 <Text style={styles.summaryMeta}>
-                  Charges due and payments received in this month.
+                  Charges due this month and how much has been collected.
                 </Text>
               </View>
               <View style={styles.summaryGrid}>
