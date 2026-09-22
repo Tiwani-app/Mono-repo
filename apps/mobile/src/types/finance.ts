@@ -21,6 +21,8 @@ export interface LedgerEntry {
   paidAt: Date | null;
   paymentMethod?: string;
   reference?: string;
+  appliedChargeId?: string;
+  appliedChargeLabel?: string;
   note: string;
   recordedBy?: string;
   recordedByName?: string;
