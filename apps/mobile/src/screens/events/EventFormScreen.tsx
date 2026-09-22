@@ -7,13 +7,13 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Field from "../../components/common/FormField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
@@ -424,45 +424,6 @@ const EventFormScreen = ({ navigation, route }: any) => {
   );
 }
 
-const Field = ({
-  control,
-  error,
-  keyboardType,
-  label,
-  multiline,
-  name,
-  rules,
-}: any) => {
-  const colors = useThemeColors();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.field}>
-    <Text style={styles.label}>{label}</Text>
-    <Controller
-      control={control}
-      name={name}
-      rules={rules}
-      render={({ field: { onBlur, onChange, value } }) => (
-        <TextInput
-          value={value}
-          onBlur={onBlur}
-          onChangeText={onChange}
-          keyboardType={keyboardType}
-          multiline={multiline}
-          placeholderTextColor={colors.text.tertiary}
-          style={[
-            styles.input,
-            multiline && styles.textArea,
-            error && styles.inputError,
-          ]}
-        />
-      )}
-    />
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
-  );
-}
-
 const ChipRow = <T extends string>({
   onChange,
   options,
@@ -694,16 +655,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.text.secondary,
     letterSpacing: 0.5,
   },
-  input: {
-    minHeight: 48,
-    padding: spacing.md,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.bg.tertiary,
-    color: colors.text.primary,
-  },
-  textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
   sectionLabel: {
