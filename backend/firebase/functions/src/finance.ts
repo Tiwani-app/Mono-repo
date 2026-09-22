@@ -15,7 +15,12 @@ import {
 } from "./financeLedgerService";
 import { getStripeClient, stripeSecretKey } from "./stripeClient";
 import { AuthenticatedUser } from "./types";
-import { stringField } from "./validation";
+import {
+  stringField,
+  optionalStringField,
+  positiveAmountField,
+  recordFromData,
+} from "./validation";
 
 type LedgerType =
   | "dues"
@@ -34,31 +39,6 @@ const chargeTypes: LedgerType[] = [
   "pledge",
   "other",
 ];
-
-const recordFromData = (data: unknown): Record<string, unknown> =>
-  data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-
-const numberField = (data: unknown, field: string): number => {
-  const value = recordFromData(data)[field];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be a number.`);
-  }
-  return value;
-};
-
-const positiveAmountField = (data: unknown, field: string): number => {
-  const amount = numberField(data, field);
-  if (amount <= 0) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be greater than zero.`);
-  }
-  return amount;
-};
-
-const optionalStringField = (
-  data: unknown,
-  field: string,
-  options: { maxLength?: number } = {},
-): string => stringField(data, field, { ...options, required: false });
 
 const dateField = (data: unknown, field: string): Date => {
   const value = stringField(data, field, { maxLength: 80 });
