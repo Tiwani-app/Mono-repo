@@ -8,6 +8,7 @@ import ScreenHeader from "../../components/common/ScreenHeader";
 import {
   checkPaymentStatus,
   PaymentIntentRecord,
+  PaymentIntentStatus,
   subscribeToPaymentIntent,
 } from "../../services/paymentsService";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
@@ -48,7 +49,9 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
   const styles = useThemedStyles(createStyles);
   const intentId = route.params?.intentId as string | undefined;
   const [intent, setIntent] = useState<PaymentIntentRecord | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [checkedStatus, setCheckedStatus] = useState<PaymentIntentStatus | null>(
+    null,
+  );
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
@@ -58,22 +61,28 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
     const unsubscribe = subscribeToPaymentIntent(
       intentId,
       setIntent,
-      (subscribeError) => setError(subscribeError.message),
+      (subscribeError) => {
+        // Never surface raw error codes to members — log and rely on the
+        // checkPaymentStatus fallback below to drive the displayed status.
+        console.warn("payment status listener error", subscribeError);
+      },
     );
     return unsubscribe;
   }, [intentId]);
 
-  // Ask the server to verify with the provider — the Firestore listener above
-  // reflects any resulting status change. Best-effort, idempotent.
+  // Ask the server to verify with the provider. This is the authoritative
+  // fallback: its returned status drives the screen even if the live listener
+  // is unavailable. Best-effort, idempotent.
   const runCheck = useCallback(async () => {
     if (!intentId) {
       return;
     }
     setChecking(true);
     try {
-      await checkPaymentStatus(intentId);
-    } catch {
-      // ignore — the listener still shows the latest status
+      const result = await checkPaymentStatus(intentId);
+      setCheckedStatus(result.status);
+    } catch (checkError) {
+      console.warn("checkPaymentStatus failed", checkError);
     } finally {
       setChecking(false);
     }
@@ -89,7 +98,9 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
     navigation.navigate("MyLedger");
   };
 
-  const status = intent?.status ?? "pending";
+  // Prefer the live listener; fall back to the actively-checked status so the
+  // screen still resolves if the listener can't read the document.
+  const status = intent?.status ?? checkedStatus ?? "pending";
   const copy = statusCopy[status];
   const isInFlight = status === "pending" || status === "processing";
   const isTerminal = !isInFlight;
@@ -119,7 +130,7 @@ const PaymentStatusScreen = ({ navigation, route }: any) => {
           </View>
         )}
         <Text style={styles.title}>{copy.title}</Text>
-        <Text style={styles.message}>{error ?? copy.message}</Text>
+        <Text style={styles.message}>{copy.message}</Text>
         {intent && intent.amount > 0 && (
           <Text style={styles.amount}>{formatCurrency(intent.amount)}</Text>
         )}
