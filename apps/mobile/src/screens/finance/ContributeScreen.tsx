@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +7,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStripe } from "@stripe/stripe-react-native";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
@@ -182,14 +180,7 @@ const ContributeScreen = ({ navigation, route }: any) => {
         />
       )}
       <ScreenHeader title="Contribute" showBack onBack={handleBack} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Text style={styles.poolName}>{pool.name}</Text>
           <Text style={styles.hint}>
             Choose how much to contribute, then pay below.
@@ -242,16 +233,13 @@ const ContributeScreen = ({ navigation, route }: any) => {
                 fullWidth
               />
             )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 };
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   poolName: {
     fontSize: typography.size.lg,
     fontWeight: typography.weight.black,

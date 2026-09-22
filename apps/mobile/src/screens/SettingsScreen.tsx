@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
   Linking,
-  Platform,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -15,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../components/common/KeyboardAwareScroll";
 import AttachmentField from "../components/common/AttachmentField";
 import Avatar from "../components/common/Avatar";
 import Badge from "../components/common/Badge";
@@ -340,14 +338,7 @@ const SettingsScreen = ({ navigation }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "DashboardHome")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <View style={styles.profileCard}>
             <Avatar
               initials={getInitials(user.fullName)}
@@ -692,8 +683,7 @@ const SettingsScreen = ({ navigation }: any) => {
             color={colors.status.error}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
@@ -901,8 +891,6 @@ const AppearancePicker = ({
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   profileCard: {
     flexDirection: "row",
     gap: spacing.md,

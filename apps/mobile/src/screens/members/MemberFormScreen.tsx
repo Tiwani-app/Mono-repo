@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,6 +7,7 @@ import {
 } from "react-native";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import CalendarDateField from "../../components/common/CalendarDateField";
@@ -289,14 +287,7 @@ const MemberFormScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "DashboardHome")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           {!memberId && (
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>Account provisioning</Text>
@@ -506,16 +497,13 @@ const MemberFormScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   infoCard: {
     gap: spacing.xs,
     padding: spacing.lg,

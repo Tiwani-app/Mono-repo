@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
 } from "react-native";
@@ -10,6 +7,7 @@ import { Controller, useForm } from "react-hook-form";
 import { format } from "date-fns";
 import * as DocumentPicker from "expo-document-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import AttachmentField from "../../components/common/AttachmentField";
@@ -311,14 +309,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "Library")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Controller
             control={control}
             name="fileURL"
@@ -437,16 +428,13 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,

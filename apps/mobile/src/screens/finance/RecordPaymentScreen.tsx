@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +8,7 @@ import {
 } from "react-native";
 import { useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import Field from "../../components/common/FormField";
 import Avatar from "../../components/common/Avatar";
 import EmptyState from "../../components/common/EmptyState";
@@ -420,14 +418,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "FinanceAdmin")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <ChipRow
             options={[
               { label: "Single", value: "single" as RecordMode },
@@ -660,8 +651,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
@@ -825,8 +815,6 @@ const chargeMeta = (charge: LedgerEntry) => {
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,

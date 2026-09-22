@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import AttachmentField from "../../components/common/AttachmentField";
@@ -240,14 +238,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
         showBack
         onBack={() => safeGoBack(navigation, "Marketplace")}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAwareScroll>
           <Field
             control={control}
             error={formState.errors.title?.message}
@@ -334,16 +325,13 @@ const ListingFormScreen = ({ navigation, route }: any) => {
             loading={submitting}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScroll>
     </SafeAreaView>
   );
 }
 
 const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
   sectionLabel: {
     marginTop: spacing.sm,
     fontSize: typography.size.xs,
