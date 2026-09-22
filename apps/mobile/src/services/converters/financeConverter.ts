@@ -29,6 +29,8 @@ const duesStatuses: DuesPeriod["status"][] = ["active", "settled", "overdue"];
 export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
   const paymentMethod = asNullableString(record.paymentMethod);
   const reference = asNullableString(record.reference);
+  const appliedChargeId = asNullableString(record.appliedChargeId);
+  const appliedChargeLabel = asNullableString(record.appliedChargeLabel);
   const recordedBy = asNullableString(record.recordedBy);
   const recordedByName = asNullableString(record.recordedByName);
   const recordedByEmail = asNullableString(record.recordedByEmail);
@@ -51,6 +53,8 @@ export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
     paidAt: asNullableDate(record.paidAt, "paidAt"),
     ...(paymentMethod ? { paymentMethod } : {}),
     ...(reference ? { reference } : {}),
+    ...(appliedChargeId ? { appliedChargeId } : {}),
+    ...(appliedChargeLabel ? { appliedChargeLabel } : {}),
     note: typeof record.note === "string" ? record.note : "",
     ...(recordedBy ? { recordedBy } : {}),
     ...(recordedByName ? { recordedByName } : {}),

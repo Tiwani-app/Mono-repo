@@ -35,6 +35,10 @@ const LedgerRow = ({entry, onDelete, onPay, onReverse}: Props) => {
 
   const isPayment = entry.type === 'payment';
   const date = entry.paidAt ?? entry.dueDate;
+  const title =
+    isPayment && entry.appliedChargeLabel
+      ? `${entry.label} · ${entry.appliedChargeLabel}`
+      : entry.label;
   const displayStatus = getChargeDisplayStatus(entry);
   const badgeLabel = chargeStatusLabel(displayStatus);
   const badgeColor = chargeStatusColor(displayStatus);
@@ -54,7 +58,7 @@ const LedgerRow = ({entry, onDelete, onPay, onReverse}: Props) => {
         />
       </View>
       <View style={styles.content}>
-        <Text style={styles.label}>{entry.label}</Text>
+        <Text style={styles.label}>{title}</Text>
         <Text style={styles.date}>{date ? formatDisplayDate(date) : 'No date'}</Text>
       </View>
       <View style={styles.trailing}>

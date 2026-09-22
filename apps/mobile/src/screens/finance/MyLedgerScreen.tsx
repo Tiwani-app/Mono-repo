@@ -31,6 +31,7 @@ import { FinanceContact, LedgerEntry } from "../../types/finance";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { canViewLedgerForMember } from "../../utils/financeGuards";
 import { getInitials } from "../../utils/getInitials";
+import { orderLedgerByCharge } from "../../utils/ledgerHistory";
 import { getFinanceTotals } from "../../utils/financeTotals";
 import { isAdmin, isElectoralChairman } from "../../utils/roleGuard";
 
@@ -143,9 +144,15 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
     enabled: adminViewingMember,
   });
   const selectedMember = members.find((member) => member.uid === targetUid);
+  // Order the history so each charge is immediately followed by the payment(s)
+  // made against it, instead of scattering the two by date.
   const scopedLedgerEntries = useMemo(
     () =>
-      targetUid ? ledgerEntries.filter((entry) => entry.uid === targetUid) : [],
+      targetUid
+        ? orderLedgerByCharge(
+            ledgerEntries.filter((entry) => entry.uid === targetUid),
+          )
+        : [],
     [ledgerEntries, targetUid],
   );
   const { outstanding, totalCharged, totalPaid } =
