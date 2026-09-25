@@ -1,7 +1,0 @@
-{
-  "expo.jsEngine": "hermes",
-  "EX_DEV_CLIENT_NETWORK_INSPECTOR": "true",
-  "ios.useFrameworks": "static",
-  "ios.forceStaticLinking": "[\"RNFBApp\",\"RNFBAppCheck\",\"RNFBAuth\",\"RNFBCrashlytics\",\"RNFBFirestore\",\"RNFBFunctions\",\"RNFBMessaging\",\"RNFBStorage\"]",
-  "apple.privacyManifestAggregationEnabled": "true"
-}
