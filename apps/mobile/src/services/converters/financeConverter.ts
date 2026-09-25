@@ -51,6 +51,7 @@ export const ledgerEntryFromRecord = (record: RawRecord): LedgerEntry => {
     paid: paidStatus === "paid",
     paidStatus,
     paidAt: asNullableDate(record.paidAt, "paidAt"),
+    createdAt: asNullableDate(record.createdAt, "createdAt"),
     ...(paymentMethod ? { paymentMethod } : {}),
     ...(reference ? { reference } : {}),
     ...(appliedChargeId ? { appliedChargeId } : {}),
