@@ -31,7 +31,7 @@ const payment = (id: string, label: string, paid: string, chargeId?: string) =>
   });
 
 describe("orderLedgerByCharge", () => {
-  it("places each payment immediately after the charge it paid", () => {
+  it("places each payment directly above the bill it paid", () => {
     // Scattered input: payment before its charge, unrelated rows in between.
     const picnicCharge = charge("c1", "Odua Picnic 2026", "2026-08-12");
     const picnicPayment = payment("p1", "Paystack · Card", "2026-09-22", "c1");
@@ -46,8 +46,8 @@ describe("orderLedgerByCharge", () => {
     ]);
 
     const ids = ordered.map((entry) => entry.id);
-    // Newest charge group (picnic, Aug) first, each charge directly followed by its payment.
-    expect(ids).toEqual(["c1", "p1", "c2", "p2"]);
+    // Newest charge group (picnic, Aug) first; the payment renders above its bill.
+    expect(ids).toEqual(["p1", "c1", "p2", "c2"]);
   });
 
   it("keeps a payment with no matching charge, ordered by its own date", () => {
@@ -57,17 +57,39 @@ describe("orderLedgerByCharge", () => {
 
     const ordered = orderLedgerByCharge([c, cPay, standalone]);
 
-    // Standalone payment (Aug) sorts above the June charge group but is never dropped.
-    expect(ordered.map((entry) => entry.id)).toEqual(["p2", "c1", "p1"]);
+    // Standalone payment (Aug) sorts above the June group; within the group the
+    // payment renders above its bill.
+    expect(ordered.map((entry) => entry.id)).toEqual(["p2", "p1", "c1"]);
   });
 
-  it("groups multiple payments under the same charge, newest first", () => {
+  it("puts the latest-created charge on top, even if its due date is earlier", () => {
+    // Older-created charge with a LATER due date should not outrank a charge
+    // created more recently — the freshly created (unpaid) charge leads.
+    const olderCreated = base({
+      id: "c1",
+      label: "Levy",
+      dueDate: new Date("2026-12-31"),
+      createdAt: new Date("2026-08-01"),
+    });
+    const newerCreated = base({
+      id: "c2",
+      label: "September Dues",
+      dueDate: new Date("2026-09-30"),
+      createdAt: new Date("2026-09-25"),
+    });
+
+    const ordered = orderLedgerByCharge([olderCreated, newerCreated]);
+
+    expect(ordered.map((entry) => entry.id)).toEqual(["c2", "c1"]);
+  });
+
+  it("groups multiple payments above the same charge, newest payment on top", () => {
     const c = charge("c1", "Dues", "2026-01-01");
     const pay1 = payment("p1", "Bank transfer", "2026-02-01", "c1");
     const pay2 = payment("p2", "Paystack · Card", "2026-03-01", "c1");
 
     const ordered = orderLedgerByCharge([pay1, c, pay2]);
 
-    expect(ordered.map((entry) => entry.id)).toEqual(["c1", "p2", "p1"]);
+    expect(ordered.map((entry) => entry.id)).toEqual(["p2", "p1", "c1"]);
   });
 });

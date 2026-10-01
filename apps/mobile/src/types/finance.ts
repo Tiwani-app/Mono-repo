@@ -19,6 +19,7 @@ export interface LedgerEntry {
   paid: boolean;
   paidStatus: LedgerPaidStatus;
   paidAt: Date | null;
+  createdAt?: Date | null;
   paymentMethod?: string;
   reference?: string;
   appliedChargeId?: string;
