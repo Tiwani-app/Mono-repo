@@ -210,7 +210,15 @@ export const fetchPrimaryRate = async (
   return rate === null ? null : { rate, source: "openexchangerates" };
 };
 
-/** Cross-check feed: exchangeratesapi.io / Fixer-compatible (`/latest?access_key=…`). */
+/**
+ * Cross-check feed: exchangeratesapi.io / Fixer-compatible (`/latest?access_key=…`).
+ *
+ * The free plan serves only the default EUR base — changing `base` is a paid
+ * feature — so we never send `base`. Instead we fetch both legs of the pair
+ * against EUR and derive the cross rate: base→quote = (EUR→quote) ÷ (EUR→base).
+ * This is mathematically identical to a direct base-quote quote and works on
+ * every plan tier, so the cross-check needs no plan upgrade to function.
+ */
 export const fetchCrossCheckRate = async (
   pair: FxPair,
   apiKey: string,
@@ -218,12 +226,19 @@ export const fetchCrossCheckRate = async (
   if (!apiKey) {
     return null;
   }
+  const base = baseOf(pair);
   const quote = quoteOf(pair);
+  const symbols = base === "EUR" ? quote : `${base},${quote}`;
   const body = await fetchJson(
-    `https://api.exchangeratesapi.io/v1/latest?access_key=${encodeURIComponent(apiKey)}&base=${baseOf(pair)}&symbols=${quote}`,
+    `https://api.exchangeratesapi.io/v1/latest?access_key=${encodeURIComponent(apiKey)}&symbols=${symbols}`,
   );
-  const rate = numberAt(body, "rates", quote);
-  return rate === null ? null : { rate, source: "exchangeratesapi" };
+  const eurToQuote = numberAt(body, "rates", quote);
+  const eurToBase = base === "EUR" ? 1 : numberAt(body, "rates", base);
+  if (eurToQuote === null || eurToBase === null) {
+    return null;
+  }
+  const rate = eurToQuote / eurToBase;
+  return isUsableRate(rate) ? { rate, source: "exchangeratesapi" } : null;
 };
 
 // The CBN official rate is a display-only reference (§15.1) and is never used
