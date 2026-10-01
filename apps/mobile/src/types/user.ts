@@ -20,6 +20,7 @@ export interface NotificationPreferences {
   events: boolean;
   finance: boolean;
   voting: boolean;
+  birthdays: boolean;
 }
 
 export interface User {

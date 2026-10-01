@@ -14,6 +14,7 @@ export const getNotificationColors = (
       general: themeColors.text.secondary,
       marketplace: themeColors.status.purple,
       library: themeColors.gold.default,
+      birthday: themeColors.status.purple,
     };
   }
 
@@ -25,6 +26,7 @@ export const getNotificationColors = (
     general: themeColors.text.secondary,
     marketplace: themeColors.gold.dark,
     library: themeColors.gold.default,
+    birthday: themeColors.gold.light,
   };
 };
 
@@ -35,4 +37,5 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   general: "bell",
   marketplace: "shopping-bag",
   library: "book-open",
+  birthday: "gift",
 };

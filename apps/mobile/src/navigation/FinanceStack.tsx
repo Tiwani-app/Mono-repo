@@ -16,6 +16,7 @@ import PaystackCheckoutScreen from '../screens/finance/PaystackCheckoutScreen';
 import PaystackRateScreen from '../screens/finance/PaystackRateScreen';
 import RecordContributionScreen from '../screens/finance/RecordContributionScreen';
 import RecordPaymentScreen from '../screens/finance/RecordPaymentScreen';
+import ReportsScreen from '../screens/finance/ReportsScreen';
 import RequestWithdrawalScreen from '../screens/finance/RequestWithdrawalScreen';
 import WithdrawRequestsScreen from '../screens/finance/WithdrawRequestsScreen';
 import { useThemeColors } from '../theme';
@@ -61,6 +62,7 @@ const FinanceStack = () => {
       name="ContributionPoolMembers"
       component={ContributionPoolMembersScreen}
     />
+    <Stack.Screen name="Reports" component={ReportsScreen} />
   </Stack.Navigator>
   );
 };

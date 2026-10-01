@@ -609,6 +609,14 @@ const SettingsScreen = ({ navigation }: any) => {
             disabled={Boolean(savingPreference)}
             onValueChange={(value) => handleToggleNotification("voting", value)}
           />
+          <ToggleRow
+            label="Birthdays"
+            value={user.notificationPreferences.birthdays}
+            disabled={Boolean(savingPreference)}
+            onValueChange={(value) =>
+              handleToggleNotification("birthdays", value)
+            }
+          />
           <View style={styles.pushCard}>
             <View style={styles.pushCopy}>
               <Text style={styles.pushTitle}>Push Notifications</Text>

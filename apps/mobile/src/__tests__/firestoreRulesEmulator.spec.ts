@@ -37,7 +37,12 @@ const userRecord = (
   children: [],
   memberSince: "2026-01-01",
   joinedAt: new Date("2026-01-01T00:00:00.000Z"),
-  notificationPreferences: { events: true, finance: true, voting: true },
+  notificationPreferences: {
+    events: true,
+    finance: true,
+    voting: true,
+    birthdays: true,
+  },
   currencySymbol: "$",
   timezone: "Africa/Lagos",
   ...overrides,

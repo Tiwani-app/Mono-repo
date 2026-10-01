@@ -10,13 +10,25 @@ import {
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db, messaging } from "./firebase";
 
-type NotificationType =
+export type NotificationType =
   | "event"
   | "finance"
   | "vote"
   | "general"
   | "marketplace"
-  | "library";
+  | "library"
+  | "birthday";
+
+// Only types with a matching Settings toggle are gated; "general",
+// "marketplace", and "library" have no opt-out today and always send.
+const NOTIFICATION_PREFERENCE_FIELD: Partial<
+  Record<NotificationType, "events" | "finance" | "voting" | "birthdays">
+> = {
+  event: "events",
+  finance: "finance",
+  vote: "voting",
+  birthday: "birthdays",
+};
 
 type NotificationTarget =
   | { route: "event_detail"; eventId: string }
@@ -217,6 +229,50 @@ const markInvalidTokens = async (
   return invalidCount;
 };
 
+// Drops tokens whose owning member has opted out of this notification
+// type's Settings toggle. A missing preference field (accounts created
+// before that toggle existed) always counts as opted in.
+const filterTokensByPreference = async (
+  tokenDocs: QueryDocumentSnapshot[],
+  type: NotificationType,
+): Promise<QueryDocumentSnapshot[]> => {
+  const preferenceField = NOTIFICATION_PREFERENCE_FIELD[type];
+  if (!preferenceField) {
+    return tokenDocs;
+  }
+
+  const uids = Array.from(
+    new Set(
+      tokenDocs
+        .map((doc) => stringValue(doc.data().uid))
+        .filter((uid): uid is string => uid !== null),
+    ),
+  );
+  if (uids.length === 0) {
+    return tokenDocs;
+  }
+
+  const userSnapshots = await db.getAll(
+    ...uids.map((uid) => db.collection("users").doc(uid)),
+  );
+  const optedOutUids = new Set(
+    userSnapshots
+      .filter((snapshot) => {
+        const preferences = asRecord(snapshot.data()?.notificationPreferences);
+        return preferences[preferenceField] === false;
+      })
+      .map((snapshot) => snapshot.id),
+  );
+  if (optedOutUids.size === 0) {
+    return tokenDocs;
+  }
+
+  return tokenDocs.filter((doc) => {
+    const uid = stringValue(doc.data().uid);
+    return !uid || !optedOutUids.has(uid);
+  });
+};
+
 export const publishOrgAnnouncement = async (
   input: PublishOrgAnnouncementInput,
 ) => {
@@ -246,10 +302,14 @@ export const publishOrgAnnouncement = async (
     .where("orgId", "==", input.orgId)
     .where("disabled", "==", false)
     .get();
-  const tokenDocs = tokenSnapshot.docs.filter((doc) => {
+  const eligibleTokenDocs = tokenSnapshot.docs.filter((doc) => {
     const token = doc.data().token;
     return typeof token === "string" && token.trim();
   });
+  const tokenDocs = await filterTokensByPreference(
+    eligibleTokenDocs,
+    input.type,
+  );
 
   let delivered = 0;
   let failed = 0;

@@ -529,6 +529,12 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 label="Paystack Rate"
                 onPress={() => navigation.navigate("PaystackRate")}
               />
+              <OutlineButton
+                label="Reports"
+                onPress={() =>
+                  navigation.navigate("Reports", { presetType: "ledger" })
+                }
+              />
             </View>
             <Text style={styles.sectionLabel}>NEW CHARGE</Text>
             <View style={styles.chargeGrid}>

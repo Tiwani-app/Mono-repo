@@ -67,7 +67,12 @@ const user: User = {
   weddingAnniversary: null,
   children: [],
   memberSince: "2026-01-01",
-  notificationPreferences: { events: true, finance: true, voting: false },
+  notificationPreferences: {
+    events: true,
+    finance: true,
+    voting: false,
+    birthdays: true,
+  },
   currencySymbol: "$",
   timezone: "America/New_York",
 };
@@ -251,6 +256,7 @@ describe("settings helpers", () => {
       events: true,
       finance: true,
       voting: true,
+      birthdays: true,
     });
   });
 });

@@ -9,7 +9,11 @@ import {NotificationPreferences} from '../../types/user';
 
 const userWantsPushNotifications = (
   preferences: NotificationPreferences,
-) => preferences.events || preferences.finance || preferences.voting;
+) =>
+  preferences.events ||
+  preferences.finance ||
+  preferences.voting ||
+  preferences.birthdays;
 
 const PushNotificationRegistrar = () => {
   const user = useAuthStore(state => state.user);

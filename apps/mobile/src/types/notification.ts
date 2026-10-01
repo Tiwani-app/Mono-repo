@@ -4,7 +4,8 @@ export type NotificationType =
   | 'vote'
   | 'general'
   | 'marketplace'
-  | 'library';
+  | 'library'
+  | 'birthday';
 
 export type NotificationTarget =
   | {route: 'event_detail'; eventId: string}

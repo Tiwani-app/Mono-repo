@@ -132,7 +132,12 @@ export const memberProfileFromInput = (
   children: childrenValue(input.children),
   memberSince: new Date().toISOString().slice(0, 10),
   joinedAt: FieldValue.serverTimestamp(),
-  notificationPreferences: { events: true, finance: true, voting: true },
+  notificationPreferences: {
+    events: true,
+    finance: true,
+    voting: true,
+    birthdays: true,
+  },
   currencySymbol: "$",
   timezone: "UTC",
 });
