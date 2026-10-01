@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
+import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { useFinance } from "../../hooks/useFinance";
@@ -178,6 +179,19 @@ const DuesPeriodMembersScreen = ({ navigation, route }: any) => {
         title="Dues Members"
         showBack
         onBack={() => safeGoBack(navigation, "FinanceAdmin")}
+        rightElement={
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("Reports", {
+                presetType: "dues",
+                duesPeriodId: period.id,
+              })
+            }
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Icon name="download" size={20} color={colors.gold.default} />
+          </TouchableOpacity>
+        }
       />
       <FlatList
         data={rows}

@@ -152,7 +152,12 @@ const user = (uid: string, role: User["role"]): User => ({
   weddingAnniversary: null,
   children: [],
   memberSince: "2026-01-01",
-  notificationPreferences: { events: true, finance: true, voting: true },
+  notificationPreferences: {
+    events: true,
+    finance: true,
+    voting: true,
+    birthdays: true,
+  },
   currencySymbol: "$",
   timezone: "America/New_York",
 });

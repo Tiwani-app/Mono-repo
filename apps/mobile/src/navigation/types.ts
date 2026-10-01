@@ -41,6 +41,14 @@ export type FinanceStackParamList = {
   PaystackCheckout: { authorizationUrl: string; intentId: string };
   PaystackRate: undefined;
   PaymentStatus: { intentId: string };
+  Reports:
+    | {
+        presetType?: "dues" | "ledger" | "contributions" | "statement";
+        duesPeriodId?: string;
+        poolId?: string;
+        memberId?: string;
+      }
+    | undefined;
 };
 
 export type DashboardStackParamList = {

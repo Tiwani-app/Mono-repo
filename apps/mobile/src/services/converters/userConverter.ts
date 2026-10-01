@@ -52,6 +52,7 @@ const preferencesFromRecord = (value: unknown): NotificationPreferences => {
     events: record.events !== false,
     finance: record.finance !== false,
     voting: record.voting !== false,
+    birthdays: record.birthdays !== false,
   };
 };
 
@@ -201,6 +202,7 @@ export const memberDirectoryFromRecord = (record: RawRecord): User => ({
     events: true,
     finance: true,
     voting: true,
+    birthdays: true,
   },
   currencySymbol: DEFAULT_CURRENCY_SYMBOL,
   timezone: getLocalTimezone(),

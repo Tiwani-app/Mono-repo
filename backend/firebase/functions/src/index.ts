@@ -30,6 +30,7 @@ export {
   stripeWebhook,
 } from "./payments";
 export { approveJoinRequest, declineJoinRequest } from "./joinRequests";
+export { sendBirthdayAnnouncements } from "./birthdays";
 export {
   createMemberAccount,
   reactivateMember,

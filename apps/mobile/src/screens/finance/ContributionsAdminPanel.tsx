@@ -279,6 +279,14 @@ const ContributionsAdminPanel = ({ navigation }: Props) => {
               label="New Pool"
               onPress={() => navigation.navigate("ContributionPoolForm")}
             />
+            <OutlineButton
+              label="Reports"
+              onPress={() =>
+                navigation.navigate("Reports", {
+                  presetType: "contributions",
+                })
+              }
+            />
           </View>
           <TouchableOpacity
             activeOpacity={0.84}

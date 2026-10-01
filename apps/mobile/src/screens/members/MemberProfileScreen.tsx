@@ -14,6 +14,7 @@ import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import BalanceBanner from "../../components/finance/BalanceBanner";
 import LedgerRow from "../../components/finance/LedgerRow";
@@ -330,6 +331,18 @@ const MemberProfileScreen = ({ navigation, route }: any) => {
                 }
                 financialStatus={member.financialStatus}
               />
+              {isAdmin(user) && (
+                <OutlineButton
+                  label="Download Statement"
+                  size="sm"
+                  onPress={() =>
+                    navigation.navigate("Finance", {
+                      screen: "Reports",
+                      params: { presetType: "statement", memberId: member.uid },
+                    })
+                  }
+                />
+              )}
               {ledgerLoading ? (
                 <View style={styles.ledgerLoading}>
                   <ActivityIndicator color={colors.gold.default} />
