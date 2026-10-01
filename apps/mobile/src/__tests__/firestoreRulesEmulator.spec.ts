@@ -141,6 +141,17 @@ const seed = async () => {
       note: "",
       recordedBy: "admin-1",
     });
+    await db.doc("fx_rates/USD_NGN").set({
+      pair: "USD_NGN",
+      midRate: 1500,
+      source: "openexchangerates",
+      crossCheckRate: 1505,
+      crossCheckSource: "exchangeratesapi",
+      cbnReferenceRate: null,
+      fetchedAt: new Date("2026-06-01T00:00:00.000Z"),
+      lastAttemptAt: new Date("2026-06-01T00:00:00.000Z"),
+      lastError: null,
+    });
     await db.doc("payment_intents/intent-1").set({
       intentId: "intent-1",
       orgId: "org-1",
@@ -538,6 +549,38 @@ describe("Firestore security rules", () => {
     await assertFails(ownerDb.doc("payment_intents/intent-1").update({ status: "succeeded" }));
     await assertFails(adminDb.doc("payment_intents/intent-1").update({ status: "succeeded" }));
     await assertFails(ownerDb.doc("payment_intents/intent-1").delete());
+  });
+
+  it("lets any signed-in member read fx_rates but blocks every client write", async () => {
+    const memberDb = testEnv.authenticatedContext("member-1").firestore();
+    const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+    const otherOrgDb = testEnv
+      .authenticatedContext("other-org-member")
+      .firestore();
+    const unauthedDb = testEnv.unauthenticatedContext().firestore();
+
+    // Shared across orgs, so a member of any org may read it; the app shows the rate.
+    await assertSucceeds(memberDb.doc("fx_rates/USD_NGN").get());
+    await assertSucceeds(adminDb.doc("fx_rates/USD_NGN").get());
+    await assertSucceeds(otherOrgDb.doc("fx_rates/USD_NGN").get());
+    await assertFails(unauthedDb.doc("fx_rates/USD_NGN").get());
+
+    // Only the scheduled job (Admin SDK) writes rates — not even an admin may.
+    const forgedRate = {
+      pair: "USD_NGN",
+      midRate: 99999,
+      source: "forged",
+      crossCheckRate: 99999,
+      crossCheckSource: "forged",
+      cbnReferenceRate: null,
+      fetchedAt: new Date(),
+      lastAttemptAt: new Date(),
+      lastError: null,
+    };
+    await assertFails(memberDb.doc("fx_rates/USD_NGN").set(forgedRate));
+    await assertFails(adminDb.doc("fx_rates/USD_NGN").set(forgedRate));
+    await assertFails(adminDb.doc("fx_rates/USD_NGN").update({ midRate: 1 }));
+    await assertFails(adminDb.doc("fx_rates/USD_NGN").delete());
   });
 
   it("blocks direct poll vote writes until secure voting functions exist", async () => {

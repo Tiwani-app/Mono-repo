@@ -1,0 +1,340 @@
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { defineSecret } from "firebase-functions/params";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { writeSystemAuditLog } from "./audit";
+import { db } from "./firebase";
+import { sendOpsAlertEmail } from "./opsAlerts";
+
+/**
+ * Automatic FX rates for Paystack (payment-feature.md §15).
+ *
+ * Paystack collects Naira while the ledger is denominated in the org's own
+ * currency, so a rate is needed to price a Naira checkout. This module keeps a
+ * single shared rate per currency pair, refreshed on a schedule from outside
+ * feeds, because Paystack exposes no exchange-rate API of its own.
+ *
+ * Payments never call the feeds — they read the stored rate — so a feed outage
+ * cannot slow down or break checkout (§15.3).
+ */
+
+export const fxPrimaryApiKey = defineSecret("FX_PRIMARY_API_KEY");
+export const fxCrossCheckApiKey = defineSecret("FX_CROSSCHECK_API_KEY");
+
+export type FxPair = "USD_NGN";
+
+/** Every pair the scheduled refresh maintains. More land here as Paystack countries are added (§15.7). */
+export const FX_PAIRS: FxPair[] = ["USD_NGN"];
+
+export interface FxRateOverride {
+  rate: number;
+  expiresAt: Timestamp;
+  setBy: string;
+}
+
+export interface FxRateDoc {
+  pair: FxPair;
+  midRate: number;
+  source: string;
+  crossCheckRate: number | null;
+  crossCheckSource: string | null;
+  cbnReferenceRate: number | null;
+  fetchedAt: Timestamp;
+  lastAttemptAt: Timestamp;
+  lastError: string | null;
+  override?: FxRateOverride;
+}
+
+// Thresholds from §15.5. Starting values — tune once there is real data to look at.
+export const MAX_RATE_MOVE_PERCENT = 5;
+export const MAX_SOURCE_DISAGREEMENT_PERCENT = 3;
+export const RATE_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+export interface RateCandidate {
+  rate: number;
+  source: string;
+}
+
+export type RateDecision =
+  | {
+      accepted: true;
+      midRate: number;
+      source: string;
+      crossCheckRate: number | null;
+      crossCheckSource: string | null;
+    }
+  | { accepted: false; reason: string };
+
+/** Percentage gap between two rates, relative to the first. */
+export const percentDifference = (from: number, to: number): number =>
+  from === 0 ? Infinity : Math.abs((to - from) / from) * 100;
+
+const isUsableRate = (rate: unknown): rate is number =>
+  typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+
+/**
+ * Decide whether a freshly fetched rate may replace the stored one (§15.5).
+ *
+ * Pure on purpose: every guard is exercised by unit tests without touching
+ * Firestore or the network. On rejection the caller keeps the last good rate.
+ */
+export const evaluateRateUpdate = ({
+  primary,
+  crossCheck,
+  previousRate,
+}: {
+  primary: RateCandidate | null;
+  crossCheck: RateCandidate | null;
+  previousRate: number | null;
+}): RateDecision => {
+  if (!primary || !isUsableRate(primary.rate)) {
+    return { accepted: false, reason: "Primary feed returned no usable rate." };
+  }
+
+  if (crossCheck && !isUsableRate(crossCheck.rate)) {
+    return {
+      accepted: false,
+      reason: "Cross-check feed returned no usable rate.",
+    };
+  }
+
+  if (!crossCheck) {
+    return {
+      accepted: false,
+      reason: "Cross-check feed unavailable; refusing to price on one source.",
+    };
+  }
+
+  const disagreement = percentDifference(primary.rate, crossCheck.rate);
+  if (disagreement > MAX_SOURCE_DISAGREEMENT_PERCENT) {
+    return {
+      accepted: false,
+      reason:
+        `Sources disagree by ${disagreement.toFixed(2)}% ` +
+        `(${primary.source} ${primary.rate} vs ${crossCheck.source} ${crossCheck.rate}), ` +
+        `limit ${MAX_SOURCE_DISAGREEMENT_PERCENT}%.`,
+    };
+  }
+
+  if (isUsableRate(previousRate)) {
+    const move = percentDifference(previousRate, primary.rate);
+    if (move > MAX_RATE_MOVE_PERCENT) {
+      return {
+        accepted: false,
+        reason:
+          `Rate moved ${move.toFixed(2)}% in one refresh ` +
+          `(${previousRate} → ${primary.rate}), limit ${MAX_RATE_MOVE_PERCENT}%.`,
+      };
+    }
+  }
+
+  return {
+    accepted: true,
+    midRate: primary.rate,
+    source: primary.source,
+    crossCheckRate: crossCheck.rate,
+    crossCheckSource: crossCheck.source,
+  };
+};
+
+/** A rate older than the staleness window must not price a payment (§15.5). */
+export const isRateStale = (fetchedAtMs: number, nowMs: number): boolean =>
+  nowMs - fetchedAtMs > RATE_STALE_AFTER_MS;
+
+/**
+ * The rate pricing should use: an unexpired staff override wins over the feed
+ * rate, otherwise the stored mid rate, and a stale rate yields null so the
+ * caller refuses the payment rather than charging at an old rate (§15.5).
+ */
+export const resolveEffectiveRate = (
+  doc: Pick<FxRateDoc, "midRate" | "fetchedAt" | "override">,
+  nowMs: number,
+): { rate: number; stale: false; fromOverride: boolean } | { stale: true } => {
+  const override = doc.override;
+  if (override && override.expiresAt.toMillis() > nowMs) {
+    return { rate: override.rate, stale: false, fromOverride: true };
+  }
+  if (isRateStale(doc.fetchedAt.toMillis(), nowMs)) {
+    return { stale: true };
+  }
+  return { rate: doc.midRate, stale: false, fromOverride: false };
+};
+
+// ---------------------------------------------------------------------------
+// Feed adapters
+//
+// Each returns null rather than throwing, so one feed being down becomes a
+// rejected refresh (last good rate kept + alert) instead of a crashed job.
+// ---------------------------------------------------------------------------
+
+const [baseOf, quoteOf] = [
+  (pair: FxPair) => pair.split("_")[0],
+  (pair: FxPair) => pair.split("_")[1],
+];
+
+const fetchJson = async (url: string): Promise<unknown | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const numberAt = (value: unknown, ...path: string[]): number | null => {
+  let current: unknown = value;
+  for (const key of path) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return isUsableRate(current) ? current : null;
+};
+
+/** Primary feed: Open Exchange Rates (`latest.json?app_id=…`). USD base. */
+export const fetchPrimaryRate = async (
+  pair: FxPair,
+  apiKey: string,
+): Promise<RateCandidate | null> => {
+  if (!apiKey) {
+    return null;
+  }
+  const quote = quoteOf(pair);
+  const body = await fetchJson(
+    `https://openexchangerates.org/api/latest.json?app_id=${encodeURIComponent(apiKey)}&base=${baseOf(pair)}&symbols=${quote}`,
+  );
+  const rate = numberAt(body, "rates", quote);
+  return rate === null ? null : { rate, source: "openexchangerates" };
+};
+
+/** Cross-check feed: exchangeratesapi.io / Fixer-compatible (`/latest?access_key=…`). */
+export const fetchCrossCheckRate = async (
+  pair: FxPair,
+  apiKey: string,
+): Promise<RateCandidate | null> => {
+  if (!apiKey) {
+    return null;
+  }
+  const quote = quoteOf(pair);
+  const body = await fetchJson(
+    `https://api.exchangeratesapi.io/v1/latest?access_key=${encodeURIComponent(apiKey)}&base=${baseOf(pair)}&symbols=${quote}`,
+  );
+  const rate = numberAt(body, "rates", quote);
+  return rate === null ? null : { rate, source: "exchangeratesapi" };
+};
+
+// The CBN official rate is a display-only reference (§15.1) and is never used
+// for pricing. CBN publishes no dependable public API, so it stays null until
+// a reliable source exists — deliberately not scraped.
+const fetchCbnReferenceRate = async (): Promise<number | null> => null;
+
+// ---------------------------------------------------------------------------
+// Refresh
+// ---------------------------------------------------------------------------
+
+const fxRateRef = (pair: FxPair) => db.collection("fx_rates").doc(pair);
+
+const raiseAlert = async (pair: FxPair, reason: string): Promise<void> => {
+  await writeSystemAuditLog("fx_rate.refresh_rejected", fxRateRef(pair).path, {
+    pair,
+    reason,
+  });
+  await sendOpsAlertEmail(
+    `Tiwani: ${pair} exchange-rate refresh rejected`,
+    `The automatic ${pair} rate was not updated.\n\nReason: ${reason}\n\n` +
+      "The last accepted rate is still in use. If it passes 24 hours old, " +
+      "Paystack (Naira) payments stop until a fresh rate is accepted.",
+  );
+};
+
+/**
+ * Refresh one pair: fetch both feeds, apply the §15.5 guards, and write only if
+ * they pass. A rejected refresh keeps the last good rate and raises an alert.
+ */
+export const refreshFxRate = async (pair: FxPair): Promise<RateDecision> => {
+  const ref = fxRateRef(pair);
+  const existing = (await ref.get()).data() as FxRateDoc | undefined;
+  const previousRate = existing?.midRate ?? null;
+
+  const [primary, crossCheck, cbnReferenceRate] = await Promise.all([
+    fetchPrimaryRate(pair, fxPrimaryApiKey.value()),
+    fetchCrossCheckRate(pair, fxCrossCheckApiKey.value()),
+    fetchCbnReferenceRate(),
+  ]);
+
+  const decision = evaluateRateUpdate({ primary, crossCheck, previousRate });
+  const lastAttemptAt = FieldValue.serverTimestamp();
+
+  if (!decision.accepted) {
+    // Keep the last good rate; record why this attempt was refused.
+    await ref.set(
+      { pair, lastAttemptAt, lastError: decision.reason },
+      { merge: true },
+    );
+    await raiseAlert(pair, decision.reason);
+    return decision;
+  }
+
+  await ref.set(
+    {
+      pair,
+      midRate: decision.midRate,
+      source: decision.source,
+      crossCheckRate: decision.crossCheckRate,
+      crossCheckSource: decision.crossCheckSource,
+      cbnReferenceRate,
+      fetchedAt: FieldValue.serverTimestamp(),
+      lastAttemptAt,
+      lastError: null,
+    },
+    { merge: true },
+  );
+
+  return decision;
+};
+
+/**
+ * Warn once a rate crosses the staleness window, since Paystack payments stop
+ * at that point (§15.5) and that is worth knowing before members notice.
+ */
+const alertIfStale = async (pair: FxPair): Promise<void> => {
+  const snapshot = await fxRateRef(pair).get();
+  const data = snapshot.data() as FxRateDoc | undefined;
+  const fetchedAt = data?.fetchedAt;
+  if (!fetchedAt) {
+    return;
+  }
+  if (!isRateStale(fetchedAt.toMillis(), Date.now())) {
+    return;
+  }
+  await writeSystemAuditLog("fx_rate.stale", fxRateRef(pair).path, {
+    pair,
+    fetchedAt: fetchedAt.toDate().toISOString(),
+  });
+  await sendOpsAlertEmail(
+    `Tiwani: ${pair} exchange rate is stale`,
+    `The ${pair} rate was last accepted at ${fetchedAt.toDate().toISOString()}, ` +
+      `more than ${RATE_STALE_AFTER_MS / (60 * 60 * 1000)} hours ago.\n\n` +
+      "Paystack (Naira) payments are refused while the rate is stale. " +
+      "Card payments through Stripe are unaffected.",
+  );
+};
+
+export const refreshFxRates = onSchedule(
+  {
+    schedule: "every 1 hours",
+    timeZone: "Africa/Lagos",
+    secrets: [fxPrimaryApiKey, fxCrossCheckApiKey],
+  },
+  async () => {
+    for (const pair of FX_PAIRS) {
+      // Sequential: a handful of pairs, and it keeps feed usage predictable
+      // against per-minute rate limits.
+      await refreshFxRate(pair);
+      await alertIfStale(pair);
+    }
+  },
+);

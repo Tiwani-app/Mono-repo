@@ -1,0 +1,171 @@
+/* eslint-env node */
+
+const assert = require("node:assert/strict");
+const test = require("node:test");
+
+const {
+  evaluateRateUpdate,
+  isRateStale,
+  percentDifference,
+  resolveEffectiveRate,
+  MAX_RATE_MOVE_PERCENT,
+  MAX_SOURCE_DISAGREEMENT_PERCENT,
+  RATE_STALE_AFTER_MS,
+} = require("../lib/fxRates");
+
+const candidate = (rate, source = "primary") => ({ rate, source });
+// Minimal stand-in for a Firestore Timestamp — only toMillis() is used.
+const stamp = (ms) => ({ toMillis: () => ms });
+
+test("accepts a rate when both feeds agree and the move is small", () => {
+  const decision = evaluateRateUpdate({
+    primary: candidate(1500, "openexchangerates"),
+    crossCheck: candidate(1505, "exchangeratesapi"),
+    previousRate: 1480,
+  });
+  assert.equal(decision.accepted, true);
+  assert.equal(decision.midRate, 1500);
+  assert.equal(decision.source, "openexchangerates");
+  assert.equal(decision.crossCheckRate, 1505);
+});
+
+test("accepts the first ever rate, when there is no previous one", () => {
+  const decision = evaluateRateUpdate({
+    primary: candidate(1500),
+    crossCheck: candidate(1500, "cross"),
+    previousRate: null,
+  });
+  assert.equal(decision.accepted, true);
+  assert.equal(decision.midRate, 1500);
+});
+
+test(`rejects a rate that moves more than ${MAX_RATE_MOVE_PERCENT}% in one refresh`, () => {
+  // 1000 -> 1200 is a 20% jump.
+  const decision = evaluateRateUpdate({
+    primary: candidate(1200),
+    crossCheck: candidate(1200, "cross"),
+    previousRate: 1000,
+  });
+  assert.equal(decision.accepted, false);
+  assert.match(decision.reason, /moved 20\.00%/);
+});
+
+test("accepts a move that sits just inside the limit", () => {
+  // 1000 -> 1040 is 4%, under the 5% limit.
+  const decision = evaluateRateUpdate({
+    primary: candidate(1040),
+    crossCheck: candidate(1040, "cross"),
+    previousRate: 1000,
+  });
+  assert.equal(decision.accepted, true);
+});
+
+test(`rejects when the two sources disagree by more than ${MAX_SOURCE_DISAGREEMENT_PERCENT}%`, () => {
+  // 1500 vs 1600 is ~6.67% apart.
+  const decision = evaluateRateUpdate({
+    primary: candidate(1500, "openexchangerates"),
+    crossCheck: candidate(1600, "exchangeratesapi"),
+    previousRate: 1500,
+  });
+  assert.equal(decision.accepted, false);
+  assert.match(decision.reason, /disagree/);
+});
+
+test("rejects a zero, negative or non-numeric primary rate", () => {
+  for (const bad of [0, -5, Number.NaN, Infinity, "1500", null]) {
+    const decision = evaluateRateUpdate({
+      primary: bad === null ? null : candidate(bad),
+      crossCheck: candidate(1500, "cross"),
+      previousRate: 1500,
+    });
+    assert.equal(decision.accepted, false, `expected ${String(bad)} to be rejected`);
+  }
+});
+
+test("refuses to price on a single source when the cross-check is unavailable", () => {
+  const decision = evaluateRateUpdate({
+    primary: candidate(1500),
+    crossCheck: null,
+    previousRate: 1500,
+  });
+  assert.equal(decision.accepted, false);
+  assert.match(decision.reason, /Cross-check/);
+});
+
+test("rejects an unusable cross-check rate", () => {
+  const decision = evaluateRateUpdate({
+    primary: candidate(1500),
+    crossCheck: candidate(0, "cross"),
+    previousRate: 1500,
+  });
+  assert.equal(decision.accepted, false);
+});
+
+test("percentDifference is symmetric in magnitude and handles a zero base", () => {
+  assert.equal(percentDifference(100, 110), 10);
+  assert.equal(percentDifference(100, 90), 10);
+  assert.equal(percentDifference(0, 100), Infinity);
+});
+
+test("isRateStale flips exactly at the staleness window", () => {
+  const now = 1_000_000_000_000;
+  assert.equal(isRateStale(now - RATE_STALE_AFTER_MS + 1000, now), false);
+  assert.equal(isRateStale(now - RATE_STALE_AFTER_MS - 1000, now), true);
+});
+
+test("resolveEffectiveRate returns the stored rate while it is fresh", () => {
+  const now = 1_000_000_000_000;
+  const result = resolveEffectiveRate(
+    { midRate: 1500, fetchedAt: stamp(now - 60_000) },
+    now,
+  );
+  assert.deepEqual(result, { rate: 1500, stale: false, fromOverride: false });
+});
+
+test("resolveEffectiveRate reports stale once past the window, so pricing refuses", () => {
+  const now = 1_000_000_000_000;
+  const result = resolveEffectiveRate(
+    { midRate: 1500, fetchedAt: stamp(now - RATE_STALE_AFTER_MS - 1) },
+    now,
+  );
+  assert.deepEqual(result, { stale: true });
+});
+
+test("an unexpired override wins over the feed rate, even when the feed rate is stale", () => {
+  const now = 1_000_000_000_000;
+  const result = resolveEffectiveRate(
+    {
+      midRate: 1500,
+      fetchedAt: stamp(now - RATE_STALE_AFTER_MS - 1),
+      override: { rate: 1600, expiresAt: stamp(now + 60_000), setBy: "ops" },
+    },
+    now,
+  );
+  assert.deepEqual(result, { rate: 1600, stale: false, fromOverride: true });
+});
+
+test("an expired override is ignored and the stored rate applies again", () => {
+  const now = 1_000_000_000_000;
+  const result = resolveEffectiveRate(
+    {
+      midRate: 1500,
+      fetchedAt: stamp(now - 60_000),
+      override: { rate: 1600, expiresAt: stamp(now - 1), setBy: "ops" },
+    },
+    now,
+  );
+  assert.deepEqual(result, { rate: 1500, stale: false, fromOverride: false });
+});
+
+test("an expired override over a stale rate still reports stale", () => {
+  const now = 1_000_000_000_000;
+  const result = resolveEffectiveRate(
+    {
+      midRate: 1500,
+      fetchedAt: stamp(now - RATE_STALE_AFTER_MS - 1),
+      override: { rate: 1600, expiresAt: stamp(now - 1), setBy: "ops" },
+    },
+    now,
+  );
+  assert.deepEqual(result, { stale: true });
+});

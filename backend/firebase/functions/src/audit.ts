@@ -14,6 +14,26 @@ type AuditWriter = {
   ): unknown;
 };
 
+const appendAuditEntry = (
+  actor: { actorUid: string; actorRole: string; orgId: string },
+  action: string,
+  targetPath: string,
+  details: Record<string, unknown>,
+  writer?: AuditWriter,
+) => {
+  const entry = {
+    action,
+    ...actor,
+    targetPath,
+    details,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  if (writer) {
+    return writer.set(db.collection("audit_logs").doc(), entry);
+  }
+  return db.collection("audit_logs").add(entry);
+};
+
 /**
  * Append an entry to the `audit_logs` collection.
  *
@@ -26,18 +46,35 @@ export const writeAuditLog = (
   targetPath: string,
   details: Record<string, unknown> = {},
   writer?: AuditWriter,
-) => {
-  const entry = {
+) =>
+  appendAuditEntry(
+    {
+      actorUid: user.uid,
+      actorRole: user.profile.role,
+      orgId: user.profile.orgId,
+    },
     action,
-    actorUid: user.uid,
-    actorRole: user.profile.role,
-    orgId: user.profile.orgId,
     targetPath,
     details,
-    createdAt: FieldValue.serverTimestamp(),
-  };
-  if (writer) {
-    return writer.set(db.collection("audit_logs").doc(), entry);
-  }
-  return db.collection("audit_logs").add(entry);
-};
+    writer,
+  );
+
+/**
+ * Append an audit entry for work done by a scheduled job rather than a person.
+ *
+ * Uses the same `actorUid`/`actorRole`/`orgId` = "system" shape the existing
+ * scheduled jobs already write (see `notifications.ts`), so these entries stay
+ * consistent with the rest of the log. Platform-wide jobs such as the FX
+ * refresh belong to no single org, hence `orgId: "system"`.
+ */
+export const writeSystemAuditLog = (
+  action: string,
+  targetPath: string,
+  details: Record<string, unknown> = {},
+) =>
+  appendAuditEntry(
+    { actorUid: "system", actorRole: "system", orgId: "system" },
+    action,
+    targetPath,
+    details,
+  );

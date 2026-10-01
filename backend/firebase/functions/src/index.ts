@@ -31,6 +31,7 @@ export {
 } from "./payments";
 export { approveJoinRequest, declineJoinRequest } from "./joinRequests";
 export { sendBirthdayAnnouncements } from "./birthdays";
+export { refreshFxRates } from "./fxRates";
 export {
   createMemberAccount,
   reactivateMember,

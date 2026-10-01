@@ -195,6 +195,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Shared exchange rates, one doc per currency pair. Not org-scoped: the
+    // same USD->NGN rate serves every org. Readable by any signed-in user so
+    // the app can show the rate; written only by the scheduled refresh job.
+    match /fx_rates/{pair} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     match /library_documents/{documentId} {
       allow read: if sameOrgExisting() && (
         isAdmin() ||
