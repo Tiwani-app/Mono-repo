@@ -109,7 +109,7 @@ export const env: ClientEnv = {
     false,
   ),
   appEnvironment,
-  appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? "2.1.0",
+  appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? "2.3.0",
   crashlyticsEnabled: parseBoolean(
     process.env.EXPO_PUBLIC_CRASHLYTICS_ENABLED,
     false,
