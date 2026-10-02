@@ -42,6 +42,13 @@ export interface FxRateDoc {
   lastAttemptAt: Timestamp;
   lastError: string | null;
   override?: FxRateOverride;
+  // Accepted readings from roughly the last day, oldest first, for the 24h change.
+  history?: FxRatePoint[];
+}
+
+export interface FxRatePoint {
+  rate: number;
+  at: number; // epoch ms
 }
 
 // Thresholds from §15.5. Starting values — tune once there is real data to look at.
@@ -160,6 +167,149 @@ export const resolveEffectiveRate = (
 };
 
 // ---------------------------------------------------------------------------
+// History and 24-hour change
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+// A little over a day, so a reading from ~24h ago is still there to compare with.
+export const RATE_HISTORY_WINDOW_MS = 26 * 60 * 60 * 1000;
+
+/** Add an accepted reading and drop readings that fall outside the window. */
+export const appendRateHistory = (
+  history: FxRatePoint[] | undefined,
+  point: FxRatePoint,
+  nowMs: number,
+): FxRatePoint[] =>
+  [...(history ?? []), point].filter(
+    (entry) => nowMs - entry.at <= RATE_HISTORY_WINDOW_MS,
+  );
+
+/**
+ * Signed % change from the reading closest to 24 hours ago. Null until a
+ * reading at least 23 hours old exists, so a young history doesn't pass off a
+ * shorter window as "24h".
+ */
+export const change24hPercent = (
+  history: FxRatePoint[] | undefined,
+  currentRate: number,
+  nowMs: number,
+): number | null => {
+  const old = (history ?? []).filter(
+    (entry) => nowMs - entry.at >= DAY_MS - 60 * 60 * 1000 && isUsableRate(entry.rate),
+  );
+  if (old.length === 0) {
+    return null;
+  }
+  const base = old.reduce((closest, entry) =>
+    Math.abs(nowMs - entry.at - DAY_MS) < Math.abs(nowMs - closest.at - DAY_MS)
+      ? entry
+      : closest,
+  );
+  return ((currentRate - base.rate) / base.rate) * 100;
+};
+
+// ---------------------------------------------------------------------------
+// Pricing a Naira payment (§15.4)
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_FX_BUFFER_PERCENT = 2;
+export const MAX_FX_BUFFER_PERCENT = 10;
+export const NAIRA_ROUNDING_STEP = 50;
+
+/** The org's buffer %, defaulting to 2% and clamped to 0–10%. */
+export const normaliseBufferPercent = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(value, 0), MAX_FX_BUFFER_PERCENT)
+    : DEFAULT_FX_BUFFER_PERCENT;
+
+const roundTo2 = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Naira to collect for an org-currency amount, rounded up to the nearest ₦50
+ * so the community never receives slightly less than the dues. Rounded to kobo
+ * first so floating-point dust can't push an exact multiple up a step.
+ */
+export const quoteNairaAmount = (orgAmount: number, appliedRate: number): number =>
+  Math.ceil(roundTo2(orgAmount * appliedRate) / NAIRA_ROUNDING_STEP) *
+  NAIRA_ROUNDING_STEP;
+
+export type PaystackRateSource = "automatic" | "override" | "manual";
+
+export interface PaystackRate {
+  source: PaystackRateSource;
+  midRate: number;
+  bufferPercent: number;
+  appliedRate: number;
+  updatedAtMs: number | null;
+  change24hPercent: number | null;
+}
+
+/**
+ * The rate a Paystack payment is priced at. The automatic rate plus the org's
+ * buffer comes first (an unexpired staff override stands in for it). The
+ * admin's manual rate is only a fallback for when the automatic rate is missing
+ * or stale, and is used as entered, without the buffer, since the admin chose
+ * that exact figure. Null means Naira payments are unavailable.
+ */
+export const resolvePaystackRate = ({
+  fxDoc,
+  manualRate,
+  manualRateUpdatedAtMs,
+  bufferPercent,
+  nowMs,
+}: {
+  fxDoc: Partial<Pick<FxRateDoc, "midRate" | "fetchedAt" | "override" | "history">> | null;
+  manualRate: number;
+  manualRateUpdatedAtMs: number | null;
+  bufferPercent: number;
+  nowMs: number;
+}): PaystackRate | null => {
+  const withBuffer = (
+    source: PaystackRateSource,
+    midRate: number,
+    updatedAtMs: number | null,
+    change: number | null,
+  ): PaystackRate => ({
+    source,
+    midRate,
+    bufferPercent,
+    appliedRate: roundTo2(midRate * (1 + bufferPercent / 100)),
+    updatedAtMs,
+    change24hPercent: change,
+  });
+
+  const override = fxDoc?.override;
+  if (override && isUsableRate(override.rate) && override.expiresAt.toMillis() > nowMs) {
+    return withBuffer("override", override.rate, null, null);
+  }
+  const fetchedAtMs = fxDoc?.fetchedAt?.toMillis();
+  if (
+    fxDoc &&
+    isUsableRate(fxDoc.midRate) &&
+    fetchedAtMs !== undefined &&
+    !isRateStale(fetchedAtMs, nowMs)
+  ) {
+    return withBuffer(
+      "automatic",
+      fxDoc.midRate,
+      fetchedAtMs,
+      change24hPercent(fxDoc.history, fxDoc.midRate, nowMs),
+    );
+  }
+  if (isUsableRate(manualRate)) {
+    return {
+      source: "manual",
+      midRate: manualRate,
+      bufferPercent: 0,
+      appliedRate: manualRate,
+      updatedAtMs: manualRateUpdatedAtMs,
+      change24hPercent: null,
+    };
+  }
+  return null;
+};
+
+// ---------------------------------------------------------------------------
 // Feed adapters
 //
 // Each returns null rather than throwing, so one feed being down becomes a
@@ -250,7 +400,7 @@ const fetchCbnReferenceRate = async (): Promise<number | null> => null;
 // Refresh
 // ---------------------------------------------------------------------------
 
-const fxRateRef = (pair: FxPair) => db.collection("fx_rates").doc(pair);
+export const fxRateRef = (pair: FxPair) => db.collection("fx_rates").doc(pair);
 
 const raiseAlert = async (pair: FxPair, reason: string): Promise<void> => {
   await writeSystemAuditLog("fx_rate.refresh_rejected", fxRateRef(pair).path, {
@@ -293,9 +443,15 @@ export const refreshFxRate = async (pair: FxPair): Promise<RateDecision> => {
     return decision;
   }
 
+  const nowMs = Date.now();
   await ref.set(
     {
       pair,
+      history: appendRateHistory(
+        existing?.history,
+        { rate: decision.midRate, at: nowMs },
+        nowMs,
+      ),
       midRate: decision.midRate,
       source: decision.source,
       crossCheckRate: decision.crossCheckRate,

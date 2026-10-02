@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -14,16 +14,17 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import NairaRateCard from "../../components/finance/NairaRateCard";
 import { env } from "../../config/env";
 import { useContributions } from "../../hooks/useContributions";
+import { usePaystackRate } from "../../hooks/usePaystackRate";
 import {
-  getPaymentConfig,
   initiatePayment,
-  PaymentConfig,
   PaymentProvider,
 } from "../../services/paymentsService";
 import { useAuthStore } from "../../store/authStore";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
+import { formatNaira, quoteNairaAmount } from "../../utils/nairaRate";
 import { safeGoBack } from "../../utils/navigation";
 
 interface FormValues {
@@ -37,7 +38,8 @@ const ContributeScreen = ({ navigation, route }: any) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const poolId = route.params?.poolId as string | undefined;
   const { activePool, loading } = useContributions(user?.uid);
-  const [config, setConfig] = useState<PaymentConfig | null>(null);
+  const { config, paystackEnabled, nairaRate, loading: rateLoading } =
+    usePaystackRate();
   const [paying, setPaying] = useState(false);
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -50,16 +52,10 @@ const ContributeScreen = ({ navigation, route }: any) => {
     defaultValues: { amount: "" },
   });
 
-  useEffect(() => {
-    getPaymentConfig()
-      .then(setConfig)
-      .catch(() => setConfig({ enabledProviders: [], paystackExchangeRate: 0 }));
-  }, []);
-
   const amountInput = Number((watch("amount") || "").replace(/,/g, ""));
-  const paystackNairaEstimate =
-    config && config.paystackExchangeRate > 0 && Number.isFinite(amountInput) && amountInput > 0
-      ? Math.round(amountInput * config.paystackExchangeRate)
+  const paystackNairaAmount =
+    nairaRate && Number.isFinite(amountInput) && amountInput > 0
+      ? quoteNairaAmount(amountInput, nairaRate.appliedRate)
       : 0;
 
   const handleBack = () => safeGoBack(navigation, "MyContributions");
@@ -220,19 +216,27 @@ const ContributeScreen = ({ navigation, route }: any) => {
               fullWidth
             />
           )}
-          {config?.enabledProviders.includes("paystack") &&
-            config.paystackExchangeRate > 0 && (
+          {paystackEnabled && nairaRate && (
+            <>
               <OutlineButton
                 label={
-                  paystackNairaEstimate > 0
-                    ? `Contribute ₦${paystackNairaEstimate.toLocaleString()} via bank transfer, USSD or card`
+                  paystackNairaAmount > 0
+                    ? `Contribute ${formatNaira(paystackNairaAmount)} via bank transfer, USSD or card`
                     : "Contribute with bank transfer, USSD or card (Naira)"
                 }
                 onPress={handleSubmit((values) => pay(values, "paystack"))}
                 disabled={paying}
                 fullWidth
               />
-            )}
+              <NairaRateCard rate={nairaRate} />
+            </>
+          )}
+          {paystackEnabled && !rateLoading && !nairaRate && (
+            <Text style={styles.hint}>
+              Naira payments are temporarily unavailable. You can still pay by
+              card.
+            </Text>
+          )}
         </KeyboardAwareScroll>
     </SafeAreaView>
   );

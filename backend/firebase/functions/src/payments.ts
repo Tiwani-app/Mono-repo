@@ -9,6 +9,16 @@ import { applyContributionEntry } from "./contributionsLedgerService";
 import { toMinorUnits } from "./currency";
 import { applyChargePayment } from "./financeLedgerService";
 import { db } from "./firebase";
+import {
+  change24hPercent,
+  FxRateDoc,
+  fxRateRef,
+  isRateStale,
+  normaliseBufferPercent,
+  PaystackRate,
+  quoteNairaAmount,
+  resolvePaystackRate,
+} from "./fxRates";
 import { getStripeClient, stripeSecretKey } from "./stripeClient";
 import { stringField, positiveAmountField } from "./validation";
 
@@ -22,8 +32,12 @@ type PaymentProvider = "stripe" | "paystack";
 interface OrgPaymentConfig {
   currency: string;
   enabledProviders: PaymentProvider[];
-  // NGN collected per 1 unit of `currency` (admin-set, updated weekly). 0 if unset.
-  paystackExchangeRate: number;
+  // Admin-set NGN per 1 unit of `currency`. Only a fallback for when the
+  // automatic rate is missing or stale (payment-feature.md §15.8). 0 if unset.
+  paystackManualRate: number;
+  paystackManualRateUpdatedAtMs: number | null;
+  // Added on top of the automatic rate (§15.4). 2% unless the admin changed it.
+  paystackFxBufferPercent: number;
 }
 
 const getOrgPaymentConfig = async (orgId: string): Promise<OrgPaymentConfig> => {
@@ -36,19 +50,51 @@ const getOrgPaymentConfig = async (orgId: string): Promise<OrgPaymentConfig> => 
         (value): value is PaymentProvider => value === "stripe" || value === "paystack",
       )
     : [];
-  const paystackExchangeRate =
+  // Stored under its original field name, from when it was the only rate.
+  const paystackManualRate =
     typeof paymentConfig.paystackExchangeRate === "number" &&
     paymentConfig.paystackExchangeRate > 0
       ? paymentConfig.paystackExchangeRate
       : 0;
+  const manualUpdatedAt = paymentConfig.paystackExchangeRateUpdatedAt;
+  const paystackManualRateUpdatedAtMs =
+    manualUpdatedAt && typeof manualUpdatedAt.toMillis === "function"
+      ? manualUpdatedAt.toMillis()
+      : null;
   if (!currency || enabledProviders.length === 0) {
     throw new HttpsError(
       "failed-precondition",
       "This organisation has not configured online payments yet.",
     );
   }
-  return { currency, enabledProviders, paystackExchangeRate };
+  return {
+    currency,
+    enabledProviders,
+    paystackManualRate,
+    paystackManualRateUpdatedAtMs,
+    paystackFxBufferPercent: normaliseBufferPercent(
+      paymentConfig.paystackFxBufferPercent,
+    ),
+  };
 };
+
+const loadPaystackRate = async (
+  config: OrgPaymentConfig,
+): Promise<{ fxDoc: FxRateDoc | null; rate: PaystackRate | null; nowMs: number }> => {
+  const fxDoc = ((await fxRateRef("USD_NGN").get()).data() as FxRateDoc | undefined) ?? null;
+  const nowMs = Date.now();
+  const rate = resolvePaystackRate({
+    fxDoc,
+    manualRate: config.paystackManualRate,
+    manualRateUpdatedAtMs: config.paystackManualRateUpdatedAtMs,
+    bufferPercent: config.paystackFxBufferPercent,
+    nowMs,
+  });
+  return { fxDoc, rate, nowMs };
+};
+
+const toIso = (ms: number | null | undefined): string | null =>
+  typeof ms === "number" ? new Date(ms).toISOString() : null;
 
 const resolveChargeAmount = async (
   orgId: string,
@@ -154,6 +200,42 @@ const paystackInitializeTransaction = async (params: {
   };
 };
 
+// The Naira rate the app shows on Paystack buttons and the admin's Naira
+// payments screen (payment-feature.md §15.6). Same resolution as
+// initiatePayment, so what members see is what they're charged. `automatic`
+// is the live feed reading, returned even when stale so admins can see it.
+export const getPaystackRate = onCall(async (request) => {
+  const user = await requireActiveUser(request);
+  const config = await getOrgPaymentConfig(user.profile.orgId);
+  const { fxDoc, rate, nowMs } = await loadPaystackRate(config);
+  const fetchedAtMs = fxDoc?.fetchedAt?.toMillis();
+  return {
+    bufferPercent: config.paystackFxBufferPercent,
+    manualRate: config.paystackManualRate,
+    manualRateUpdatedAt: toIso(config.paystackManualRateUpdatedAtMs),
+    automatic:
+      fxDoc && typeof fxDoc.midRate === "number" && fetchedAtMs !== undefined
+        ? {
+            midRate: fxDoc.midRate,
+            source: fxDoc.source,
+            fetchedAt: toIso(fetchedAtMs),
+            stale: isRateStale(fetchedAtMs, nowMs),
+            change24hPercent: change24hPercent(fxDoc.history, fxDoc.midRate, nowMs),
+          }
+        : null,
+    inUse: rate
+      ? {
+          source: rate.source,
+          midRate: rate.midRate,
+          bufferPercent: rate.bufferPercent,
+          appliedRate: rate.appliedRate,
+          updatedAt: toIso(rate.updatedAtMs),
+          change24hPercent: rate.change24hPercent,
+        }
+      : null,
+  };
+});
+
 export const initiatePayment = onCall(
   { secrets: [stripeSecretKey, paystackSecretKey] },
   async (request) => {
@@ -172,8 +254,8 @@ export const initiatePayment = onCall(
       throw new HttpsError("invalid-argument", "Unsupported payment provider.");
     }
 
-    const { currency, enabledProviders, paystackExchangeRate } =
-      await getOrgPaymentConfig(user.profile.orgId);
+    const orgConfig = await getOrgPaymentConfig(user.profile.orgId);
+    const { currency, enabledProviders } = orgConfig;
     if (!enabledProviders.includes(provider)) {
       throw new HttpsError(
         "failed-precondition",
@@ -226,16 +308,19 @@ export const initiatePayment = onCall(
       };
     }
 
-    // Paystack collects Naira. Convert the org-currency obligation to NGN at
-    // the admin-set fixed rate and collect that; the ledger still records the
-    // original org-currency amount (amount/currency above) once confirmed.
-    if (paystackExchangeRate <= 0) {
+    // Paystack collects Naira. Price the org-currency obligation at the
+    // automatic rate plus the org's buffer (or the admin's manual rate if the
+    // automatic one is unavailable), round up to ₦50, and lock that quote onto
+    // the intent (§15.4). The ledger still records the original org-currency
+    // amount (amount/currency above) once confirmed.
+    const { rate } = await loadPaystackRate(orgConfig);
+    if (!rate) {
       throw new HttpsError(
         "failed-precondition",
-        "Paystack is enabled but its exchange rate is not set. Ask an admin to configure the rate.",
+        "Naira payments are temporarily unavailable. Please pay by card, or try again later.",
       );
     }
-    const gatewayAmount = amount * paystackExchangeRate;
+    const gatewayAmount = quoteNairaAmount(amount, rate.appliedRate);
     const gatewayAmountMinorUnits = Math.round(gatewayAmount * 100); // kobo
     const init = await paystackInitializeTransaction({
       amountMinorUnits: gatewayAmountMinorUnits,
@@ -249,7 +334,15 @@ export const initiatePayment = onCall(
       gatewayCurrency: "NGN",
       gatewayAmount,
       gatewayAmountMinorUnits,
-      exchangeRate: paystackExchangeRate,
+      exchangeRate: rate.appliedRate,
+      fxQuote: {
+        source: rate.source,
+        midRate: rate.midRate,
+        bufferPercent: rate.bufferPercent,
+        appliedRate: rate.appliedRate,
+        rateUpdatedAt: toIso(rate.updatedAtMs),
+        nairaAmount: gatewayAmount,
+      },
     });
     return {
       intentId: intentRef.id,

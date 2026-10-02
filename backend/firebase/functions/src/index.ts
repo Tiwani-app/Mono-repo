@@ -25,6 +25,7 @@ export {
 export {
   checkPaymentStatus,
   expirePendingPaymentIntents,
+  getPaystackRate,
   initiatePayment,
   paystackWebhook,
   stripeWebhook,

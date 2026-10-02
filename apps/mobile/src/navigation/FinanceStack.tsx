@@ -13,7 +13,7 @@ import MyLedgerScreen from '../screens/finance/MyLedgerScreen';
 import PayChargeScreen from '../screens/finance/PayChargeScreen';
 import PaymentStatusScreen from '../screens/finance/PaymentStatusScreen';
 import PaystackCheckoutScreen from '../screens/finance/PaystackCheckoutScreen';
-import PaystackRateScreen from '../screens/finance/PaystackRateScreen';
+import NairaPaymentsScreen from '../screens/finance/NairaPaymentsScreen';
 import RecordContributionScreen from '../screens/finance/RecordContributionScreen';
 import RecordPaymentScreen from '../screens/finance/RecordPaymentScreen';
 import ReportsScreen from '../screens/finance/ReportsScreen';
@@ -42,7 +42,7 @@ const FinanceStack = () => {
     <Stack.Screen name="PayCharge" component={PayChargeScreen} />
     <Stack.Screen name="Contribute" component={ContributeScreen} />
     <Stack.Screen name="PaystackCheckout" component={PaystackCheckoutScreen} />
-    <Stack.Screen name="PaystackRate" component={PaystackRateScreen} />
+    <Stack.Screen name="NairaPayments" component={NairaPaymentsScreen} />
     <Stack.Screen name="PaymentStatus" component={PaymentStatusScreen} />
     <Stack.Screen name="AdHocCharge" component={AdHocChargeScreen} />
     <Stack.Screen

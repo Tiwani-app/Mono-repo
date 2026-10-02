@@ -526,8 +526,8 @@ const FinanceAdminScreen = ({ navigation }: any) => {
                 onPress={() => navigation.navigate("DuesPeriodForm")}
               />
               <OutlineButton
-                label="Paystack Rate"
-                onPress={() => navigation.navigate("PaystackRate")}
+                label="Naira Payments"
+                onPress={() => navigation.navigate("NairaPayments")}
               />
               <OutlineButton
                 label="Reports"

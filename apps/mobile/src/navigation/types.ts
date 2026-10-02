@@ -39,7 +39,7 @@ export type FinanceStackParamList = {
   PayCharge: { chargeEntryId: string };
   Contribute: { poolId?: string } | undefined;
   PaystackCheckout: { authorizationUrl: string; intentId: string };
-  PaystackRate: undefined;
+  NairaPayments: undefined;
   PaymentStatus: { intentId: string };
   Reports:
     | {
