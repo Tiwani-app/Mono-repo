@@ -18,6 +18,7 @@ import type {
   InitiatePaymentInput,
   InitiatePaymentResult,
   PaymentIntentStatus,
+  PaystackRateInfo,
 } from "./paymentsService";
 import type {
   BulkContributionInput,
@@ -299,6 +300,12 @@ export const initiatePaymentCallable = (data: InitiatePaymentInput) =>
   callCloudFunction<InitiatePaymentInput, InitiatePaymentResult>(
     "initiatePayment",
     data,
+  );
+
+export const getPaystackRateCallable = () =>
+  callCloudFunction<Record<string, never>, PaystackRateInfo>(
+    "getPaystackRate",
+    {},
   );
 
 export const checkPaymentStatusCallable = (intentId: string) =>

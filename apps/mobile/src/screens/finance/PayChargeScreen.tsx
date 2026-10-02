@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStripe } from "@stripe/stripe-react-native";
@@ -8,17 +8,16 @@ import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
+import NairaRateCard from "../../components/finance/NairaRateCard";
 import { env } from "../../config/env";
 import { useFinance } from "../../hooks/useFinance";
-import {
-  getPaymentConfig,
-  initiatePayment,
-  PaymentConfig,
-} from "../../services/paymentsService";
+import { usePaystackRate } from "../../hooks/usePaystackRate";
+import { initiatePayment } from "../../services/paymentsService";
 import { useAuthStore } from "../../store/authStore";
 import {spacing, typography, useThemedStyles, AppColors} from '../../theme';
 import { formatCurrency } from "../../utils/formatCurrency";
 import { getChargeOutstanding } from "../../utils/financeTotals";
+import { formatNaira, quoteNairaAmount } from "../../utils/nairaRate";
 import { safeGoBack } from "../../utils/navigation";
 
 const PayChargeScreen = ({ navigation, route }: any) => {
@@ -27,7 +26,8 @@ const PayChargeScreen = ({ navigation, route }: any) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const chargeEntryId = route.params?.chargeEntryId as string | undefined;
   const { ledgerEntries, loading } = useFinance(user?.uid);
-  const [config, setConfig] = useState<PaymentConfig | null>(null);
+  const { config, paystackEnabled, nairaRate, loading: rateLoading } =
+    usePaystackRate();
   const [paying, setPaying] = useState(false);
   const [modal, setModal] = useState<{
     visible: boolean;
@@ -36,12 +36,6 @@ const PayChargeScreen = ({ navigation, route }: any) => {
     message: string;
   } | null>(null);
   const closeModal = () => setModal(null);
-
-  useEffect(() => {
-    getPaymentConfig()
-      .then(setConfig)
-      .catch(() => setConfig({ enabledProviders: [], paystackExchangeRate: 0 }));
-  }, []);
 
   const handleBack = () => safeGoBack(navigation, "MyLedger");
 
@@ -172,15 +166,23 @@ const PayChargeScreen = ({ navigation, route }: any) => {
               fullWidth
             />
           )}
-          {config?.enabledProviders.includes("paystack") &&
-            config.paystackExchangeRate > 0 && (
+          {paystackEnabled && nairaRate && (
+            <>
               <OutlineButton
-                label={`Pay ₦${Math.round(outstanding * config.paystackExchangeRate).toLocaleString()} via bank transfer, USSD or card`}
+                label={`Pay ${formatNaira(quoteNairaAmount(outstanding, nairaRate.appliedRate))} via bank transfer, USSD or card`}
                 onPress={handlePaystackPay}
                 disabled={outstanding <= 0 || paying}
                 fullWidth
               />
-            )}
+              <NairaRateCard rate={nairaRate} />
+            </>
+          )}
+          {paystackEnabled && !rateLoading && !nairaRate && (
+            <Text style={styles.hint}>
+              Naira payments are temporarily unavailable. You can still pay by
+              card.
+            </Text>
+          )}
         </View>
       )}
     </SafeAreaView>

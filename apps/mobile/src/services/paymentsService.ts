@@ -1,8 +1,9 @@
 import {
   checkPaymentStatusCallable,
+  getPaystackRateCallable,
   initiatePaymentCallable,
 } from "./cloudFunctionsService";
-import { firestore, getCurrentOrgId } from "./firebaseHelpers";
+import { firestore, getCurrentOrgId, serverTimestamp } from "./firebaseHelpers";
 
 export type PaymentProvider = "stripe" | "paystack";
 export type PaymentIntentStatus =
@@ -33,7 +34,31 @@ export interface InitiatePaymentResult {
 
 export interface PaymentConfig {
   enabledProviders: PaymentProvider[];
-  paystackExchangeRate: number; // NGN collected per 1 org-currency unit; 0 if unset
+}
+
+export type PaystackRateSource = "automatic" | "override" | "manual";
+
+// What getPaystackRate returns (backend payments.ts). `inUse` is the rate
+// Naira payments are priced at right now; null means they're unavailable.
+export interface PaystackRateInfo {
+  bufferPercent: number;
+  manualRate: number; // admin's fallback rate; 0 if unset
+  manualRateUpdatedAt: string | null;
+  automatic: {
+    midRate: number;
+    source: string;
+    fetchedAt: string;
+    stale: boolean;
+    change24hPercent: number | null;
+  } | null;
+  inUse: {
+    source: PaystackRateSource;
+    midRate: number;
+    bufferPercent: number;
+    appliedRate: number; // NGN per 1 org-currency unit, buffer included
+    updatedAt: string | null;
+    change24hPercent: number | null;
+  } | null;
 }
 
 // The org's payment setup (organisations/{orgId}.paymentConfig).
@@ -42,27 +67,44 @@ export const getPaymentConfig = async (): Promise<PaymentConfig> => {
   const snapshot = await firestore().collection("organisations").doc(orgId).get();
   const config = snapshot.data()?.paymentConfig ?? {};
   const providers = config.enabledProviders;
-  const rate = config.paystackExchangeRate;
   return {
     enabledProviders: Array.isArray(providers)
       ? providers.filter(
           (p): p is PaymentProvider => p === "stripe" || p === "paystack",
         )
       : [],
-    paystackExchangeRate:
-      typeof rate === "number" && rate > 0 ? rate : 0,
   };
 };
 
-// Admin-only: update the fixed USD→NGN rate Paystack collects at. Firestore
-// rules allow an admin to update their own org doc; the dot-path merges into
-// paymentConfig without touching the other fields.
-export const setPaystackExchangeRate = async (rate: number): Promise<void> => {
+export const getPaystackRate = (): Promise<PaystackRateInfo> =>
+  getPaystackRateCallable();
+
+// Admin-only settings for Naira payments. Firestore rules allow an admin to
+// update their own org doc; the dot-paths merge into paymentConfig without
+// touching the other fields.
+//
+// The manual rate is only a fallback, used when the automatic rate is missing
+// or stale. It keeps its original field name from when it was the only rate.
+export const setPaystackSettings = async ({
+  bufferPercent,
+  manualRate,
+}: {
+  bufferPercent: number;
+  manualRate: number | null; // null = no change
+}): Promise<void> => {
   const orgId = await getCurrentOrgId();
   await firestore()
     .collection("organisations")
     .doc(orgId)
-    .update({ "paymentConfig.paystackExchangeRate": rate });
+    .update({
+      "paymentConfig.paystackFxBufferPercent": bufferPercent,
+      ...(manualRate !== null
+        ? {
+            "paymentConfig.paystackExchangeRate": manualRate,
+            "paymentConfig.paystackExchangeRateUpdatedAt": serverTimestamp(),
+          }
+        : {}),
+    });
 };
 
 // The WebView treats a redirect to this URL as "checkout finished" — matches

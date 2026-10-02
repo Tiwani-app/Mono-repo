@@ -9,12 +9,14 @@ import EmptyState from "../../components/common/EmptyState";
 import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
+import NairaRateCard from "../../components/finance/NairaRateCard";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SyncStatusBanner from "../../components/common/SyncStatusBanner";
 import { useFinance } from "../../hooks/useFinance";
 import { useMembers } from "../../hooks/useMembers";
+import { usePaystackRate } from "../../hooks/usePaystackRate";
 import { deleteCharge, reversePayment } from "../../services/financeService";
 import {
   getCurrentOrganisationFinanceContact,
@@ -115,6 +117,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
   const styles = useThemedStyles(createStyles);
 
   const { user } = useAuthStore();
+  const { nairaRate } = usePaystackRate();
   const [modal, setModal] = useState<{
     visible: boolean;
     type: FeedbackModalType;
@@ -483,6 +486,11 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                 to pay it now with card, Apple Pay, or Google Pay.
               </Text>
             )}
+            {!adminViewingMember && nairaRate && (
+              <View style={styles.rateCard}>
+                <NairaRateCard rate={nairaRate} />
+              </View>
+            )}
             {outstanding > 0 && !adminViewingMember && canContactFinance && (
               <View style={styles.contactCard}>
                 <View style={styles.contactCopy}>
@@ -620,6 +628,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     lineHeight: typography.size.sm * typography.lineHeight.normal,
     backgroundColor: colors.bg.elevated,
   },
+  rateCard: { marginTop: spacing.md },
   contactCard: {
     gap: spacing.md,
     marginTop: spacing.md,
