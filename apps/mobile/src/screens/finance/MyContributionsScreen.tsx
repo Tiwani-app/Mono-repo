@@ -197,15 +197,17 @@ const MyContributionsScreen = ({ navigation, route }: any) => {
                   />
                 ) : null}
                 {!viewingOther && available > 0 && !openRequest ? (
-                  <OutlineButton
-                    label="Request Withdrawal"
-                    onPress={() =>
-                      navigation.navigate("RequestWithdrawal", {
-                        poolId: activePool.id,
-                      })
-                    }
-                    fullWidth
-                  />
+                  <View style={styles.withdrawalAction}>
+                    <OutlineButton
+                      label="Request Withdrawal"
+                      onPress={() =>
+                        navigation.navigate("RequestWithdrawal", {
+                          poolId: activePool.id,
+                        })
+                      }
+                      fullWidth
+                    />
+                  </View>
                 ) : null}
                 {admin && viewingOther ? (
                   <OutlineButton
@@ -280,6 +282,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg.secondary },
   tabsWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   content: { padding: spacing.lg, gap: spacing.md },
+  withdrawalAction: { marginTop: spacing.md },
   sectionLabel: {
     marginTop: spacing.md,
     fontSize: typography.size.xs,

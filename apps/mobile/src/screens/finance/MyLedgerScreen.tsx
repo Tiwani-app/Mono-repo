@@ -491,7 +491,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
                   </Text>
                   <Text style={styles.contactText}>
                     Questions about a charge? Contact the dues creator. Trouble
-                    paying — no card, or a payment that didn't go through?
+                    paying? no card, or a payment that didn't go through?
                     Contact the treasurer.
                   </Text>
                 </View>
@@ -622,6 +622,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   contactCard: {
     gap: spacing.md,
+    marginTop: spacing.md,
     padding: spacing.lg,
     borderRadius: 8,
     borderWidth: 1,
