@@ -3,7 +3,6 @@ import { defineSecret } from "firebase-functions/params";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { writeSystemAuditLog } from "./audit";
 import { db } from "./firebase";
-import { sendOpsAlertEmail } from "./opsAlerts";
 
 /**
  * Automatic FX rates for Paystack (payment-feature.md §15).
@@ -402,17 +401,13 @@ const fetchCbnReferenceRate = async (): Promise<number | null> => null;
 
 export const fxRateRef = (pair: FxPair) => db.collection("fx_rates").doc(pair);
 
+// Recorded in audit_logs only. These used to email the team too, but a feed
+// outage sent one every hour, so the emails were switched off.
 const raiseAlert = async (pair: FxPair, reason: string): Promise<void> => {
   await writeSystemAuditLog("fx_rate.refresh_rejected", fxRateRef(pair).path, {
     pair,
     reason,
   });
-  await sendOpsAlertEmail(
-    `Tiwani: ${pair} exchange-rate refresh rejected`,
-    `The automatic ${pair} rate was not updated.\n\nReason: ${reason}\n\n` +
-      "The last accepted rate is still in use. If it passes 24 hours old, " +
-      "Paystack (Naira) payments stop until a fresh rate is accepted.",
-  );
 };
 
 /**
@@ -468,8 +463,8 @@ export const refreshFxRate = async (pair: FxPair): Promise<RateDecision> => {
 };
 
 /**
- * Warn once a rate crosses the staleness window, since Paystack payments stop
- * at that point (§15.5) and that is worth knowing before members notice.
+ * Record in audit_logs when a rate crosses the staleness window, since Paystack
+ * pricing falls back to the org's manual rate (or stops) at that point (§15.5).
  */
 const alertIfStale = async (pair: FxPair): Promise<void> => {
   const snapshot = await fxRateRef(pair).get();
@@ -485,13 +480,6 @@ const alertIfStale = async (pair: FxPair): Promise<void> => {
     pair,
     fetchedAt: fetchedAt.toDate().toISOString(),
   });
-  await sendOpsAlertEmail(
-    `Tiwani: ${pair} exchange rate is stale`,
-    `The ${pair} rate was last accepted at ${fetchedAt.toDate().toISOString()}, ` +
-      `more than ${RATE_STALE_AFTER_MS / (60 * 60 * 1000)} hours ago.\n\n` +
-      "Paystack (Naira) payments are refused while the rate is stale. " +
-      "Card payments through Stripe are unaffected.",
-  );
 };
 
 export const refreshFxRates = onSchedule(
