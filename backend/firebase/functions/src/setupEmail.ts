@@ -24,7 +24,7 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-export const emailConfig = () => ({
+const emailConfig = () => ({
   appName: process.env.TIWANI_APP_DISPLAY_NAME || "Tiwani",
   enabled: boolEnv(process.env.TIWANI_EMAIL_DELIVERY_ENABLED),
   from:
