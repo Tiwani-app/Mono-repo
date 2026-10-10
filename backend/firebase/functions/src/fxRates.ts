@@ -360,13 +360,15 @@ export const fetchPrimaryRate = async (
 };
 
 /**
- * Cross-check feed: exchangeratesapi.io / Fixer-compatible (`/latest?access_key=…`).
+ * Cross-check feed: CurrencyBeacon (`/v1/latest?api_key=…`).
  *
- * The free plan serves only the default EUR base — changing `base` is a paid
- * feature — so we never send `base`. Instead we fetch both legs of the pair
- * against EUR and derive the cross rate: base→quote = (EUR→quote) ÷ (EUR→base).
- * This is mathematically identical to a direct base-quote quote and works on
- * every plan tier, so the cross-check needs no plan upgrade to function.
+ * Replaced exchangeratesapi.io, whose free plan's monthly quota ran out under
+ * hourly refreshes. CurrencyBeacon's free plan allows 5,000 requests a month
+ * with hourly updates and commercial use, but can't change the base currency
+ * (it's USD). So we fetch both legs of the pair against the feed's base and
+ * derive the cross rate: base→quote = (feedBase→quote) ÷ (feedBase→base). For
+ * USD_NGN the divisor is 1. Rates sit under `response.rates`; older responses
+ * also mirror them at the top level, so either is accepted.
  */
 export const fetchCrossCheckRate = async (
   pair: FxPair,
@@ -377,17 +379,20 @@ export const fetchCrossCheckRate = async (
   }
   const base = baseOf(pair);
   const quote = quoteOf(pair);
-  const symbols = base === "EUR" ? quote : `${base},${quote}`;
   const body = await fetchJson(
-    `https://api.exchangeratesapi.io/v1/latest?access_key=${encodeURIComponent(apiKey)}&symbols=${symbols}`,
+    `https://api.currencybeacon.com/v1/latest?api_key=${encodeURIComponent(apiKey)}&symbols=${base},${quote}`,
   );
-  const eurToQuote = numberAt(body, "rates", quote);
-  const eurToBase = base === "EUR" ? 1 : numberAt(body, "rates", base);
-  if (eurToQuote === null || eurToBase === null) {
+  const rateFor = (currency: string) =>
+    numberAt(body, "response", "rates", currency) ?? numberAt(body, "rates", currency);
+  const feedBase =
+    (body as { response?: { base?: unknown } } | null)?.response?.base ?? "USD";
+  const feedToQuote = rateFor(quote);
+  const feedToBase = base === feedBase ? 1 : rateFor(base);
+  if (feedToQuote === null || feedToBase === null) {
     return null;
   }
-  const rate = eurToQuote / eurToBase;
-  return isUsableRate(rate) ? { rate, source: "exchangeratesapi" } : null;
+  const rate = feedToQuote / feedToBase;
+  return isUsableRate(rate) ? { rate, source: "currencybeacon" } : null;
 };
 
 // The CBN official rate is a display-only reference (§15.1) and is never used

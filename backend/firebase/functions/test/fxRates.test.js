@@ -8,6 +8,7 @@ const {
   change24hPercent,
   DEFAULT_FX_BUFFER_PERCENT,
   evaluateRateUpdate,
+  fetchCrossCheckRate,
   normaliseBufferPercent,
   quoteNairaAmount,
   resolvePaystackRate,
@@ -311,4 +312,80 @@ test("an unexpired staff override beats both the feed and the manual rate", () =
   });
   assert.equal(rate.source, "override");
   assert.equal(rate.appliedRate, 1400);
+});
+
+// --- Cross-check feed adapter (CurrencyBeacon) --------------------------------
+
+const withFetch = async (respond, run) => {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    return respond(url);
+  };
+  try {
+    return await run(calls);
+  } finally {
+    globalThis.fetch = original;
+  }
+};
+const jsonResponse = (body, ok = true) => ({ ok, json: async () => body });
+
+test("fetchCrossCheckRate reads CurrencyBeacon's response.rates and sends the key and symbols", async () => {
+  await withFetch(
+    () => jsonResponse({ meta: { code: 200 }, response: { base: "USD", rates: { NGN: 1324.1, USD: 1 } } }),
+    async (calls) => {
+      const result = await fetchCrossCheckRate("USD_NGN", "test key");
+      assert.deepEqual(result, { rate: 1324.1, source: "currencybeacon" });
+      assert.match(calls[0], /^https:\/\/api\.currencybeacon\.com\/v1\/latest\?/);
+      assert.match(calls[0], /api_key=test%20key/);
+      assert.match(calls[0], /symbols=USD,NGN/);
+    },
+  );
+});
+
+test("fetchCrossCheckRate also accepts rates mirrored at the top level", async () => {
+  await withFetch(
+    () => jsonResponse({ rates: { NGN: 1330 } }),
+    async () => {
+      const result = await fetchCrossCheckRate("USD_NGN", "key");
+      assert.equal(result.rate, 1330);
+    },
+  );
+});
+
+test("fetchCrossCheckRate derives the cross rate when the feed base differs", async () => {
+  await withFetch(
+    () => jsonResponse({ response: { base: "EUR", rates: { USD: 1.1, NGN: 1452 } } }),
+    async () => {
+      const result = await fetchCrossCheckRate("USD_NGN", "key");
+      assert.equal(result.rate.toFixed(2), "1320.00");
+    },
+  );
+});
+
+test("fetchCrossCheckRate returns null rather than throwing on bad responses", async () => {
+  const cases = [
+    () => jsonResponse({ meta: { code: 401, error_type: "invalid_api_key" } }, false),
+    () => jsonResponse({ response: { base: "USD", rates: {} } }),
+    () => jsonResponse({ response: { base: "USD", rates: { NGN: 0 } } }),
+    () => {
+      throw new Error("network down");
+    },
+  ];
+  for (const respond of cases) {
+    await withFetch(respond, async () => {
+      assert.equal(await fetchCrossCheckRate("USD_NGN", "key"), null);
+    });
+  }
+});
+
+test("fetchCrossCheckRate makes no request without an API key", async () => {
+  await withFetch(
+    () => jsonResponse({}),
+    async (calls) => {
+      assert.equal(await fetchCrossCheckRate("USD_NGN", ""), null);
+      assert.equal(calls.length, 0);
+    },
+  );
 });
