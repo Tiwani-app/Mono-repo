@@ -397,6 +397,42 @@ describe("Firestore security rules", () => {
     );
   });
 
+  it("allows the app's notification feed queries for members and admins", async () => {
+    // Mirrors subscribeToNotifications: both feeds bound sentAt by the
+    // member's joinedAt, which the rules require. joinedAt here has
+    // milliseconds, as real profiles do.
+    const joinedAt = new Date("2026-05-15T22:53:36.833Z");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.doc("users/member-ms").set(userRecord("member-ms", { joinedAt }));
+      await db
+        .doc("users/admin-ms")
+        .set(userRecord("admin-ms", { joinedAt, role: "admin" }));
+    });
+    const feed = (uid: string, audience: string, visibleAfter: Date) =>
+      testEnv
+        .authenticatedContext(uid)
+        .firestore()
+        .collection("announcements")
+        .where("orgId", "==", "org-1")
+        .where("sentAt", ">=", visibleAfter)
+        .orderBy("sentAt", "desc")
+        .limit(100)
+        .where("targetAudience", "==", audience)
+        .get();
+
+    for (const uid of ["member-ms", "admin-ms"]) {
+      await assertSucceeds(feed(uid, "all", joinedAt));
+      await assertSucceeds(feed(uid, uid, joinedAt));
+    }
+    // One millisecond before joinedAt can include announcements the member
+    // may not read, so the whole query is refused: the permission-denied
+    // "Could not subscribe to notifications" error.
+    await assertFails(
+      feed("member-ms", "all", new Date(joinedAt.getTime() - 1)),
+    );
+  });
+
   it("requires member list queries to match published event visibility", async () => {
     const memberDb = testEnv.authenticatedContext("member-1").firestore();
     const adminDb = testEnv.authenticatedContext("admin-1").firestore();

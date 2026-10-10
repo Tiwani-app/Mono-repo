@@ -1,7 +1,28 @@
-import * as FileSystem from "expo-file-system/legacy";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import { ReportData, ReportFormat } from "../types/reports";
+
+// Loaded only when an export runs, not at import time. These packages have
+// native halves; if the installed app binary predates them, a top-level import
+// throws while the app boots ("Cannot find native module 'ExpoPrint'") and
+// takes the whole app down. Loading lazily confines that to this one action.
+type ExportModules = {
+  FileSystem: typeof import("expo-file-system/legacy");
+  Print: typeof import("expo-print");
+  Sharing: typeof import("expo-sharing");
+};
+
+const loadExportModules = (): ExportModules => {
+  try {
+    return {
+      FileSystem: require("expo-file-system/legacy"),
+      Print: require("expo-print"),
+      Sharing: require("expo-sharing"),
+    };
+  } catch {
+    throw new Error(
+      "Report export isn't available in this version of the app. Please update the app and try again.",
+    );
+  }
+};
 
 const escapeCsvCell = (value: string | number): string => {
   const str = String(value);
@@ -102,6 +123,7 @@ export const toReportHtml = (data: ReportData): string => {
 };
 
 const shareFile = async (
+  Sharing: ExportModules["Sharing"],
   uri: string,
   mimeType: string,
   dialogTitle: string,
@@ -119,6 +141,7 @@ export const exportReport = async (
   format: ReportFormat,
   fileNameBase: string,
 ): Promise<void> => {
+  const { FileSystem, Print, Sharing } = loadExportModules();
   if (format === "pdf") {
     const { uri } = await Print.printToFileAsync({
       html: toReportHtml(data),
@@ -130,6 +153,7 @@ export const exportReport = async (
     const namedUri = `${cacheDirectory}${fileNameBase}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: namedUri });
     await shareFile(
+      Sharing,
       namedUri,
       "application/pdf",
       data.title,
@@ -145,6 +169,7 @@ export const exportReport = async (
   const fileUri = `${cacheDirectory}${fileNameBase}.csv`;
   await FileSystem.writeAsStringAsync(fileUri, toCsv(data));
   await shareFile(
+    Sharing,
     fileUri,
     "text/csv",
     data.title,
