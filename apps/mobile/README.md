@@ -226,11 +226,19 @@ Start Metro for the dev client:
 npm start
 ```
 
-Run iOS:
+Run iOS (preferred over `npm start` or `npx expo start`):
 
 ```bash
-npm run ios
+npm run ios              # rebuilds the simulator app only when native code changed
+npm run ios -- --rebuild # force a rebuild, e.g. after editing files in ios/
 ```
+
+`npm run ios` checks that the app installed on the booted simulator was built
+from the current native code (it fingerprints the native packages and remembers
+the result per simulator). If not, it runs `pod install`, rebuilds and installs
+before starting Metro; if Metro is already running it reuses it. Starting Metro
+on its own skips that check, and a stale simulator build then crashes at launch
+with "Cannot find native module …" and "App entry not found".
 
 Run Android:
 
