@@ -386,12 +386,6 @@ export const recordContributionPayoutCallable = (data: {
     { ok: boolean; payoutEntryId: string; requestId: string }
   >("recordContributionPayout", data);
 
-export const openPollCallable = (pollId: string) =>
-  callCloudFunction<{ pollId: string }, { ok: boolean; pollId: string }>(
-    "openPoll",
-    { pollId },
-  );
-
 export const createPollCallable = (data: PollInput) =>
   callCloudFunction<
     Omit<PollInput, "expiresAt"> & { expiresAt: string | null },
@@ -431,12 +425,6 @@ export const castPollVoteCallable = (pollId: string, optionId: string) =>
     { optionId: string; pollId: string },
     { ok: boolean; pollId: string }
   >("castPollVote", { optionId, pollId });
-
-export const openElectionCallable = (electionId: string) =>
-  callCloudFunction<
-    { electionId: string },
-    { electionId: string; ok: boolean }
-  >("openElection", { electionId });
 
 export const createElectionCallable = (data: ElectionInput) =>
   callCloudFunction<
@@ -502,12 +490,6 @@ export const listElectionVoterReceiptsCallable = (electionId: string) =>
       receipts: ElectionVoterReceiptPayload[];
     }
   >("listElectionVoterReceipts", { electionId });
-
-export const publishElectionResultsCallable = (electionId: string) =>
-  callCloudFunction<
-    { electionId: string },
-    { electionId: string; ok: boolean; races: RaceResult[] }
-  >("publishElectionResults", { electionId });
 
 export const registerDeviceTokenCallable = (token: string, platform: string) =>
   callCloudFunction<

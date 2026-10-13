@@ -9,9 +9,9 @@ import {
 } from "react-native";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 
-export type FeedbackModalType = "success" | "error" | "warning" | "info";
+type FeedbackModalType = "success" | "error" | "warning" | "info";
 
-interface FeedbackModalProps {
+export interface FeedbackModalProps {
   visible: boolean;
   type: FeedbackModalType;
   title: string;

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -59,16 +59,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   const [rsvpPending, setRsvpPending] = useState(false);
   const [cancelPending, setCancelPending] = useState(false);
   const { user } = useAuthStore();
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   // Refetches whenever the screen regains focus (e.g. returning from the
@@ -208,16 +199,7 @@ const EventDetailScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="Event"

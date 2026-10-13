@@ -9,7 +9,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import Icon from "../../components/common/FeatherIcon";
 import { env } from "../../config/env";
@@ -30,16 +30,7 @@ const LoginScreen = ({ navigation }: any) => {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const { control, getValues, handleSubmit, formState, trigger } =
     useForm<FormValues>({
@@ -111,16 +102,7 @@ const LoginScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <KeyboardAwareScroll contentStyle={{ padding: spacing.xl }}>
           <Text style={styles.heading}>Welcome back</Text>

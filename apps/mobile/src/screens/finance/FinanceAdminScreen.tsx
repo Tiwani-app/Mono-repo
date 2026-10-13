@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import BreakdownSheet from "../../components/common/BreakdownSheet";
 import Icon from "../../components/common/FeatherIcon";
 import GoldButton from "../../components/common/GoldButton";
@@ -89,16 +89,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   const [memberSearch, setMemberSearch] = useState("");
   const [deletingPeriodId, setDeletingPeriodId] = useState<string | null>(null);
   const [domain, setDomain] = useState<FinanceDomain>("dues");
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const [breakdownMetric, setBreakdownMetric] = useState<
     "charged" | "collected" | "outstanding" | null
@@ -347,16 +338,7 @@ const FinanceAdminScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <BreakdownSheet
         visible={breakdownMetric !== null}

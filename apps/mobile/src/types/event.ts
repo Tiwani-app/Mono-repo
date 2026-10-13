@@ -4,13 +4,6 @@ export type EventCategory = 'meeting' | 'social' | 'volunteer' | 'committee';
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';
 
 /** Fallback when a theme context is not available (tests / non-UI helpers). */
-export const CATEGORY_COLORS: Record<EventCategory, string> = {
-  meeting: '#C9962A',
-  social: '#E74C3C',
-  volunteer: '#27AE60',
-  committee: '#7A9880',
-};
-
 /** Theme-aware category accents — meeting follows the active accent (gold token). */
 export const getCategoryColors = (
   colors: AppColors,

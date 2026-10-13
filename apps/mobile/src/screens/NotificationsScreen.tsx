@@ -3,7 +3,7 @@ import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-nat
 import Icon from '../components/common/FeatherIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EmptyState from '../components/common/EmptyState';
-import FeedbackModal, { FeedbackModalType } from '../components/common/FeedbackModal';
+import FeedbackModal, { FeedbackModalProps } from '../components/common/FeedbackModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ScreenHeader from '../components/common/ScreenHeader';
 import { useNotifications } from '../hooks/useNotifications';
@@ -30,16 +30,7 @@ const NotificationsScreen = ({navigation}: any) => {
   const {error, loading, markAllRead, markRead, notifications, readIds} = useNotifications();
   const {user} = useAuthStore();
   const [markingAllRead, setMarkingAllRead] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   const sections = useMemo(
@@ -70,16 +61,7 @@ const NotificationsScreen = ({navigation}: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="Notifications"

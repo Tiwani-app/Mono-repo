@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useStripe } from "@stripe/stripe-react-native";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import OutlineButton from "../../components/common/OutlineButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import NairaRateCard from "../../components/finance/NairaRateCard";
-import { env } from "../../config/env";
 import { useFinance } from "../../hooks/useFinance";
+import { useStripePaymentSheet } from "../../hooks/useStripePaymentSheet";
 import { usePaystackRate } from "../../hooks/usePaystackRate";
 import { initiatePayment } from "../../services/paymentsService";
 import { useAuthStore } from "../../store/authStore";
@@ -23,18 +22,13 @@ import { safeGoBack } from "../../utils/navigation";
 const PayChargeScreen = ({ navigation, route }: any) => {
   const styles = useThemedStyles(createStyles);
   const { user } = useAuthStore();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const openPaymentSheet = useStripePaymentSheet();
   const chargeEntryId = route.params?.chargeEntryId as string | undefined;
   const { ledgerEntries, loading } = useFinance(user?.uid);
   const { config, paystackEnabled, nairaRate, loading: rateLoading } =
     usePaystackRate();
   const [paying, setPaying] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-  } | null>(null);
+  const [modal, setModal] = useState<Omit<FeedbackModalProps, "onPrimary"> | null>(null);
   const closeModal = () => setModal(null);
 
   const handleBack = () => safeGoBack(navigation, "MyLedger");
@@ -62,34 +56,16 @@ const PayChargeScreen = ({ navigation, route }: any) => {
         targetId: charge.id,
         provider: "stripe",
       });
-      if (!clientSecret) {
-        throw new Error("Stripe did not return a client secret.");
+      const sheet = await openPaymentSheet(clientSecret);
+      if (sheet.errorMessage) {
+        setModal({
+          visible: true,
+          type: "error",
+          title: "Payment not completed",
+          message: sheet.errorMessage,
+        });
       }
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: "Tiwani",
-        // Only offer Apple Pay when a merchant id is configured — otherwise
-        // Stripe throws and blocks card/Google Pay too.
-        ...(env.stripeMerchantIdentifier
-          ? { applePay: { merchantCountryCode: "NG" } }
-          : {}),
-        googlePay: { merchantCountryCode: "NG", testEnv: __DEV__ },
-      });
-      if (initError) {
-        throw new Error(initError.message);
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        if (presentError.code !== "Canceled") {
-          setModal({
-            visible: true,
-            type: "error",
-            title: "Payment not completed",
-            message: presentError.message,
-          });
-        }
+      if (!sheet.completed) {
         return;
       }
 
@@ -130,14 +106,7 @@ const PayChargeScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel="OK"
-          onPrimary={closeModal}
-        />
+        <FeedbackModal {...modal} primaryLabel="OK" onPrimary={closeModal} />
       )}
       <ScreenHeader title="Pay Now" showBack onBack={handleBack} />
       {!charge ? (

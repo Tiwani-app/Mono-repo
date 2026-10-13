@@ -13,11 +13,12 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { SafeAreaView } from "react-native-safe-area-context";
 import KeyboardAwareScroll from "../components/common/KeyboardAwareScroll";
+import ChipRow from "../components/common/ChipRow";
 import AttachmentField from "../components/common/AttachmentField";
 import Avatar from "../components/common/Avatar";
 import Badge from "../components/common/Badge";
 import CalendarDateField from "../components/common/CalendarDateField";
-import FeedbackModal, { FeedbackModalType } from "../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../components/common/FeedbackModal";
 import Icon from "../components/common/FeatherIcon";
 import GoldButton from "../components/common/GoldButton";
 import OutlineButton from "../components/common/OutlineButton";
@@ -70,16 +71,7 @@ const SettingsScreen = ({ navigation }: any) => {
   const setThemeId = useSetThemeId();
 
   const { updateCurrentUser, user } = useAuthStore();
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -322,16 +314,7 @@ const SettingsScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="Settings"
@@ -740,38 +723,6 @@ const ProfileField = ({
   );
 }
 
-const ChipRow = <T extends string>({
-  onChange,
-  options,
-  selectedValue,
-}: {
-  options: { label: string; value: T }[];
-  selectedValue: T;
-  onChange: (value: T) => void;
-}) => {
-  const colors = useThemeColors();
-  const styles = useThemedStyles(createStyles);
-  return (
-    <View style={styles.chipRow}>
-    {options.map((option) => {
-      const selected = selectedValue === option.value;
-      return (
-        <TouchableOpacity
-          key={option.value}
-          style={[styles.chip, selected && styles.selectedChip]}
-          onPress={() => onChange(option.value)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.chipText, selected && styles.selectedChipText]}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-  );
-}
-
 const Row = ({ label, value }: { label: string; value: string }) => {
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
@@ -940,27 +891,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   textArea: { minHeight: 92, textAlignVertical: "top" },
   inputError: { borderColor: colors.status.error },
   errorText: { fontSize: typography.size.xs, color: colors.status.error },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: {
-    minHeight: 40,
-    paddingHorizontal: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    backgroundColor: colors.bg.card,
-  },
-  selectedChip: {
-    borderColor: colors.gold.default,
-    backgroundColor: `${colors.gold.default}18`,
-  },
-  chipText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.secondary,
-  },
-  selectedChipText: { color: colors.gold.light },
   sectionLabel: {
     marginTop: spacing.lg,
     fontSize: typography.size.xs,

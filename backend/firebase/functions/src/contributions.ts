@@ -5,7 +5,7 @@ import {
   formatNotificationCurrency,
   publishOrgAnnouncement,
 } from "./activityNotifications";
-import { assertSameOrg, requireActiveUser } from "./authz";
+import { assertMemberInOrg, assertSameOrg, requireActiveUser } from "./authz";
 import { applyContributionEntry, ContributionEntryType } from "./contributionsLedgerService";
 import { db } from "./firebase";
 import { AuthenticatedUser } from "./types";
@@ -14,6 +14,8 @@ import {
   optionalStringField,
   positiveAmountField,
   recordFromData,
+  memberIdsField,
+  optionalDateField,
 } from "./validation";
 
 type WithdrawStatus = "pending" | "approved" | "rejected" | "paid";
@@ -25,46 +27,6 @@ const optionalPositiveAmountField = (data: unknown, field: string): number => {
     return 0;
   }
   return positiveAmountField(data, field);
-};
-
-const optionalDateField = (data: unknown, field: string): Date | null => {
-  const value = optionalStringField(data, field, { maxLength: 80 });
-  if (!value) {
-    return null;
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be a valid date.`);
-  }
-  return date;
-};
-
-const memberIdsField = (data: unknown): string[] => {
-  const value = recordFromData(data).memberIds;
-  if (!Array.isArray(value)) {
-    throw new HttpsError("invalid-argument", 'Field "memberIds" must be an array.');
-  }
-  const memberIds = [
-    ...new Set(
-      value.map((memberId) =>
-        typeof memberId === "string" ? memberId.trim() : "",
-      ),
-    ),
-  ].filter(Boolean);
-  if (memberIds.length === 0) {
-    throw new HttpsError("invalid-argument", "Select at least one member.");
-  }
-  return memberIds;
-};
-
-const assertMemberInOrg = (
-  user: AuthenticatedUser,
-  memberSnapshot: FirebaseFirestore.DocumentSnapshot,
-) => {
-  if (!memberSnapshot.exists) {
-    throw new HttpsError("not-found", "One or more members could not be found.");
-  }
-  assertSameOrg(user, memberSnapshot.data()?.orgId);
 };
 
 const actorFields = (user: AuthenticatedUser) => ({
