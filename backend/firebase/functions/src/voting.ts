@@ -75,10 +75,24 @@ const expiresAtField = (data: unknown) => {
   return date;
 };
 
-const isExpired = (record: FirebaseFirestore.DocumentData) => {
+const isExpired = (record: FirebaseFirestore.DocumentData, nowMs = Date.now()) => {
   const expiresAt = toDate(record.expiresAt);
-  return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+  return Boolean(expiresAt && expiresAt.getTime() <= nowMs);
 };
+
+/**
+ * Members (not admins or the electoral chairman) may see an election's results
+ * only once it has finished: closed, or past its end time (castElectionBallot
+ * refuses ballots then, so the tally is final). Results marked admin-only stay
+ * hidden from members either way.
+ */
+export const memberCanSeeElectionResults = (
+  election: FirebaseFirestore.DocumentData,
+  nowMs = Date.now(),
+): boolean =>
+  election.resultVisibility === "after_close" &&
+  (election.status === "closed" ||
+    (election.status === "open" && isExpired(election, nowMs)));
 
 const assertFutureExpiry = (
   expiresAt: Date,
@@ -1027,7 +1041,8 @@ export const castElectionBallot = onCall(async (request) => {
 });
 
 export const generateElectionResults = onCall(async (request) => {
-  const user = await requireVotingAdmin(request);
+  const user = await requireActiveUser(request);
+  const votingAdmin = (electionRoles as readonly string[]).includes(user.profile.role);
   const electionId = stringField(request.data, "electionId", { maxLength: 160 });
   const ref = electionRef(electionId);
   const resultsRef = db.collection("election_results").doc(electionId);
@@ -1036,10 +1051,17 @@ export const generateElectionResults = onCall(async (request) => {
     resultsRef.get(),
   ]);
   const election = assertVotingRecord(user, electionSnapshot, "Election not found.");
+  if (!votingAdmin && !memberCanSeeElectionResults(election)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Results are available once the election has finished.",
+    );
+  }
   const races = resultsSnapshot.exists
     ? resultsSnapshot.data()?.races ?? buildResultRows(election)
     : buildResultRows(election);
-  if (!resultsSnapshot.exists) {
+  // Only admins snapshot results; a member's view is read-only.
+  if (!resultsSnapshot.exists && votingAdmin) {
     await resultsRef.set({
       electionId,
       orgId: user.profile.orgId,

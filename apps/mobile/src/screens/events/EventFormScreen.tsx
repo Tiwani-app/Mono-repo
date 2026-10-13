@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { Controller, useForm } from "react-hook-form";
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 import { SafeAreaView } from "react-native-safe-area-context";
 import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";

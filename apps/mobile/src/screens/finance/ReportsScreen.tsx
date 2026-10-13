@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { parse } from "date-fns";
+import { parse } from "date-fns/parse";
 import {
   ScrollView,
   StyleSheet,

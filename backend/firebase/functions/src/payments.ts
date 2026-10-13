@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import Stripe = require("stripe");
+import type Stripe = require("stripe");
 import { requireActiveUser } from "./authz";
 import { applyContributionEntry } from "./contributionsLedgerService";
 import { toMinorUnits } from "./currency";

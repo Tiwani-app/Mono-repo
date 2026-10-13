@@ -1,5 +1,7 @@
 import { Election } from "../types/voting";
 import { User } from "../types/user";
+import { canViewElectionResults } from "./roleGuard";
+import { isVotingItemExpired } from "./votingExpiry";
 
 export const isElectionBallotComplete = (
   election: Election,
@@ -25,3 +27,16 @@ export const findFinanciallyBlockedCandidateNames = (
     return member ? !canStandForElection(member) : false;
   });
 };
+
+// Admins and the electoral chairman see results any time. Members see them only
+// once the election has finished (closed, or past its end time) and results
+// aren't admin-only. Mirrors memberCanSeeElectionResults in the backend's
+// generateElectionResults, which enforces the same rule.
+export const canSeeElectionResults = (
+  user: User | null,
+  election: Pick<Election, "status" | "expiresAt" | "resultVisibility">,
+  now = new Date(),
+): boolean =>
+  canViewElectionResults(user) ||
+  (election.resultVisibility === "after_close" &&
+    (election.status === "closed" || isVotingItemExpired(election, now)));

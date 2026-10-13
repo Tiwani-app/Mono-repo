@@ -10,7 +10,10 @@ import {
   View,
 } from "react-native";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
-import { addDays, endOfDay, format, parse } from "date-fns";
+import { addDays } from "date-fns/addDays";
+import { endOfDay } from "date-fns/endOfDay";
+import { format } from "date-fns/format";
+import { parse } from "date-fns/parse";
 import { SafeAreaView } from "react-native-safe-area-context";
 import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";

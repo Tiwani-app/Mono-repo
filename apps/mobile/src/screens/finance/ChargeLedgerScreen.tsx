@@ -1,10 +1,8 @@
-import {
-  addMonths,
-  endOfMonth,
-  format,
-  isWithinInterval,
-  startOfMonth,
-} from "date-fns";
+import { addMonths } from "date-fns/addMonths";
+import { endOfMonth } from "date-fns/endOfMonth";
+import { format } from "date-fns/format";
+import { isWithinInterval } from "date-fns/isWithinInterval";
+import { startOfMonth } from "date-fns/startOfMonth";
 import React, { useMemo, useState } from "react";
 import {
   ScrollView,

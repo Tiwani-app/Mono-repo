@@ -3,7 +3,7 @@ import { LedgerEntry } from "../types/finance";
 import { Listing } from "../types/marketplace";
 import { TiwaniEvent } from "../types/event";
 import { Election } from "../types/voting";
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 import { canViewLedgerForMember } from "../utils/financeGuards";
 import {
   getFinanceStanding,
@@ -42,7 +42,10 @@ import {
   getVisibleMemberProfileTabs,
   sanitizeMemberProfile,
 } from "../utils/memberPrivacy";
-import { isElectionBallotComplete } from "../utils/votingGuards";
+import {
+  canSeeElectionResults,
+  isElectionBallotComplete,
+} from "../utils/votingGuards";
 import {
   canStandForElection,
   findFinanciallyBlockedCandidateNames,
@@ -278,6 +281,26 @@ describe("business guardrails", () => {
       true,
     );
     expect(canViewElectionResults(user("member-1", "member"))).toBe(false);
+  });
+
+  it("shows members election results only once the election has finished", () => {
+    const member = user("member-1", "member");
+    const now = new Date("2026-06-01T12:00:00.000Z");
+    const pastEnd = new Date("2026-06-01T11:00:00.000Z");
+    const futureEnd = new Date("2026-06-02T12:00:00.000Z");
+
+    expect(canSeeElectionResults(member, { ...election, status: "open", expiresAt: futureEnd }, now)).toBe(false);
+    expect(canSeeElectionResults(member, { ...election, status: "draft", expiresAt: pastEnd }, now)).toBe(false);
+    expect(canSeeElectionResults(member, { ...election, status: "closed" }, now)).toBe(true);
+    expect(canSeeElectionResults(member, { ...election, status: "open", expiresAt: pastEnd }, now)).toBe(true);
+    expect(
+      canSeeElectionResults(member, { ...election, status: "closed", resultVisibility: "admin_only" }, now),
+    ).toBe(false);
+    // Admins and the electoral chairman see results while voting is still open.
+    expect(canSeeElectionResults(user("admin-1", "admin"), { ...election, status: "open" }, now)).toBe(true);
+    expect(
+      canSeeElectionResults(user("chair-1", "electoral_chairman"), { ...election, status: "open" }, now),
+    ).toBe(true);
   });
 
   it("blocks members with overdue or outstanding balances from candidacy", () => {

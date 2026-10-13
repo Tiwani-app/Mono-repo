@@ -1,4 +1,4 @@
-import {AppColors} from '../theme';
+import type {AppColors} from '../theme';
 
 export type EventCategory = 'meeting' | 'social' | 'volunteer' | 'committee';
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';

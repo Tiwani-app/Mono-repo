@@ -32,7 +32,6 @@ module.exports = {
     version: appVersion,
     orientation: "portrait",
     scheme: "tiwani",
-    userInterfaceStyle: "dark",
     plugins: [
       "@react-native-firebase/app",
       "@react-native-firebase/app-check",
@@ -76,6 +75,8 @@ module.exports = {
       ],
     ],
     ios: {
+      // Dark system UI on iOS only. Android would need expo-system-ui to apply it.
+      userInterfaceStyle: "dark",
       bundleIdentifier: iosBundleIdentifier,
       googleServicesFile: iosGoogleServicesFile,
       entitlements: {

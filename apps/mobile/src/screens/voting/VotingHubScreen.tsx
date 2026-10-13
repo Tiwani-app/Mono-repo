@@ -23,6 +23,7 @@ import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '.
 import { Election, Poll } from "../../types/voting";
 import { formatVotingExpiryLabel } from "../../utils/dateStatus";
 import { canViewElectionResults, isAdmin } from "../../utils/roleGuard";
+import { canSeeElectionResults } from "../../utils/votingGuards";
 import {
   isVotingItemExpired,
   partitionVotingItems,
@@ -178,7 +179,8 @@ const VotingHubScreen = ({ navigation }: any) => {
           electionId: election.id,
         })
       }
-      showResults={canViewResults}
+      showResults={canSeeElectionResults(user, election)}
+      withReceipts={canViewResults}
     />
   );
   const renderPoll = (poll: Poll) => (
@@ -372,6 +374,7 @@ const ElectionCard = ({
   onOpen,
   onResults,
   showResults,
+  withReceipts,
 }: {
   admin: boolean;
   closing: boolean;
@@ -383,6 +386,7 @@ const ElectionCard = ({
   onOpen: () => void;
   onResults: () => void;
   showResults: boolean;
+  withReceipts: boolean;
 }) => {
   const colors = useThemeColors();
   const styles = useThemedStyles(createStyles);
@@ -434,7 +438,7 @@ const ElectionCard = ({
     )}
     {showResults && (
       <OutlineButton
-        label="View Results & Voter Receipts"
+        label={withReceipts ? "View Results & Voter Receipts" : "View Results"}
         onPress={onResults}
         fullWidth
       />

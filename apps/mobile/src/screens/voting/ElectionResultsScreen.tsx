@@ -19,6 +19,7 @@ import { formatVotingExpiryLabel } from '../../utils/dateStatus';
 import { formatDisplayDate } from '../../utils/formatDate';
 import { safeGoBack } from '../../utils/navigation';
 import { canViewElectionResults } from '../../utils/roleGuard';
+import { canSeeElectionResults } from '../../utils/votingGuards';
 import {
   isVotingItemExpired,
   votingDisplayStatus,
@@ -90,10 +91,7 @@ const ElectionResultsScreen = ({ navigation, route }: any) => {
 
   const expired = isVotingItemExpired(election);
   const displayStatus = votingDisplayStatus(election);
-  const canViewResults =
-    canViewElectionResults(user) ||
-    ((election.status === 'closed' || expired) &&
-      election.resultVisibility === 'after_close');
+  const canViewResults = canSeeElectionResults(user, election);
 
   if (!canViewResults) {
     return (
