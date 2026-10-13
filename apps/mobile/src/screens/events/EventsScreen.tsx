@@ -7,7 +7,8 @@ import {
   View,
 } from "react-native";
 import Icon from "../../components/common/FeatherIcon";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns/format";
+import { isSameDay } from "date-fns/isSameDay";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingSpinner from "../../components/common/LoadingSpinner";

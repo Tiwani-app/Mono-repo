@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns/format";
+import { isSameDay } from "date-fns/isSameDay";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
 import { TiwaniEvent } from "../../types/event";
 import { getCenteredDateWindow } from "../../utils/eventGuards";

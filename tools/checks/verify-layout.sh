@@ -49,8 +49,8 @@ require_file "apps/mobile/eas.json"
 require_file "apps/mobile/App.tsx"
 require_file "apps/mobile/scripts/patch-react-native-gradle-plugin.js"
 require_dir "apps/mobile/src"
-require_dir "apps/mobile/ios"
-require_dir "apps/mobile/android"
+# apps/mobile/ios and android are generated and untracked, so a fresh clone
+# or worktree doesn't have them; they aren't part of the layout contract.
 
 # Firebase workspace
 require_file "backend/firebase/firebase.json"

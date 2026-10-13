@@ -1,4 +1,5 @@
-import {format, formatDistanceToNow} from 'date-fns';
+import { format } from 'date-fns/format';
+import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 
 export const formatEventDate = (date: Date): string => format(date, 'EEE, dd MMM yyyy');
 export const formatEventTime = (date: Date): string => format(date, 'hh:mm aa');

@@ -9,7 +9,10 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { format, getDaysInMonth, isValid, parse } from "date-fns";
+import { format } from "date-fns/format";
+import { getDaysInMonth } from "date-fns/getDaysInMonth";
+import { isValid } from "date-fns/isValid";
+import { parse } from "date-fns/parse";
 import Icon from "./FeatherIcon";
 import GoldButton from "./GoldButton";
 import OutlineButton from "./OutlineButton";

@@ -1,4 +1,4 @@
-import { colors } from "../theme";
+import { colors } from "../theme/colors";
 import { FinancialStatus } from "../types/user";
 
 export type FinanceStanding = "clear" | "balance_due" | "overdue";

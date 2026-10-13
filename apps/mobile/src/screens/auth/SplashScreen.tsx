@@ -3,6 +3,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import GoldButton from '../../components/common/GoldButton';
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
+import {env} from '../../config/env';
 
 const SplashScreen = ({navigation}: any) => {
   const colors = useThemeColors();
@@ -20,7 +21,7 @@ const SplashScreen = ({navigation}: any) => {
       <View style={styles.action}>
         <GoldButton label="Get Started" onPress={() => navigation.navigate('Login')} fullWidth />
       </View>
-      <Text style={styles.version}>v2.1.0 · Membership Platform</Text>
+      <Text style={styles.version}>v{env.appVersion} · Membership Platform</Text>
     </View>
   </SafeAreaView>
   );
