@@ -15,6 +15,9 @@
 //
 //   npm run ios                rebuild only if needed, then start Metro
 //   npm run ios -- --rebuild   force a native rebuild
+//   --device <udid>            use this booted simulator instead of the first one
+//   --no-metro                 stop after the app is current (used by the
+//                              verify-tiwani skill, which runs its own Metro)
 
 const { execFileSync, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -37,11 +40,21 @@ const run = (command, args, cwd = projectRoot) => {
   }
 };
 
+const argValue = (flag) => {
+  const index = process.argv.indexOf(flag);
+  return index === -1 ? null : process.argv[index + 1] ?? null;
+};
+const requestedUdid = argValue('--device');
+
 const bootedSimulator = () => {
   const output = execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'], {
     encoding: 'utf8',
   });
-  return Object.values(JSON.parse(output).devices).flat()[0] ?? null;
+  const booted = Object.values(JSON.parse(output).devices).flat();
+  if (requestedUdid) {
+    return booted.find((device) => device.udid === requestedUdid) ?? null;
+  }
+  return booted[0] ?? null;
 };
 
 const isAppInstalled = (udid) =>
@@ -103,6 +116,10 @@ const main = async () => {
       stateFile,
       JSON.stringify({ ...readState(), [device.udid]: builtFingerprint }, null, 2),
     );
+  }
+
+  if (process.argv.includes('--no-metro')) {
+    return;
   }
 
   // Reuse a Metro that's already serving instead of failing on the busy port.

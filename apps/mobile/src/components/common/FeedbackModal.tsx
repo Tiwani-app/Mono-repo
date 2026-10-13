@@ -53,11 +53,15 @@ const FeedbackModal = ({
       animationType="fade"
       statusBarTranslucent
     >
+      {/* accessible={false}: a TouchableWithoutFeedback is one accessible element
+          by default, which hid the title, message and buttons from VoiceOver
+          (and UI tests) as separate items. */}
       <TouchableWithoutFeedback
+        accessible={false}
         onPress={dismissOnOverlay ? onPrimary : undefined}
       >
         <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
+          <TouchableWithoutFeedback accessible={false}>
             <View style={styles.card}>
               <View style={[styles.iconCircle, styles[`iconCircle_${type}`]]}>
                 <Text style={[styles.iconText, styles[`iconText_${type}`]]}>

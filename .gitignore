@@ -1,6 +1,6 @@
 .DS_Store
 .claude/
-
+.claude
 # Dependencies and build output
 node_modules/
 .expo/
