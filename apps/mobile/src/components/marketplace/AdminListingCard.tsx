@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
-import FeedbackModal, { FeedbackModalType } from "../common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../common/FeedbackModal";
 import GoldButton from "../common/GoldButton";
 import OutlineButton from "../common/OutlineButton";
 import ListingMedia from "./ListingMedia";
@@ -35,16 +35,7 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
   const sold = listing.status === "sold";
   const archived = listing.status === "archived";
   const [pendingAction, setPendingAction] = useState<"delete" | "status" | null>(null);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   const runAction = async (
@@ -81,16 +72,7 @@ const AdminListingCard = ({ listing, onEdit }: Props) => {
   return (
     <>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <View style={styles.card}>
       <View style={styles.row}>

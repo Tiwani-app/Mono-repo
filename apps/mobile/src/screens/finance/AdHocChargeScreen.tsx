@@ -13,7 +13,7 @@ import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import ChipRow from "../../components/common/ChipRow";
 import Avatar from "../../components/common/Avatar";
 import CalendarDateField from "../../components/common/CalendarDateField";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import EmptyState from "../../components/common/EmptyState";
 import Field from "../../components/common/FormField";
 import GoldButton from "../../components/common/GoldButton";
@@ -88,16 +88,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   );
   const [memberQuery, setMemberQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === "active"),
@@ -236,16 +227,7 @@ const AdHocChargeScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title={screenTitle}

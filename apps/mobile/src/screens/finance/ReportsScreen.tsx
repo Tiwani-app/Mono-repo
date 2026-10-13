@@ -14,9 +14,7 @@ import Avatar from "../../components/common/Avatar";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import ChipRow from "../../components/common/ChipRow";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, {
-  FeedbackModalType,
-} from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import Icon from "../../components/common/FeatherIcon";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -133,13 +131,7 @@ const ReportsScreen = ({ navigation, route }: any) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    onPrimary: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   const toggleChargeType = (value: LedgerType) => {
@@ -297,13 +289,7 @@ const ReportsScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          onPrimary={modal.onPrimary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="Reports"

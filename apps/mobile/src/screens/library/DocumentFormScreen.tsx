@@ -12,7 +12,7 @@ import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import AttachmentField from "../../components/common/AttachmentField";
 import CalendarDateField from "../../components/common/CalendarDateField";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import EmptyState from "../../components/common/EmptyState";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -102,16 +102,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(Boolean(documentId));
   const [selectedFile, setSelectedFile] = useState<LibraryUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const canManage = canManageLibraryDocuments(user);
   const { control, handleSubmit, reset, setValue, watch, formState } =
@@ -293,16 +284,7 @@ const DocumentFormScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title={documentId ? "Edit Document" : "Upload Document"}

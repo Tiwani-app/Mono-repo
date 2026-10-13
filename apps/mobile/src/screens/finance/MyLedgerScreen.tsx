@@ -6,7 +6,7 @@ import Badge from "../../components/common/Badge";
 import BalanceBanner from "../../components/finance/BalanceBanner";
 import FinanceDomainTabs from "../../components/finance/FinanceDomainTabs";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LedgerRow from "../../components/finance/LedgerRow";
 import NairaRateCard from "../../components/finance/NairaRateCard";
@@ -118,16 +118,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
 
   const { user } = useAuthStore();
   const { nairaRate } = usePaystackRate();
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const [duesCreatorContact, setDuesCreatorContact] =
     useState<FinanceContact | null>(null);
@@ -379,16 +370,7 @@ const MyLedgerScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title={adminViewingMember ? "Member Finances" : "My Finances"}

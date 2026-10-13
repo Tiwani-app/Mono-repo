@@ -64,3 +64,13 @@ export const assertSameOrg = (user: AuthenticatedUser, orgId: unknown) => {
     throw new HttpsError("permission-denied", "This record does not belong to your organisation.");
   }
 };
+
+export const assertMemberInOrg = (
+  user: AuthenticatedUser,
+  memberSnapshot: FirebaseFirestore.DocumentSnapshot,
+) => {
+  if (!memberSnapshot.exists) {
+    throw new HttpsError("not-found", "One or more members could not be found.");
+  }
+  assertSameOrg(user, memberSnapshot.data()?.orgId);
+};

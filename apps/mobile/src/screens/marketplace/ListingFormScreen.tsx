@@ -11,7 +11,7 @@ import ChipRow from "../../components/common/ChipRow";
 import Field from "../../components/common/FormField";
 import AttachmentField from "../../components/common/AttachmentField";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -62,16 +62,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
     useState<ListingImageUploadFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthStore();
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const admin = isAdmin(user);
   const { control, handleSubmit, reset, setValue, formState, watch } =
@@ -222,16 +213,7 @@ const ListingFormScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title={listingId ? "Edit Listing" : "Add Listing"}

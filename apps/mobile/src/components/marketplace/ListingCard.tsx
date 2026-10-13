@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import Badge from "../common/Badge";
-import FeedbackModal, { FeedbackModalType } from "../common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../common/FeedbackModal";
 import GoldButton from "../common/GoldButton";
 import ListingMedia from "./ListingMedia";
 import {spacing, typography, useThemeColors, useThemedStyles, AppColors} from '../../theme';
@@ -25,16 +25,7 @@ const ListingCard = ({ listing }: Props) => {
   const styles = useThemedStyles(createStyles);
 
   const sold = listing.status === "sold";
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   const openContactUrl = async (contactUrl: string) => {
@@ -103,16 +94,7 @@ const ListingCard = ({ listing }: Props) => {
   return (
     <>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <View style={[styles.card, sold && styles.sold]}>
       <ListingMedia listing={listing} />

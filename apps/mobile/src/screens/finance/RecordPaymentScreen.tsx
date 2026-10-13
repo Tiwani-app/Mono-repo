@@ -12,7 +12,7 @@ import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import Field from "../../components/common/FormField";
 import Avatar from "../../components/common/Avatar";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -119,16 +119,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
     | { visible: true; type: "success"; count: number; onDone: () => void }
     | { visible: true; type: "error"; message: string }
   >({ visible: false });
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const {
     control,
@@ -402,16 +393,7 @@ const RecordPaymentScreen = ({ navigation, route }: any) => {
         }}
       />
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="Record Payment"

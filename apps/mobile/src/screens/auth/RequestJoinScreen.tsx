@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FeedbackModal, { FeedbackModalType } from '../../components/common/FeedbackModal';
+import FeedbackModal, { FeedbackModalProps } from '../../components/common/FeedbackModal';
 import GoldButton from '../../components/common/GoldButton';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import Icon from '../../components/common/FeatherIcon';
@@ -39,16 +39,7 @@ const RequestJoinScreen = ({ navigation }: any) => {
   const styles = useThemedStyles(createStyles);
 
   const [submitting, setSubmitting] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    primaryLabel?: string;
-    onPrimary: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
@@ -83,16 +74,7 @@ const RequestJoinScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          primaryLabel={modal.primaryLabel}
-          onPrimary={modal.onPrimary}
-          secondaryLabel={modal.secondaryLabel}
-          onSecondary={modal.onSecondary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader title="Request to Join" showBack onBack={() => safeGoBack(navigation, 'Login')} />
       <KeyboardAvoidingView

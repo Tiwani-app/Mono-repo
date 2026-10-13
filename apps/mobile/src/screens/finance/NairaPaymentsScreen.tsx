@@ -8,7 +8,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, { FeedbackModalType } from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ScreenHeader from "../../components/common/ScreenHeader";
@@ -37,13 +37,7 @@ const NairaPaymentsScreen = ({ navigation }: any) => {
   const [manualRate, setManualRate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    onPrimary: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
 
   const handleBack = () => safeGoBack(navigation, "FinanceAdmin");
@@ -125,13 +119,7 @@ const NairaPaymentsScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          onPrimary={modal.onPrimary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader title="Naira Payments" showBack onBack={handleBack} />
       {!info ? (

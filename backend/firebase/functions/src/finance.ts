@@ -6,7 +6,7 @@ import {
   formatNotificationDate,
   publishOrgAnnouncement,
 } from "./activityNotifications";
-import { assertSameOrg, requireActiveUser } from "./authz";
+import { assertMemberInOrg, assertSameOrg, requireActiveUser } from "./authz";
 import { db } from "./firebase";
 import {
   applyChargePayment,
@@ -21,6 +21,8 @@ import {
   optionalStringField,
   positiveAmountField,
   recordFromData,
+  memberIdsField,
+  optionalDateField,
 } from "./validation";
 
 type LedgerType =
@@ -50,52 +52,12 @@ const dateField = (data: unknown, field: string): Date => {
   return date;
 };
 
-const optionalDateField = (data: unknown, field: string): Date | null => {
-  const value = optionalStringField(data, field, { maxLength: 80 });
-  if (!value) {
-    return null;
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new HttpsError("invalid-argument", `Field "${field}" must be a valid date.`);
-  }
-  return date;
-};
-
-const memberIdsField = (data: unknown): string[] => {
-  const value = recordFromData(data).memberIds;
-  if (!Array.isArray(value)) {
-    throw new HttpsError("invalid-argument", "Field \"memberIds\" must be an array.");
-  }
-  const memberIds = [
-    ...new Set(
-      value.map((memberId) =>
-        typeof memberId === "string" ? memberId.trim() : "",
-      ),
-    ),
-  ].filter(Boolean);
-  if (memberIds.length === 0) {
-    throw new HttpsError("invalid-argument", "Select at least one member.");
-  }
-  return memberIds;
-};
-
 const chargeTypeField = (data: unknown): LedgerType => {
   const type = stringField(data, "type", { maxLength: 40 }) as LedgerType;
   if (!chargeTypes.includes(type)) {
     throw new HttpsError("invalid-argument", "Charge type is invalid.");
   }
   return type;
-};
-
-const assertMemberInOrg = (
-  user: AuthenticatedUser,
-  memberSnapshot: FirebaseFirestore.DocumentSnapshot,
-) => {
-  if (!memberSnapshot.exists) {
-    throw new HttpsError("not-found", "One or more members could not be found.");
-  }
-  assertSameOrg(user, memberSnapshot.data()?.orgId);
 };
 
 const commitMemberChargeBatches = async (

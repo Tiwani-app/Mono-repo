@@ -10,9 +10,7 @@ import KeyboardAwareScroll from "../../components/common/KeyboardAwareScroll";
 import Field from "../../components/common/FormField";
 import CalendarDateField from "../../components/common/CalendarDateField";
 import EmptyState from "../../components/common/EmptyState";
-import FeedbackModal, {
-  FeedbackModalType,
-} from "../../components/common/FeedbackModal";
+import FeedbackModal, { FeedbackModalProps } from "../../components/common/FeedbackModal";
 import GoldButton from "../../components/common/GoldButton";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import { createContributionPool } from "../../services/contributionsService";
@@ -45,13 +43,7 @@ const ContributionPoolFormScreen = ({ navigation }: any) => {
 
   const { user } = useAuthStore();
   const [submitting, setSubmitting] = useState(false);
-  const [modal, setModal] = useState<{
-    visible: boolean;
-    type: FeedbackModalType;
-    title: string;
-    message: string;
-    onPrimary: () => void;
-  } | null>(null);
+  const [modal, setModal] = useState<FeedbackModalProps | null>(null);
   const closeModal = () => setModal(null);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     defaultValues: {
@@ -139,13 +131,7 @@ const ContributionPoolFormScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.safe}>
       {modal && (
-        <FeedbackModal
-          visible={modal.visible}
-          type={modal.type}
-          title={modal.title}
-          message={modal.message}
-          onPrimary={modal.onPrimary}
-        />
+        <FeedbackModal {...modal} />
       )}
       <ScreenHeader
         title="New Contribution Pool"
