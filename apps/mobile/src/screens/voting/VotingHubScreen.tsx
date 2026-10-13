@@ -318,10 +318,15 @@ const PollCard = ({
     style={[styles.card, isVotingItemExpired(poll) && styles.expiredCard]}
     onPress={onOpen}
     activeOpacity={0.85}
+    // Not one accessible element: that hid the card's own buttons (Edit, Close,
+    // View Results) from VoiceOver. The title below is the accessible way in.
+    accessible={false}
   >
     <View style={styles.cardHeader}>
       <View style={styles.cardCopy}>
-        <Text style={styles.cardTitle}>{poll.title}</Text>
+        <Text style={styles.cardTitle} accessibilityRole="button" onPress={onOpen}>
+          {poll.title}
+        </Text>
         <Text style={styles.cardMeta}>{poll.question}</Text>
       </View>
       <Badge
@@ -395,10 +400,15 @@ const ElectionCard = ({
     style={[styles.card, isVotingItemExpired(election) && styles.expiredCard]}
     onPress={onOpen}
     activeOpacity={0.85}
+    // Not one accessible element: that hid the card's own buttons (Edit, Close,
+    // View Results) from VoiceOver. The title below is the accessible way in.
+    accessible={false}
   >
     <View style={styles.cardHeader}>
       <View style={styles.cardCopy}>
-        <Text style={styles.cardTitle}>{election.title}</Text>
+        <Text style={styles.cardTitle} accessibilityRole="button" onPress={onOpen}>
+          {election.title}
+        </Text>
         <Text style={styles.cardMeta}>
           {election.races.length} race{election.races.length === 1 ? "" : "s"} ·{" "}
           {election.ballotType} ballot
